@@ -37,7 +37,7 @@ export default function LoginPage() {
       }
     } else {
       toast.success("Welcome back!");
-      const hasProfile = !!(result?.user as { displayName?: string })?.displayName;
+      const hasProfile = !!(result?.user as { city?: string })?.city;
       window.location.href = hasProfile ? "/dashboard" : "/profile-setup";
     }
   };

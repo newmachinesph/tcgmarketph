@@ -48,7 +48,7 @@ export default async function DashboardPage() {
   const steps = [
     { label: "Account created", done: true },
     { label: "Profile set up",  done: !!(u.city && u.bio) },
-    { label: "Phone verified",  done: !!u.phoneVerified, href: "/profile-setup" },
+    { label: "Phone verified",  done: !!u.phoneVerified, href: "/settings" },
     { label: "KYC verified",    done: u.kycStatus === "verified", href: "#", disabled: true },
     { label: "Seller enabled",  done: !!u.sellerEnabled, href: "#", disabled: true },
   ];
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <a
-          href="/profile-setup"
+          href="/settings"
           className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-surface px-4 py-2 text-sm font-medium text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
         >
           Edit Profile
@@ -219,7 +219,7 @@ export default async function DashboardPage() {
           {
             title: "Verify Phone",
             desc: "Add your mobile number to unlock listing features.",
-            href: "/profile-setup",
+            href: "/settings",
             disabled: caps.canList,
             badge: caps.canList ? "Done" : undefined,
           },
@@ -233,7 +233,7 @@ export default async function DashboardPage() {
         ].map((action) => (
           <a
             key={action.title}
-            href={action.disabled && !action.href.startsWith("/profile") ? "#" : action.href}
+            href={action.disabled ? "#" : action.href}
             className={[
               "group relative flex flex-col rounded-2xl border bg-surface p-5 transition-all",
               action.disabled

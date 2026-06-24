@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { profileSetupSchema, type ProfileSetupInput } from "@/lib/validations/auth";
 import { Button, Field } from "@/components/ui";
+import { AvatarUpload } from "@/components/AvatarUpload";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ const PH_CITIES: { region: string; cities: string[] }[] = [
 
 export default function ProfileSetupPage() {
   const { data: session, isPending } = authClient.useSession();
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [selectedGames, setSelectedGames] = useState<Set<GameId>>(new Set());
   const [bioLen, setBioLen] = useState(0);
 
@@ -94,6 +96,7 @@ export default function ProfileSetupPage() {
       bio: data.bio || undefined,
       phone: data.phone || undefined,
       games: gamesValue || undefined,
+      ...(avatar ? { image: avatar } : {}),
     } as Parameters<typeof authClient.updateUser>[0]);
 
     if (error) {
@@ -115,13 +118,6 @@ export default function ProfileSetupPage() {
   }
 
   const userName = session?.user?.name ?? "";
-  const initials = userName
-    .trim()
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-primary px-4 py-12">
@@ -155,9 +151,12 @@ export default function ProfileSetupPage() {
 
           {/* Avatar + greeting */}
           <div className="mb-6 flex items-center gap-4">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-accent/10 border border-accent/20 text-lg font-bold text-[#F2F2F2]">
-              {initials || "?"}
-            </div>
+            <AvatarUpload
+              value={avatar}
+              name={userName}
+              onChange={setAvatar}
+              size="md"
+            />
             <div>
               <h1 className="text-lg font-bold text-[#F2F2F2]">
                 Hey {userName.split(" ")[0] || "there"}! 👋

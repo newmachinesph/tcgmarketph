@@ -53,8 +53,22 @@ export const profileSetupSchema = z.object({
   games: z.string(), // comma-separated game keys
 });
 
+export const settingsProfileSchema = z.object({
+  name: z.string().min(2, "At least 2 characters").max(64, "Too long"),
+  city: z.string().min(1, "Please select your city"),
+  bio: z.string().max(160, "Max 160 characters"),
+  phone: z.union([
+    z.literal(""),
+    z.string().check(
+      z.regex(/^(09|\+639)\d{9}$/, { message: "Enter a valid Philippine mobile number (09XXXXXXXXX)" })
+    ),
+  ]),
+  games: z.string(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ProfileSetupInput = z.infer<typeof profileSetupSchema>;
+export type SettingsProfileInput = z.infer<typeof settingsProfileSchema>;
