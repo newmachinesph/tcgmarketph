@@ -4,7 +4,6 @@ import { createElement } from "react";
 import { db } from "./db";
 import { sendMail } from "./mailer";
 import { user, session, account, verification } from "@/db/schema/auth";
-import { VerifyEmail } from "@/emails/VerifyEmail";
 import { ResetPassword } from "@/emails/ResetPassword";
 
 export const auth = betterAuth({
@@ -18,23 +17,19 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    // Phase 1: login immediately after signup, no email gate.
+    // Re-enable once SMTP is confirmed and UX is ready.
     requireEmailVerification: false,
     sendResetPassword: async ({ user: u, url }) => {
-      await sendMail({
-        to: u.email,
-        subject: "Reset your TCGMarket password",
-        template: createElement(ResetPassword, { name: u.name, url }),
-      });
-    },
-  },
-
-  emailVerification: {
-    sendVerificationEmail: async ({ user: u, url }) => {
-      await sendMail({
-        to: u.email,
-        subject: "Verify your TCGMarket email",
-        template: createElement(VerifyEmail, { name: u.name, url }),
-      });
+      try {
+        await sendMail({
+          to: u.email,
+          subject: "Reset your TCGMarket password",
+          template: createElement(ResetPassword, { name: u.name, url }),
+        });
+      } catch (err) {
+        console.error("[mailer] sendResetPassword failed:", err);
+      }
     },
   },
 
