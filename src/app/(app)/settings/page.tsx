@@ -1,136 +1,90 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
-import { CheckCircleIcon } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
-import { settingsProfileSchema, type SettingsProfileInput } from "@/lib/validations/auth";
-import { Button, Field } from "@/components/ui";
-import { AvatarUpload } from "@/components/AvatarUpload";
-import { PhoneVerify } from "@/components/PhoneVerify";
+import {
+  BellIcon,
+  DevicePhoneMobileIcon,
+  EnvelopeIcon,
+  KeyIcon,
+  TrashIcon,
+  ShieldCheckIcon,
+} from "@heroicons/react/24/outline";
 
-// ─── Shared constants (duplicated from profile-setup — keep in sync) ──────────
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-surface overflow-hidden">
+      <div className="border-b border-white/10 px-6 py-4">
+        <h2 className="text-sm font-semibold text-[#F2F2F2]">{title}</h2>
+      </div>
+      <div className="divide-y divide-white/5">{children}</div>
+    </div>
+  );
+}
 
-const GAMES = [
-  { id: "pokemon",   label: "Pokémon",   icon: "⚡" },
-  { id: "one_piece", label: "One Piece", icon: "☠️" },
-] as const;
+function Row({
+  icon: Icon,
+  label,
+  description,
+  action,
+}: {
+  icon: React.ElementType;
+  label: string;
+  description: string;
+  action: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-4 px-6 py-4">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface2">
+        <Icon className="size-4 text-[#9A9A9A]" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-[#F2F2F2]">{label}</p>
+        <p className="mt-0.5 text-xs text-[#9A9A9A]">{description}</p>
+      </div>
+      <div className="shrink-0">{action}</div>
+    </div>
+  );
+}
 
-type GameId = typeof GAMES[number]["id"];
+function ComingSoonBadge() {
+  return (
+    <span className="rounded-full bg-surface2 px-2.5 py-1 text-[10px] font-bold uppercase text-[#9A9A9A]">
+      Coming soon
+    </span>
+  );
+}
 
-const PH_CITIES: { region: string; cities: string[] }[] = [
-  {
-    region: "Metro Manila (NCR)",
-    cities: [
-      "Caloocan", "Las Piñas", "Makati", "Malabon", "Mandaluyong", "Manila",
-      "Marikina", "Muntinlupa", "Navotas", "Parañaque", "Pasay", "Pasig",
-      "Quezon City", "San Juan", "Taguig", "Valenzuela",
-    ],
-  },
-  {
-    region: "Near NCR / Rizal / Laguna / Cavite",
-    cities: [
-      "Antipolo", "Bacoor", "Biñan", "Calamba", "Imus", "Meycauayan",
-      "San Jose del Monte", "Santa Rosa",
-    ],
-  },
-  {
-    region: "Central Luzon",
-    cities: [
-      "Angeles City", "Malolos", "Olongapo", "San Fernando (Pampanga)",
-      "San Fernando (La Union)", "Tarlac City",
-    ],
-  },
-  {
-    region: "CALABARZON",
-    cities: ["Batangas City", "Cabanatuan", "Lipa", "Lucena", "Naga"],
-  },
-  {
-    region: "Ilocos / CAR",
-    cities: ["Baguio", "Dagupan", "Laoag", "Vigan"],
-  },
-  {
-    region: "Visayas",
-    cities: ["Bacolod", "Cebu City", "Iloilo City", "Mandaue", "Ormoc", "Tacloban"],
-  },
-  {
-    region: "Mindanao",
-    cities: [
-      "Cagayan de Oro", "Davao City", "General Santos",
-      "Iligan", "Koronadal", "Zamboanga City",
-    ],
-  },
-];
-
-// ─── Component ────────────────────────────────────────────────────────────────
+function Toggle({ disabled = false }: { disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent bg-surface2 transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+      aria-checked={false}
+      role="switch"
+    >
+      <span className="inline-block size-4 translate-x-0.5 rounded-full bg-[#9A9A9A] shadow transition-transform" />
+    </button>
+  );
+}
 
 export default function SettingsPage() {
   const { data: session, isPending } = authClient.useSession();
 
   type ExtendedUser = NonNullable<typeof session>["user"] & {
-    city?: string | null;
-    bio?: string | null;
     phone?: string | null;
     phoneVerified?: boolean;
-    games?: string | null;
-    image?: string | null;
   };
   const user = session?.user as ExtendedUser | undefined;
 
-  const initialGames = new Set<GameId>(
-    (user?.games ?? "").split(",").filter(Boolean) as GameId[]
-  );
-
-  const [avatar, setAvatar]           = useState<string | null | undefined>(user?.image);
-  const [selectedGames, setSelectedGames] = useState<Set<GameId>>(initialGames);
-  const [bioLen, setBioLen]           = useState((user?.bio ?? "").length);
-
-  const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors, isSubmitting, isSubmitSuccessful },
-  } = useForm<SettingsProfileInput>({
-    resolver: zodResolver(settingsProfileSchema),
-    defaultValues: {
-      name:  user?.name  ?? "",
-      city:  user?.city  ?? "",
-      bio:   user?.bio   ?? "",
-      phone: user?.phone ?? "",
-      games: user?.games ?? "",
-    },
-  });
-
-  function toggleGame(id: GameId) {
-    setSelectedGames((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
+  async function handleChangePassword() {
+    if (!user?.email) return;
+    await authClient.requestPasswordReset({
+      email: user.email,
+      redirectTo: "/reset-password",
     });
+    alert("Check your email for a password reset link.");
   }
-
-  const onSubmit = async (data: SettingsProfileInput) => {
-    const updates: Record<string, unknown> = {
-      name:  data.name,
-      city:  data.city,
-      bio:   data.bio  || undefined,
-      phone: data.phone || undefined,
-      games: Array.from(selectedGames).join(",") || undefined,
-    };
-    if (avatar !== user?.image) updates.image = avatar ?? undefined;
-
-    const { error } = await authClient.updateUser(
-      updates as Parameters<typeof authClient.updateUser>[0]
-    );
-
-    if (error) {
-      setError("root", { message: error.message ?? "Could not save. Please try again." });
-    } else {
-      toast.success("Profile updated.");
-    }
-  };
 
   if (isPending) {
     return (
@@ -143,147 +97,87 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10 lg:px-10">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-[#F2F2F2]">Profile Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-[#F2F2F2]">Settings</h1>
         <p className="mt-1 text-sm text-[#9A9A9A]">
-          This is how buyers and sellers see you on TCGMarket.
+          Manage your account preferences and notifications.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+      <div className="space-y-6">
 
-        {/* Avatar */}
-        <div className="flex items-center gap-5">
-          <AvatarUpload
-            value={avatar}
-            name={user?.name ?? ""}
-            onChange={setAvatar}
-            size="lg"
+        {/* Notifications */}
+        <Section title="Notifications">
+          <Row
+            icon={EnvelopeIcon}
+            label="Email notifications"
+            description="Order updates, messages, and marketplace alerts."
+            action={<Toggle disabled />}
           />
-          <div>
-            <p className="text-sm font-semibold text-[#F2F2F2]">Profile photo</p>
-            <p className="mt-0.5 text-xs text-[#9A9A9A]">
-              JPG, PNG or WebP · Max 5 MB · Cropped to square
-            </p>
-          </div>
-        </div>
+          <Row
+            icon={BellIcon}
+            label="Offer alerts"
+            description="Get notified when someone makes an offer on your listing."
+            action={<Toggle disabled />}
+          />
+          <Row
+            icon={DevicePhoneMobileIcon}
+            label="SMS notifications"
+            description={
+              user?.phoneVerified
+                ? "Transaction alerts sent to your verified number."
+                : "Verify your phone number in Edit Profile to enable."
+            }
+            action={user?.phoneVerified ? <Toggle disabled /> : <ComingSoonBadge />}
+          />
+        </Section>
 
-        <div className="rounded-2xl border border-white/10 bg-surface p-6 space-y-5">
+        {/* Security */}
+        <Section title="Security">
+          <Row
+            icon={EnvelopeIcon}
+            label="Email address"
+            description={user?.email ?? "—"}
+            action={<ComingSoonBadge />}
+          />
+          <Row
+            icon={KeyIcon}
+            label="Password"
+            description="Send a reset link to your email."
+            action={
+              <button
+                onClick={handleChangePassword}
+                className="rounded-lg border border-white/10 bg-surface2 px-3 py-1.5 text-xs font-medium text-[#F2F2F2] transition hover:border-white/20"
+              >
+                Change
+              </button>
+            }
+          />
+          <Row
+            icon={ShieldCheckIcon}
+            label="Two-factor authentication"
+            description="Add an extra layer of security to your account."
+            action={<ComingSoonBadge />}
+          />
+        </Section>
 
-          {/* Name */}
-          <Field label="Display Name" htmlFor="name" error={errors.name?.message}>
-            <input
-              {...register("name")}
-              id="name"
-              type="text"
-              placeholder="Ash Ketchum"
-              autoComplete="name"
-              className="w-full rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/20"
-              aria-invalid={!!errors.name}
-            />
-          </Field>
+        {/* Danger zone */}
+        <Section title="Danger Zone">
+          <Row
+            icon={TrashIcon}
+            label="Delete account"
+            description="Permanently remove your account and all your data."
+            action={
+              <button
+                disabled
+                className="rounded-lg border border-ask/20 px-3 py-1.5 text-xs font-medium text-ask opacity-40 cursor-not-allowed"
+              >
+                Delete
+              </button>
+            }
+          />
+        </Section>
 
-          {/* What do you collect? */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-[#9A9A9A]">What do you collect?</p>
-            <div className="flex gap-3">
-              {GAMES.map((game) => {
-                const active = selectedGames.has(game.id);
-                return (
-                  <button
-                    key={game.id}
-                    type="button"
-                    onClick={() => toggleGame(game.id)}
-                    className={[
-                      "flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-all",
-                      active
-                        ? "border-accent bg-accent/10 text-accent"
-                        : "border-white/10 bg-surface2 text-[#9A9A9A] hover:border-white/20 hover:text-[#F2F2F2]",
-                    ].join(" ")}
-                    aria-pressed={active}
-                  >
-                    {game.icon} {game.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* City */}
-          <Field label="City" htmlFor="city" error={errors.city?.message}>
-            <select
-              {...register("city")}
-              id="city"
-              className="w-full rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/20"
-              aria-invalid={!!errors.city}
-            >
-              <option value="" disabled>Select your city…</option>
-              {PH_CITIES.map((group) => (
-                <optgroup key={group.region} label={group.region}>
-                  {group.cities.map((city) => (
-                    <option key={city} value={city}>{city}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </Field>
-
-          {/* Bio */}
-          <Field label="Bio" htmlFor="bio" error={errors.bio?.message}
-            hint={<span className="text-[10px] text-[#9A9A9A]">{bioLen}/160</span>}>
-            <textarea
-              {...register("bio", { onChange: (e) => setBioLen(e.target.value.length) })}
-              id="bio"
-              rows={2}
-              maxLength={160}
-              placeholder="e.g. Pokémon alt art collector based in Cebu."
-              className="w-full resize-none rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/20"
-            />
-          </Field>
-
-          {/* Phone */}
-          <Field
-            label="Mobile Number"
-            htmlFor="phone"
-            error={errors.phone?.message}
-            hint={<span className="text-[10px] text-[#9A9A9A]">PH numbers only</span>}
-          >
-            <input
-              {...register("phone")}
-              id="phone"
-              type="tel"
-              placeholder="09XXXXXXXXX"
-              autoComplete="tel"
-              className="w-full rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/20"
-              aria-invalid={!!errors.phone}
-            />
-          </Field>
-        </div>
-
-        {/* Phone verification — separate from the editable form field */}
-        <PhoneVerify
-          phone={user?.phone}
-          phoneVerified={!!user?.phoneVerified}
-          onVerified={() => window.location.reload()}
-        />
-
-        {errors.root && (
-          <p role="alert" className="rounded-lg border border-ask/20 bg-ask/10 px-3 py-2 text-xs text-ask">
-            {errors.root.message}
-          </p>
-        )}
-
-        <div className="flex items-center gap-3">
-          <Button type="submit" size="md" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : isSubmitSuccessful ? (
-              <><CheckCircleIcon className="size-4" /> Saved</>
-            ) : "Save Changes"}
-          </Button>
-          <a href="/dashboard" className="text-sm text-[#9A9A9A] hover:text-[#F2F2F2] transition-colors">
-            Cancel
-          </a>
-        </div>
-
-      </form>
+      </div>
     </div>
   );
 }

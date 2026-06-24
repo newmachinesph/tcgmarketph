@@ -86,7 +86,7 @@ export function UserMenu({ name, displayName, email, image, isAdmin }: UserMenuP
           {/* Links */}
           <div className="p-1">
             <a
-              href="/settings"
+              href="/profile"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#9A9A9A] transition hover:bg-surface2 hover:text-[#F2F2F2]"
             >
