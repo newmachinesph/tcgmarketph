@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -75,29 +75,37 @@ export default function EditProfilePage() {
   };
   const user = session?.user as ExtendedUser | undefined;
 
-  const initialGames = new Set<GameId>(
-    (user?.games ?? "").split(",").filter(Boolean) as GameId[]
-  );
-
-  const [avatar, setAvatar]               = useState<string | null | undefined>(user?.image);
-  const [selectedGames, setSelectedGames] = useState<Set<GameId>>(initialGames);
-  const [bioLen, setBioLen]               = useState((user?.bio ?? "").length);
+  const [avatar, setAvatar]               = useState<string | null | undefined>(null);
+  const [selectedGames, setSelectedGames] = useState<Set<GameId>>(new Set());
+  const [bioLen, setBioLen]               = useState(0);
 
   const {
     register,
     handleSubmit,
     setError,
+    reset,
     formState: { errors, isSubmitting, isSubmitSuccessful },
   } = useForm<SettingsProfileInput>({
     resolver: zodResolver(settingsProfileSchema),
-    defaultValues: {
-      name:  user?.name  ?? "",
-      city:  user?.city  ?? "",
-      bio:   user?.bio   ?? "",
-      phone: user?.phone ?? "",
-      games: user?.games ?? "",
-    },
+    defaultValues: { name: "", city: "", bio: "", phone: "", games: "" },
   });
+
+  // Populate form once session resolves
+  useEffect(() => {
+    if (!user) return;
+    reset({
+      name:  user.name  ?? "",
+      city:  user.city  ?? "",
+      bio:   user.bio   ?? "",
+      phone: user.phone ?? "",
+      games: user.games ?? "",
+    });
+    setAvatar(user.image ?? null);
+    setSelectedGames(new Set(
+      (user.games ?? "").split(",").filter(Boolean) as GameId[]
+    ));
+    setBioLen((user.bio ?? "").length);
+  }, [user, reset]);
 
   function toggleGame(id: GameId) {
     setSelectedGames((prev) => {
