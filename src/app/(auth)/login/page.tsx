@@ -1,29 +1,39 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui";
-import { Input } from "@/components/ui";
+import { loginSchema, type LoginInput } from "@/lib/validations/auth";
+import { Button, Input, Field } from "@/components/ui";
 
 export default function LoginPage() {
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [showPassword, setShowPassword] = useState(false);
   const hasGoogle = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
 
-  function handleSubmit(formData: FormData) {
-    startTransition(async () => {
-      setError(null);
-      const { error: authError } = await authClient.signIn.email({
-        email: formData.get("email") as string,
-        password: formData.get("password") as string,
-      });
-      if (authError) {
-        setError(authError.message ?? "Invalid credentials. Please try again.");
-      } else {
-        window.location.href = "/dashboard";
-      }
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async (data: LoginInput) => {
+    const { error } = await authClient.signIn.email({
+      email: data.email,
+      password: data.password,
     });
-  }
+    if (error) {
+      setError("root", {
+        message: error.message ?? "Invalid credentials. Please try again.",
+      });
+    } else {
+      window.location.href = "/dashboard";
+    }
+  };
 
   async function handleGoogle() {
     await authClient.signIn.social({
@@ -42,46 +52,60 @@ export default function LoginPage() {
         <p className="mt-1 text-sm text-[#9A9A9A]">Sign in to your account</p>
       </div>
 
-      <form action={handleSubmit} className="space-y-4">
-        <div className="space-y-1">
-          <label htmlFor="email" className="text-xs font-medium text-[#9A9A9A]">
-            Email
-          </label>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <Field label="Email" htmlFor="email" error={errors.email?.message}>
           <Input
+            {...register("email")}
             id="email"
-            name="email"
             type="email"
             placeholder="you@example.com"
             autoComplete="email"
-            required
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? "email-error" : undefined}
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <label htmlFor="password" className="text-xs font-medium text-[#9A9A9A]">
-              Password
-            </label>
+        <Field
+          label="Password"
+          htmlFor="password"
+          error={errors.password?.message}
+          hint={
             <a
               href="/forgot-password"
               className="text-xs text-[#9A9A9A] hover:text-accent transition-colors"
             >
               Forgot password?
             </a>
+          }
+        >
+          <div className="relative">
+            <Input
+              {...register("password")}
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? "password-error" : undefined}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9A9A] hover:text-[#F2F2F2] transition-colors"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeSlashIcon className="size-4" />
+              ) : (
+                <EyeIcon className="size-4" />
+              )}
+            </button>
           </div>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="current-password"
-            required
-          />
-        </div>
+        </Field>
 
-        {error && (
-          <p className="rounded-lg border border-ask/20 bg-ask/10 px-3 py-2 text-xs text-ask">
-            {error}
+        {errors.root && (
+          <p role="alert" className="rounded-lg border border-ask/20 bg-ask/10 px-3 py-2 text-xs text-ask">
+            {errors.root.message}
           </p>
         )}
 
@@ -89,20 +113,18 @@ export default function LoginPage() {
           type="submit"
           size="md"
           className="w-full justify-center"
-          disabled={isPending}
+          disabled={isSubmitting}
         >
-          {isPending ? "Signing in…" : "Sign In"}
+          {isSubmitting ? "Signing in…" : "Sign In"}
         </Button>
       </form>
 
-      {/* Divider */}
       <div className="my-6 flex items-center gap-3">
         <div className="h-px flex-1 bg-white/10" />
         <span className="text-xs text-[#9A9A9A]">or</span>
         <div className="h-px flex-1 bg-white/10" />
       </div>
 
-      {/* Google */}
       <Button
         variant="outline"
         size="md"

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const PROTECTED = ["/dashboard"];
-const AUTH_ROUTES = ["/login", "/signup"];
+const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 // HTTP (dev): better-auth.session_token
 // HTTPS (prod): __Secure-better-auth.session_token
 const SESSION_COOKIE = "better-auth.session_token";

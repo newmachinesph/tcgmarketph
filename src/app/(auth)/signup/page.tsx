@@ -1,40 +1,45 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui";
-import { Input } from "@/components/ui";
+import { signupSchema, type SignupInput } from "@/lib/validations/auth";
+import { Button, Input, Field } from "@/components/ui";
 
 export default function SignupPage() {
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const hasGoogle = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
 
-  function handleSubmit(formData: FormData) {
-    startTransition(async () => {
-      setError(null);
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<SignupInput>({
+    resolver: zodResolver(signupSchema),
+  });
 
-      const password = formData.get("password") as string;
-      const confirm = formData.get("confirm") as string;
+  const password = watch("password", "");
+  const strength = getPasswordStrength(password);
 
-      if (password !== confirm) {
-        setError("Passwords do not match.");
-        return;
-      }
-
-      const { error: authError } = await authClient.signUp.email({
-        name: formData.get("name") as string,
-        email: formData.get("email") as string,
-        password,
-      });
-
-      if (authError) {
-        setError(authError.message ?? "Could not create account. Please try again.");
-      } else {
-        window.location.href = "/dashboard";
-      }
+  const onSubmit = async (data: SignupInput) => {
+    const { error } = await authClient.signUp.email({
+      name: data.name,
+      email: data.email,
+      password: data.password,
     });
-  }
+    if (error) {
+      setError("root", {
+        message: error.message ?? "Could not create account. Please try again.",
+      });
+    } else {
+      window.location.href = "/dashboard";
+    }
+  };
 
   async function handleGoogle() {
     await authClient.signIn.social({
@@ -53,67 +58,106 @@ export default function SignupPage() {
         <p className="mt-1 text-sm text-[#9A9A9A]">Create your account</p>
       </div>
 
-      <form action={handleSubmit} className="space-y-4">
-        <div className="space-y-1">
-          <label htmlFor="name" className="text-xs font-medium text-[#9A9A9A]">
-            Display Name
-          </label>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <Field label="Display Name" htmlFor="name" error={errors.name?.message}>
           <Input
+            {...register("name")}
             id="name"
-            name="name"
             type="text"
             placeholder="Ash Ketchum"
             autoComplete="name"
-            required
+            aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? "name-error" : undefined}
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="email" className="text-xs font-medium text-[#9A9A9A]">
-            Email
-          </label>
+        <Field label="Email" htmlFor="email" error={errors.email?.message}>
           <Input
+            {...register("email")}
             id="email"
-            name="email"
             type="email"
             placeholder="you@example.com"
             autoComplete="email"
-            required
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? "email-error" : undefined}
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="password" className="text-xs font-medium text-[#9A9A9A]">
-            Password
-          </label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="At least 8 characters"
-            autoComplete="new-password"
-            minLength={8}
-            required
-          />
-        </div>
+        <Field label="Password" htmlFor="password" error={errors.password?.message}>
+          <div className="relative">
+            <Input
+              {...register("password")}
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? "password-error" : undefined}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9A9A] hover:text-[#F2F2F2] transition-colors"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeSlashIcon className="size-4" />
+              ) : (
+                <EyeIcon className="size-4" />
+              )}
+            </button>
+          </div>
+          {/* Strength meter */}
+          {password.length > 0 && (
+            <div className="mt-2 flex gap-1">
+              {[0, 1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className={`h-1 flex-1 rounded-full transition-colors ${
+                    i < strength.score
+                      ? strength.color
+                      : "bg-white/10"
+                  }`}
+                />
+              ))}
+              <span className="ml-2 text-xs text-[#9A9A9A]">{strength.label}</span>
+            </div>
+          )}
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="confirm" className="text-xs font-medium text-[#9A9A9A]">
-            Confirm Password
-          </label>
-          <Input
-            id="confirm"
-            name="confirm"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="new-password"
-            required
-          />
-        </div>
+        <Field
+          label="Confirm Password"
+          htmlFor="confirm"
+          error={errors.confirm?.message}
+        >
+          <div className="relative">
+            <Input
+              {...register("confirm")}
+              id="confirm"
+              type={showConfirm ? "text" : "password"}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              aria-invalid={!!errors.confirm}
+              aria-describedby={errors.confirm ? "confirm-error" : undefined}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9A9A] hover:text-[#F2F2F2] transition-colors"
+              aria-label={showConfirm ? "Hide password" : "Show password"}
+            >
+              {showConfirm ? (
+                <EyeSlashIcon className="size-4" />
+              ) : (
+                <EyeIcon className="size-4" />
+              )}
+            </button>
+          </div>
+        </Field>
 
-        {error && (
-          <p className="rounded-lg border border-ask/20 bg-ask/10 px-3 py-2 text-xs text-ask">
-            {error}
+        {errors.root && (
+          <p role="alert" className="rounded-lg border border-ask/20 bg-ask/10 px-3 py-2 text-xs text-ask">
+            {errors.root.message}
           </p>
         )}
 
@@ -121,20 +165,18 @@ export default function SignupPage() {
           type="submit"
           size="md"
           className="w-full justify-center"
-          disabled={isPending}
+          disabled={isSubmitting}
         >
-          {isPending ? "Creating account…" : "Create Account"}
+          {isSubmitting ? "Creating account…" : "Create Account"}
         </Button>
       </form>
 
-      {/* Divider */}
       <div className="my-6 flex items-center gap-3">
         <div className="h-px flex-1 bg-white/10" />
         <span className="text-xs text-[#9A9A9A]">or</span>
         <div className="h-px flex-1 bg-white/10" />
       </div>
 
-      {/* Google */}
       <Button
         variant="outline"
         size="md"
@@ -155,6 +197,23 @@ export default function SignupPage() {
       </p>
     </div>
   );
+}
+
+function getPasswordStrength(password: string) {
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (/[a-zA-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^a-zA-Z0-9]/.test(password)) score++;
+
+  const levels = [
+    { label: "Weak",   color: "bg-ask" },
+    { label: "Fair",   color: "bg-[#F5A623]" },
+    { label: "Good",   color: "bg-[#F5A623]" },
+    { label: "Strong", color: "bg-bid" },
+  ];
+
+  return { score, ...levels[Math.max(0, score - 1)] };
 }
 
 function GoogleIcon() {
