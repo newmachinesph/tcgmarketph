@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 import { Button, Input, Field } from "@/components/ui";
@@ -27,10 +28,15 @@ export default function LoginPage() {
       password: data.password,
     });
     if (error) {
-      setError("root", {
-        message: error.message ?? "Invalid credentials. Please try again.",
-      });
+      if (error.status === 429) {
+        toast.error("Too many attempts. Please wait a minute and try again.");
+      } else {
+        setError("root", {
+          message: error.message ?? "Invalid credentials. Please try again.",
+        });
+      }
     } else {
+      toast.success("Welcome back!");
       window.location.href = "/dashboard";
     }
   };

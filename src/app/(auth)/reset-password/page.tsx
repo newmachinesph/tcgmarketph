@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { resetPasswordSchema, type ResetPasswordInput } from "@/lib/validations/auth";
 import { Button, Input, Field } from "@/components/ui";
@@ -43,10 +44,15 @@ function ResetPasswordForm() {
       token,
     });
     if (error) {
-      setError("root", {
-        message: error.message ?? "Could not reset password. The link may have expired.",
-      });
+      if (error.status === 429) {
+        toast.error("Too many attempts. Please wait before trying again.");
+      } else {
+        setError("root", {
+          message: error.message ?? "Could not reset password. The link may have expired.",
+        });
+      }
     } else {
+      toast.success("Password updated successfully.");
       setDone(true);
     }
   };

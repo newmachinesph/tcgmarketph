@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { signupSchema, type SignupInput } from "@/lib/validations/auth";
 import { Button, Input, Field } from "@/components/ui";
@@ -33,10 +34,15 @@ export default function SignupPage() {
       password: data.password,
     });
     if (error) {
-      setError("root", {
-        message: error.message ?? "Could not create account. Please try again.",
-      });
+      if (error.status === 429) {
+        toast.error("Too many attempts. Please wait a minute and try again.");
+      } else {
+        setError("root", {
+          message: error.message ?? "Could not create account. Please try again.",
+        });
+      }
     } else {
+      toast.success("Account created! Welcome to TCGMarket.");
       window.location.href = "/dashboard";
     }
   };
