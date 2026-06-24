@@ -9,6 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { settingsProfileSchema, type SettingsProfileInput } from "@/lib/validations/auth";
 import { Button, Field } from "@/components/ui";
 import { AvatarUpload } from "@/components/AvatarUpload";
+import { PhoneVerify } from "@/components/PhoneVerify";
 
 // ─── Shared constants (duplicated from profile-setup — keep in sync) ──────────
 
@@ -72,6 +73,7 @@ export default function SettingsPage() {
     city?: string | null;
     bio?: string | null;
     phone?: string | null;
+    phoneVerified?: boolean;
     games?: string | null;
     image?: string | null;
   };
@@ -243,14 +245,7 @@ export default function SettingsPage() {
             label="Mobile Number"
             htmlFor="phone"
             error={errors.phone?.message}
-            hint={
-              <span className="flex items-center gap-1 text-[10px] text-[#9A9A9A]">
-                <span className="rounded bg-yellow-400/10 px-1.5 py-0.5 font-bold uppercase text-yellow-400">
-                  Verify later
-                </span>
-                PH numbers only
-              </span>
-            }
+            hint={<span className="text-[10px] text-[#9A9A9A]">PH numbers only</span>}
           >
             <input
               {...register("phone")}
@@ -263,6 +258,13 @@ export default function SettingsPage() {
             />
           </Field>
         </div>
+
+        {/* Phone verification — separate from the editable form field */}
+        <PhoneVerify
+          phone={user?.phone}
+          phoneVerified={!!user?.phoneVerified}
+          onVerified={() => window.location.reload()}
+        />
 
         {errors.root && (
           <p role="alert" className="rounded-lg border border-ask/20 bg-ask/10 px-3 py-2 text-xs text-ask">

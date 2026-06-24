@@ -21,3 +21,6 @@ export const authRatelimit = makeRatelimiter(10, "60 s");
 
 // 5 password-reset requests per hour per IP
 export const resetRatelimit = makeRatelimiter(5, "60 m");
+
+// 3 OTP sends per 10 minutes per user
+export const otpRatelimit = makeRatelimiter(3, "10 m");
