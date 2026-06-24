@@ -15,10 +15,22 @@ export const auth = betterAuth({
     schema: { user, session, account, verification },
   }),
 
+  user: {
+    additionalFields: {
+      displayName:      { type: "string",  required: false },
+      phone:            { type: "string",  required: false },
+      phoneVerified:    { type: "boolean", required: false, defaultValue: false },
+      kycStatus:        { type: "string",  required: false, defaultValue: "none" },
+      sellerEnabled:    { type: "boolean", required: false, defaultValue: false },
+      subscriptionTier: { type: "string",  required: false, defaultValue: "free" },
+      isAdmin:          { type: "boolean", required: false, defaultValue: false },
+      reputationScore:  { type: "number",  required: false, defaultValue: 0 },
+      isBanned:         { type: "boolean", required: false, defaultValue: false },
+    },
+  },
+
   emailAndPassword: {
     enabled: true,
-    // Phase 1: login immediately after signup, no email gate.
-    // Re-enable once SMTP is confirmed and UX is ready.
     requireEmailVerification: false,
     sendResetPassword: async ({ user: u, url }) => {
       try {

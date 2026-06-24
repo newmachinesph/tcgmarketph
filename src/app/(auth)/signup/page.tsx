@@ -42,8 +42,8 @@ export default function SignupPage() {
         });
       }
     } else {
-      toast.success("Account created! Welcome to TCGMarket.");
-      window.location.href = "/dashboard";
+      toast.success("Account created! Let's set up your profile.");
+      window.location.href = "/profile-setup";
     }
   };
 

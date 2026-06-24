@@ -23,7 +23,7 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginInput) => {
-    const { error } = await authClient.signIn.email({
+    const { data: result, error } = await authClient.signIn.email({
       email: data.email,
       password: data.password,
     });
@@ -37,7 +37,8 @@ export default function LoginPage() {
       }
     } else {
       toast.success("Welcome back!");
-      window.location.href = "/dashboard";
+      const hasProfile = !!(result?.user as { displayName?: string })?.displayName;
+      window.location.href = hasProfile ? "/dashboard" : "/profile-setup";
     }
   };
 
