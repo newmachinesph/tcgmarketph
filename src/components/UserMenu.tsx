@@ -47,7 +47,7 @@ export function UserMenu({ name, displayName, email, image, isAdmin }: UserMenuP
     window.location.href = "/login";
   }
 
-  const label = displayName || name;
+  const label = name;
 
   return (
     <div ref={ref} className="relative">
