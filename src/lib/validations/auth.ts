@@ -42,13 +42,15 @@ export const resetPasswordSchema = z
   });
 
 export const profileSetupSchema = z.object({
-  displayName: z.string().min(2, "At least 2 characters").max(32, "Max 32 characters"),
+  city: z.string().min(1, "Please select your city"),
+  bio: z.string().max(160, "Max 160 characters"),
   phone: z.union([
     z.literal(""),
     z.string().check(
       z.regex(/^(09|\+639)\d{9}$/, { message: "Enter a valid Philippine mobile number (09XXXXXXXXX)" })
     ),
   ]),
+  games: z.string(), // comma-separated game keys
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

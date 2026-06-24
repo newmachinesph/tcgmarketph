@@ -26,27 +26,31 @@ export default async function DashboardPage() {
     subscriptionTier?: string;
     reputationScore?: number;
     isAdmin?: boolean;
+    city?: string | null;
+    bio?: string | null;
+    games?: string | null;
     createdAt?: string | Date;
   };
 
-  // Redirect to profile setup if display name not set yet
-  if (!u.displayName) redirect("/profile-setup");
+  // Redirect to profile setup if city not set (first-time login)
+  if (!u.city) redirect("/profile-setup");
 
   const caps = await getUserCapabilities(u.id);
 
-  const displayName = u.displayName ?? u.name;
+  const displayName = u.name;
   const memberSince = u.createdAt
     ? new Date(u.createdAt).toLocaleDateString("en-PH", { month: "long", year: "numeric" })
     : "—";
   const reputationScore = u.reputationScore ?? 0;
+  const games = u.games ? u.games.split(",").filter(Boolean) : [];
 
   // Profile completion steps
   const steps = [
-    { label: "Account created",  done: true },
-    { label: "Profile set up",   done: !!u.displayName },
-    { label: "Phone verified",   done: !!u.phoneVerified, href: "/profile-setup" },
-    { label: "KYC verified",     done: u.kycStatus === "verified", href: "#", disabled: true },
-    { label: "Seller enabled",   done: !!u.sellerEnabled, href: "#", disabled: true },
+    { label: "Account created", done: true },
+    { label: "Profile set up",  done: !!(u.city && u.bio) },
+    { label: "Phone verified",  done: !!u.phoneVerified, href: "/profile-setup" },
+    { label: "KYC verified",    done: u.kycStatus === "verified", href: "#", disabled: true },
+    { label: "Seller enabled",  done: !!u.sellerEnabled, href: "#", disabled: true },
   ];
   const completedSteps = steps.filter((s) => s.done).length;
   const progressPct = Math.round((completedSteps / steps.length) * 100);
@@ -61,10 +65,16 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight text-[#F2F2F2]">
             Welcome back, {displayName} 👋
           </h1>
-          <p className="mt-1 text-sm text-[#9A9A9A]">
-            Member since {memberSince}
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#9A9A9A]">
+            <span>Member since {memberSince}</span>
+            {u.city && <span>· 📍 {u.city}</span>}
+            {games.map((g) => (
+              <span key={g} className="rounded-full bg-surface border border-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#9A9A9A]">
+                {g === "pokemon" ? "⚡ Pokémon" : g === "one_piece" ? "☠️ One Piece" : g}
+              </span>
+            ))}
             {caps.isAdmin && (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase text-accent">
+              <span className="inline-flex items-center gap-1 rounded-md bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase text-accent">
                 <ShieldCheckIcon className="size-3" /> Admin
               </span>
             )}

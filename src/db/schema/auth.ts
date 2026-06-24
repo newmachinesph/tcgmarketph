@@ -44,6 +44,10 @@ export const user = pgTable(
     phone: text("phone"),
     phoneVerified: boolean("phone_verified").notNull().default(false),
 
+    city: text("city"),
+    bio: text("bio"),
+    games: text("games"), // comma-separated: "pokemon,one_piece"
+
     kycStatus: kycStatusEnum("kyc_status").notNull().default("none"),
     sellerEnabled: boolean("seller_enabled").notNull().default(false),
     subscriptionTier: subscriptionTierEnum("subscription_tier")
