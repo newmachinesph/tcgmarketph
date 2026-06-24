@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
 import {
   BellIcon,
   DevicePhoneMobileIcon,
@@ -83,7 +84,7 @@ export default function SettingsPage() {
       email: user.email,
       redirectTo: "/reset-password",
     });
-    alert("Check your email for a password reset link.");
+    toast.success("Check your email for a password reset link.");
   }
 
   if (isPending) {

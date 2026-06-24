@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { signupSchema, type SignupInput } from "@/lib/validations/auth";
 import { Button, Input, Field } from "@/components/ui";
+import { getPasswordStrength } from "@/lib/password";
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -205,22 +206,6 @@ export default function SignupPage() {
   );
 }
 
-function getPasswordStrength(password: string) {
-  let score = 0;
-  if (password.length >= 8) score++;
-  if (/[a-zA-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^a-zA-Z0-9]/.test(password)) score++;
-
-  const levels = [
-    { label: "Weak",   color: "bg-ask" },
-    { label: "Fair",   color: "bg-[#F5A623]" },
-    { label: "Good",   color: "bg-[#F5A623]" },
-    { label: "Strong", color: "bg-bid" },
-  ];
-
-  return { score, ...levels[Math.max(0, score - 1)] };
-}
 
 function GoogleIcon() {
   return (

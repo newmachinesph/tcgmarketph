@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { CameraIcon } from "@heroicons/react/24/outline";
+import { toast } from "sonner";
 
 interface AvatarUploadProps {
   value?: string | null;
@@ -53,7 +54,10 @@ export function AvatarUpload({ value, name, onChange, size = "md" }: AvatarUploa
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return; // silently ignore >5 MB
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be smaller than 5 MB.");
+      return;
+    }
     try {
       onChange(await resizeToSquare(file));
     } catch { /* ignore */ }
