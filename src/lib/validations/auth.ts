@@ -66,9 +66,37 @@ export const settingsProfileSchema = z.object({
   games: z.string(),
 });
 
-export type LoginInput = z.infer<typeof loginSchema>;
-export type SignupInput = z.infer<typeof signupSchema>;
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: passwordField,
+    confirm: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirm, {
+    message: "Passwords do not match",
+    path: ["confirm"],
+  });
+
+export const changeEmailSchema = z.object({
+  newEmail: emailField,
+});
+
+export const deleteAccountSchema = z
+  .object({
+    password: z.string().min(1, "Password is required"),
+    confirm: z.string(),
+  })
+  .refine((d) => d.confirm === "DELETE", {
+    message: 'Type DELETE to confirm',
+    path: ["confirm"],
+  });
+
+export type LoginInput          = z.infer<typeof loginSchema>;
+export type SignupInput         = z.infer<typeof signupSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
-export type ProfileSetupInput = z.infer<typeof profileSetupSchema>;
+export type ResetPasswordInput  = z.infer<typeof resetPasswordSchema>;
+export type ProfileSetupInput   = z.infer<typeof profileSetupSchema>;
 export type SettingsProfileInput = z.infer<typeof settingsProfileSchema>;
+export type ChangePasswordInput  = z.infer<typeof changePasswordSchema>;
+export type ChangeEmailInput     = z.infer<typeof changeEmailSchema>;
+export type DeleteAccountInput   = z.infer<typeof deleteAccountSchema>;
