@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, DM_Sans } from "next/font/google";
 import { Toaster } from "sonner";
+import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -30,7 +31,9 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${dmSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <Providers>
           {children}
+        </Providers>
           <Toaster
             position="top-right"
             toastOptions={{
@@ -41,7 +44,7 @@ export default function RootLayout({
               },
             }}
           />
-        </body>
+      </body>
     </html>
   );
 }
