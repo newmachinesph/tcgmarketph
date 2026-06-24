@@ -1,8 +1,11 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createElement } from "react";
 import { db } from "./db";
-import { user, session, account, verification } from "@/db/schema/auth";
 import { sendMail } from "./mailer";
+import { user, session, account, verification } from "@/db/schema/auth";
+import { VerifyEmail } from "@/emails/VerifyEmail";
+import { ResetPassword } from "@/emails/ResetPassword";
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET!,
@@ -20,7 +23,7 @@ export const auth = betterAuth({
       await sendMail({
         to: u.email,
         subject: "Reset your TCGMarket password",
-        html: `<p>Click <a href="${url}">here</a> to reset your password. Link expires in 1 hour.</p>`,
+        template: createElement(ResetPassword, { name: u.name, url }),
       });
     },
   },
@@ -30,7 +33,7 @@ export const auth = betterAuth({
       await sendMail({
         to: u.email,
         subject: "Verify your TCGMarket email",
-        html: `<p>Hi ${u.name}, click <a href="${url}">here</a> to verify your email address.</p>`,
+        template: createElement(VerifyEmail, { name: u.name, url }),
       });
     },
   },

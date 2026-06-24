@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import { render } from "@react-email/render";
+import type { ReactElement } from "react";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -10,13 +12,20 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendMail(opts: {
+export async function sendMail({
+  to,
+  subject,
+  template,
+}: {
   to: string;
   subject: string;
-  html: string;
+  template: ReactElement;
 }) {
+  const html = await render(template);
   await transporter.sendMail({
     from: `"TCGMarket PH" <${process.env.SMTP_FROM}>`,
-    ...opts,
+    to,
+    subject,
+    html,
   });
 }
