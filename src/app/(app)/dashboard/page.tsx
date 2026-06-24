@@ -69,7 +69,7 @@ export default async function DashboardPage() {
             <span>Member since {memberSince}</span>
             {u.city && <span>· 📍 {u.city}</span>}
             {games.map((g) => (
-              <span key={g} className="rounded-full bg-surface border border-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#9A9A9A]">
+              <span key={g} className="rounded-full border border-white/10 bg-surface px-2 py-0.5 text-[10px] font-semibold text-[#9A9A9A]">
                 {g === "pokemon" ? "⚡ Pokémon" : g === "one_piece" ? "☠️ One Piece" : g}
               </span>
             ))}

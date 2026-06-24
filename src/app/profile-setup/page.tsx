@@ -172,7 +172,7 @@ export default function ProfileSetupPage() {
 
             {/* Games */}
             <div className="space-y-2">
-              <p className="text-xs font-medium text-[#9A9A9A]">Games you collect</p>
+              <p className="text-xs font-medium text-[#9A9A9A]">What do you collect?</p>
               <div className="flex gap-3">
                 {GAMES.map((game) => {
                   const active = selectedGames.has(game.id);
