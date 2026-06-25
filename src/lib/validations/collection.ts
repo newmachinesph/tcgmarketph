@@ -26,6 +26,14 @@ export const CONDITION_SHORT: Record<(typeof CONDITIONS)[number], string> = {
   damaged:           "DMG",
 };
 
+export const CONDITION_COLOR: Record<(typeof CONDITIONS)[number], string> = {
+  near_mint:         "text-emerald-400 ring-emerald-400/20 bg-emerald-400/10",
+  lightly_played:    "text-lime-400    ring-lime-400/20    bg-lime-400/10",
+  moderately_played: "text-yellow-400  ring-yellow-400/20  bg-yellow-400/10",
+  heavily_played:    "text-orange-400  ring-orange-400/20  bg-orange-400/10",
+  damaged:           "text-rose-400    ring-rose-400/20    bg-rose-400/10",
+};
+
 /**
  * Condition price multipliers relative to NM market price.
  * Industry-standard TCG condition discounts.

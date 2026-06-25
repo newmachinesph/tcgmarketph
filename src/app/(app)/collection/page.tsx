@@ -7,42 +7,55 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { toast } from "sonner";
 import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import {
   PlusIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   TrashIcon,
   StarIcon,
   XMarkIcon,
+  FolderPlusIcon,
+  FolderIcon,
+  EllipsisVerticalIcon,
+  CheckIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import {
   collectionEntrySchema,
+  CONDITIONS,
   CONDITION_LABEL,
   CONDITION_SHORT,
   CONDITION_MULTIPLIER,
-  CONDITIONS,
+  CONDITION_COLOR,
   type CollectionEntryInput,
 } from "@/lib/validations/collection";
-import type { CardCatalog, UserCollection } from "@/db/schema/cards";
+import type { CardCatalog, UserCollection, CollectionFolder } from "@/db/schema/cards";
 import { CardImage } from "@/components/CardImage";
 import { Price } from "@/components/Price";
-import { useCurrencyStore, PHP_RATE } from "@/store/currency";
+import { useCurrencyStore } from "@/store/currency";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type CollectionEntry = { entry: UserCollection; card: CardCatalog };
-type SearchCard = CardCatalog;
-type GameFilter = "pokemon" | "one_piece" | "all";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Folder colors ─────────────────────────────────────────────────────────────
 
-const CONDITION_COLOR: Record<(typeof CONDITIONS)[number], string> = {
-  near_mint:         "text-emerald-400 bg-emerald-400/10 ring-emerald-400/20",
-  lightly_played:    "text-sky-400 bg-sky-400/10 ring-sky-400/20",
-  moderately_played: "text-yellow-400 bg-yellow-400/10 ring-yellow-400/20",
-  heavily_played:    "text-orange-400 bg-orange-400/10 ring-orange-400/20",
-  damaged:           "text-rose-400 bg-rose-400/10 ring-rose-400/20",
-};
+export const FOLDER_COLORS = [
+  "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
+  "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6",
+] as const;
 
 const GAME_LABEL: Record<string, string> = {
   pokemon:   "Pokémon",
@@ -51,78 +64,113 @@ const GAME_LABEL: Record<string, string> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmt(n: string | null | undefined, fallback = "—") {
-  if (n == null) return fallback;
-  const v = parseFloat(n);
-  return isNaN(v) ? fallback : `$${v.toFixed(2)}`;
+function conditionAdjustedValue(entry: UserCollection, card: CardCatalog) {
+  const isGraded = entry.gradingCompany !== "none";
+  const mult     = isGraded ? 1 : (CONDITION_MULTIPLIER[entry.condition] ?? 1);
+  return parseFloat(card.marketPrice ?? "0") * entry.quantity * mult;
 }
 
 function totalValue(entries: CollectionEntry[]) {
-  return entries.reduce((sum, { entry, card }) => {
-    const price  = parseFloat(card.marketPrice ?? "0");
-    const isGrad = entry.gradingCompany !== "none";
-    const mult   = isGrad ? 1 : (CONDITION_MULTIPLIER[entry.condition] ?? 1);
-    return sum + price * entry.quantity * mult;
-  }, 0);
+  return entries.reduce((sum, { entry, card }) => sum + conditionAdjustedValue(entry, card), 0);
 }
 
-// ── Card image ────────────────────────────────────────────────────────────────
+// ── Droppable folder sidebar item ─────────────────────────────────────────────
 
-// ── Entry card in the grid ────────────────────────────────────────────────────
+function DroppableFolder({
+  id,
+  label,
+  color,
+  count,
+  active,
+  isDragOver,
+  onClick,
+  children,
+}: {
+  id: string;
+  label: string;
+  color?: string;
+  count: number;
+  active: boolean;
+  isDragOver: boolean;
+  onClick: () => void;
+  children?: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  const over = isOver || isDragOver;
 
-function EntryCard({
+  return (
+    <div ref={setNodeRef}
+      className={`group flex items-center gap-2 rounded-xl px-3 py-2 cursor-pointer transition select-none
+        ${active ? "bg-surface2 text-[#F2F2F2]" : "text-[#9A9A9A] hover:bg-surface2/50 hover:text-[#F2F2F2]"}
+        ${over ? "ring-2 ring-accent/60 bg-accent/10" : ""}`}
+      onClick={onClick}
+    >
+      <FolderIcon className="size-4 shrink-0" style={{ color: color ?? "#9A9A9A" }} />
+      <span className="flex-1 truncate text-sm font-medium">{label}</span>
+      <span className="text-xs text-[#9A9A9A]">{count}</span>
+      {children}
+    </div>
+  );
+}
+
+// ── Draggable card tile ───────────────────────────────────────────────────────
+
+function DraggableCard({
   entry,
   card,
   onEdit,
   onDelete,
   onFavorite,
+  onMove,
+  isDragging,
 }: {
   entry: UserCollection;
   card: CardCatalog;
   onEdit: () => void;
   onDelete: () => void;
   onFavorite: () => void;
+  onMove: () => void;
+  isDragging: boolean;
 }) {
-  const isGraded   = entry.gradingCompany !== "none";
-  // Condition multiplier only applies to raw cards; graded cards use market price as-is
-  const condMult   = isGraded ? 1 : (CONDITION_MULTIPLIER[entry.condition] ?? 1);
-  const entryValue = parseFloat(card.marketPrice ?? "0") * entry.quantity * condMult;
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: entry.id });
+  const style = transform
+    ? { transform: CSS.Translate.toString(transform), opacity: 0.4, zIndex: 50 }
+    : undefined;
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-surface transition hover:border-white/16">
-      {/* Card image */}
+    <div ref={setNodeRef} style={style}
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-surface transition hover:border-white/16 ${isDragging ? "opacity-40" : ""}`}
+    >
+      {/* Drag handle — only shown on desktop via pointer-coarse detection */}
+      <div {...listeners} {...attributes}
+        className="absolute left-0 right-0 top-0 z-10 h-6 cursor-grab active:cursor-grabbing hidden sm:block"
+        title="Drag to move to a folder"
+      />
+
+      {/* Image */}
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-surface2">
         <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
 
-        {/* Badges overlay */}
-        <div className="absolute left-2 top-2 flex flex-col gap-1">
-          {entry.isFoil && (
-            <span className="rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-bold uppercase text-yellow-300">
-              Foil
-            </span>
-          )}
-          {entry.isFirstEdition && (
-            <span className="rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-bold uppercase text-purple-300">
-              1st Ed
-            </span>
-          )}
-        </div>
-
-        {/* Quantity badge */}
+        {entry.isFoil && (
+          <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-bold uppercase text-yellow-300">Foil</span>
+        )}
+        {entry.isFirstEdition && (
+          <span className="absolute left-2 top-8 rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-bold uppercase text-purple-300">1st Ed</span>
+        )}
         {entry.quantity > 1 && (
-          <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white">
-            ×{entry.quantity}
-          </span>
+          <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white">×{entry.quantity}</span>
         )}
 
-        {/* Action buttons — visible on hover */}
+        {/* Hover actions */}
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
           <button onClick={onFavorite} className="p-1 text-yellow-400 hover:scale-110 transition">
-            {entry.isFavorite
-              ? <StarSolid className="size-4" />
-              : <StarIcon className="size-4 text-white/60" />}
+            {entry.isFavorite ? <StarSolid className="size-4" /> : <StarIcon className="size-4 text-white/60" />}
           </button>
           <div className="flex gap-1">
+            <button onClick={onMove} title="Move to folder"
+              className="rounded-lg bg-white/10 p-1.5 text-white hover:bg-white/20 transition">
+              <FolderIcon className="size-3.5" />
+            </button>
             <button onClick={onEdit}
               className="rounded-lg bg-white/10 p-1.5 text-white hover:bg-white/20 transition">
               <PencilSquareIcon className="size-3.5" />
@@ -139,12 +187,10 @@ function EntryCard({
       <div className="flex flex-col gap-1 p-3">
         <p className="truncate text-sm font-semibold text-[#F2F2F2]">{card.name}</p>
         <p className="truncate text-xs text-[#9A9A9A]">
-          {card.setName ?? GAME_LABEL[card.game] ?? card.game}
-          {card.cardNumber ? ` · ${card.cardNumber}` : ""}
+          {card.setName ?? GAME_LABEL[card.game]}{card.cardNumber ? ` · ${card.cardNumber}` : ""}
         </p>
-
         <div className="mt-1 flex items-center justify-between">
-          {isGraded ? (
+          {entry.gradingCompany !== "none" ? (
             <span className="rounded-full bg-purple-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-purple-400 ring-1 ring-purple-400/20">
               {entry.gradingCompany!.toUpperCase()} {entry.gradeValue}
             </span>
@@ -153,40 +199,303 @@ function EntryCard({
               {CONDITION_SHORT[entry.condition]}
             </span>
           )}
-          <Price usd={isNaN(entryValue) || entryValue === 0 ? null : entryValue} className="text-xs font-semibold text-[#F2F2F2]" />
+          <Price
+            usd={conditionAdjustedValue(entry, card) || null}
+            className="text-xs font-semibold text-[#F2F2F2]"
+          />
         </div>
       </div>
+
+      {/* Mobile move button — always visible on small screens */}
+      <button
+        onClick={onMove}
+        className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/50 text-white/70 sm:hidden"
+        title="Move to folder"
+      >
+        <FolderIcon className="size-3.5" />
+      </button>
     </div>
   );
 }
 
-// ── Entry form (used in both add and edit dialogs) ────────────────────────────
+// ── Folder sidebar ────────────────────────────────────────────────────────────
+
+function FolderSidebar({
+  folders,
+  entries,
+  activeFolder,
+  setActiveFolder,
+  onCreateFolder,
+  onRenameFolder,
+  onDeleteFolder,
+}: {
+  folders: CollectionFolder[];
+  entries: CollectionEntry[];
+  activeFolder: string | null;
+  setActiveFolder: (id: string | null) => void;
+  onCreateFolder: () => void;
+  onRenameFolder: (folder: CollectionFolder) => void;
+  onDeleteFolder: (folder: CollectionFolder) => void;
+}) {
+  const allCount = entries.length;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <DroppableFolder
+        id="__all__"
+        label="All Cards"
+        count={allCount}
+        active={activeFolder === null}
+        isDragOver={false}
+        onClick={() => setActiveFolder(null)}
+      />
+
+      {folders.length > 0 && <div className="my-1 border-t border-white/8" />}
+
+      {folders.map((folder) => {
+        const count = entries.filter((e) => e.entry.folderId === folder.id).length;
+        return (
+          <div key={folder.id} className="group/folder relative">
+            <DroppableFolder
+              id={folder.id}
+              label={folder.name}
+              color={folder.color}
+              count={count}
+              active={activeFolder === folder.id}
+              isDragOver={false}
+              onClick={() => setActiveFolder(folder.id)}
+            >
+              {/* Folder context menu */}
+              <div className="invisible flex items-center gap-0.5 group-hover/folder:visible">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRenameFolder(folder); }}
+                  className="rounded p-0.5 text-[#9A9A9A] hover:text-[#F2F2F2] transition"
+                  title="Rename"
+                >
+                  <PencilSquareIcon className="size-3.5" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDeleteFolder(folder); }}
+                  className="rounded p-0.5 text-[#9A9A9A] hover:text-rose-400 transition"
+                  title="Delete folder"
+                >
+                  <TrashIcon className="size-3.5" />
+                </button>
+              </div>
+            </DroppableFolder>
+          </div>
+        );
+      })}
+
+      <button
+        onClick={onCreateFolder}
+        className="mt-1 flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#9A9A9A] transition hover:text-[#F2F2F2]"
+      >
+        <FolderPlusIcon className="size-4" />
+        New Folder
+      </button>
+    </div>
+  );
+}
+
+// ── Create / Rename folder dialog ─────────────────────────────────────────────
+
+function FolderDialog({
+  folder,
+  onClose,
+  onSaved,
+}: {
+  folder: CollectionFolder | null; // null = create mode
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName]   = useState(folder?.name ?? "");
+  const [color, setColor] = useState(folder?.color ?? "#6366f1");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const url    = folder ? `/api/collection/folders/${folder.id}` : "/api/collection/folders";
+      const method = folder ? "PATCH" : "POST";
+      const res    = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), color }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(folder ? "Folder renamed" : "Folder created");
+      onSaved();
+      onClose();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel className="w-full max-w-sm rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
+          <DialogTitle className="mb-5 text-base font-bold text-[#F2F2F2]">
+            {folder ? "Rename Folder" : "New Folder"}
+          </DialogTitle>
+
+          <div className="space-y-4">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              placeholder="Folder name"
+              autoFocus
+              maxLength={50}
+              className="w-full rounded-xl border border-white/10 bg-surface2 px-4 py-2.5 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
+            />
+
+            <div>
+              <p className="mb-2 text-xs text-[#9A9A9A]">Color</p>
+              <div className="flex flex-wrap gap-2">
+                {FOLDER_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={`size-7 rounded-full transition hover:scale-110 ${color === c ? "ring-2 ring-white ring-offset-2 ring-offset-surface" : ""}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex gap-2">
+            <button onClick={onClose}
+              className="flex-1 rounded-lg border border-white/10 py-2 text-sm text-[#9A9A9A] hover:text-[#F2F2F2] transition">
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={saving || !name.trim()}
+              className="flex-1 rounded-lg bg-accent py-2 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50">
+              {saving ? "Saving…" : folder ? "Rename" : "Create"}
+            </button>
+          </div>
+        </DialogPanel>
+      </div>
+    </Dialog>
+  );
+}
+
+// ── Move to folder dialog (mobile + fallback) ─────────────────────────────────
+
+function MoveFolderDialog({
+  entry,
+  folders,
+  onClose,
+  onMoved,
+}: {
+  entry: CollectionEntry | null;
+  folders: CollectionFolder[];
+  onClose: () => void;
+  onMoved: () => void;
+}) {
+  const [moving, setMoving] = useState<string | null>(null);
+
+  if (!entry) return null;
+
+  async function moveTo(folderId: string | null) {
+    setMoving(folderId ?? "__null__");
+    try {
+      const res = await fetch(`/api/collection/${entry!.entry.id}/move`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(folderId ? "Moved to folder" : "Moved to All Cards");
+      onMoved();
+      onClose();
+    } catch {
+      toast.error("Failed to move card");
+    } finally {
+      setMoving(null);
+    }
+  }
+
+  const currentFolder = entry.entry.folderId;
+
+  return (
+    <Dialog open onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-end justify-center p-4 sm:items-center">
+        <DialogPanel className="w-full max-w-sm rounded-2xl border border-white/10 bg-surface p-5 shadow-2xl">
+          <div className="mb-4 flex items-center justify-between">
+            <DialogTitle className="text-sm font-bold text-[#F2F2F2]">
+              Move — {entry.card.name}
+            </DialogTitle>
+            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2]">
+              <XMarkIcon className="size-5" />
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            {/* All Cards option */}
+            <button
+              onClick={() => moveTo(null)}
+              disabled={moving !== null}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition hover:bg-surface2 ${currentFolder === null ? "text-accent" : "text-[#9A9A9A]"}`}
+            >
+              <FolderIcon className="size-4 shrink-0 text-[#9A9A9A]" />
+              <span className="flex-1 text-left font-medium">All Cards (unfiled)</span>
+              {currentFolder === null && <CheckIcon className="size-4 text-accent" />}
+              {moving === "__null__" && <span className="text-xs">Moving…</span>}
+            </button>
+
+            {folders.map((folder) => (
+              <button
+                key={folder.id}
+                onClick={() => moveTo(folder.id)}
+                disabled={moving !== null}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition hover:bg-surface2 ${currentFolder === folder.id ? "text-accent" : "text-[#9A9A9A]"}`}
+              >
+                <FolderIcon className="size-4 shrink-0" style={{ color: folder.color }} />
+                <span className="flex-1 text-left font-medium">{folder.name}</span>
+                {currentFolder === folder.id && <CheckIcon className="size-4 text-accent" />}
+                {moving === folder.id && <span className="text-xs">Moving…</span>}
+              </button>
+            ))}
+
+            {folders.length === 0 && (
+              <p className="px-3 py-4 text-center text-xs text-[#9A9A9A]">
+                No folders yet — create one first
+              </p>
+            )}
+          </div>
+        </DialogPanel>
+      </div>
+    </Dialog>
+  );
+}
+
+// ── Entry form ────────────────────────────────────────────────────────────────
 
 function EntryForm({
   card,
   defaultValues,
   onSubmit,
-  onBack,
   submitLabel,
 }: {
-  card: SearchCard;
+  card: CardCatalog;
   defaultValues?: Partial<CollectionEntryInput>;
   onSubmit: (data: CollectionEntryInput) => Promise<void>;
-  onBack?: () => void;
   submitLabel: string;
 }) {
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } =
     useForm<CollectionEntryInput>({
       resolver: zodResolver(collectionEntrySchema) as Resolver<CollectionEntryInput>,
       defaultValues: {
-        cardId:         card.id,
-        quantity:       1,
-        isGraded:       false,
-        condition:      "near_mint",
-        gradingCompany: "none",
-        isFoil:         false,
-        isFirstEdition: false,
-        language:       "en",
+        cardId: card.id, quantity: 1, isGraded: false, condition: "near_mint",
+        gradingCompany: "none", isFoil: false, isFirstEdition: false, language: "en", isFavorite: false,
         ...defaultValues,
       },
     });
@@ -195,225 +504,132 @@ function EntryForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      {/* Selected card preview */}
       <div className="flex items-center gap-3 rounded-xl border border-white/8 bg-surface2 p-3">
         <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md">
           <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-[#F2F2F2]">{card.name}</p>
-          <p className="truncate text-xs text-[#9A9A9A]">
-            {card.setName ?? GAME_LABEL[card.game]}
-            {card.cardNumber ? ` · ${card.cardNumber}` : ""}
-          </p>
-          {card.marketPrice && (
-            <p className="text-[10px] text-[#9A9A9A]">Market: <Price usd={card.marketPrice} /></p>
-          )}
+          <p className="truncate text-xs text-[#9A9A9A]">{card.setName ?? GAME_LABEL[card.game]}{card.cardNumber ? ` · ${card.cardNumber}` : ""}</p>
+          {card.marketPrice && <p className="text-[10px] text-[#9A9A9A]">Market: <Price usd={card.marketPrice} /></p>}
         </div>
       </div>
 
-      {/* Quantity */}
       <div className="flex items-center gap-3">
         <label className="w-24 shrink-0 text-xs text-[#9A9A9A]">Quantity</label>
-        <input
-          {...register("quantity")}
-          type="number"
-          min={1} max={999}
-          className="w-24 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none"
-        />
+        <input {...register("quantity")} type="number" min={1} max={999}
+          className="w-24 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none" />
         {errors.quantity && <p className="text-xs text-rose-400">{errors.quantity.message}</p>}
       </div>
 
-      {/* Raw vs Graded toggle */}
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => { setValue("isGraded", false); setValue("gradingCompany", "none"); }}
-          className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition ${!isGraded ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}
-        >
-          Raw
-        </button>
-        <button
-          type="button"
-          onClick={() => setValue("isGraded", true)}
-          className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition ${isGraded ? "border-purple-400 bg-purple-400/10 text-purple-400" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}
-        >
-          Graded / Slabbed
-        </button>
+        <button type="button" onClick={() => { setValue("isGraded", false); setValue("gradingCompany", "none"); }}
+          className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition ${!isGraded ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>Raw</button>
+        <button type="button" onClick={() => setValue("isGraded", true)}
+          className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition ${isGraded ? "border-purple-400 bg-purple-400/10 text-purple-400" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>Graded</button>
       </div>
 
-      {/* Condition (raw) */}
       {!isGraded && (
         <div>
           <p className="mb-1.5 text-xs text-[#9A9A9A]">Condition</p>
           <div className="grid grid-cols-5 gap-1.5">
-            {CONDITIONS.map((c) => {
-              const active = watch("condition") === c;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setValue("condition", c)}
-                  title={CONDITION_LABEL[c]}
-                  className={`rounded-lg border py-2 text-[10px] font-bold uppercase transition ${active ? `${CONDITION_COLOR[c]} ring-1` : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}
-                >
-                  {CONDITION_SHORT[c]}
-                </button>
-              );
-            })}
+            {CONDITIONS.map((c) => (
+              <button key={c} type="button" onClick={() => setValue("condition", c)} title={CONDITION_LABEL[c]}
+                className={`rounded-lg border py-2 text-[10px] font-bold uppercase transition ${watch("condition") === c ? `${CONDITION_COLOR[c]} ring-1` : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>
+                {CONDITION_SHORT[c]}
+              </button>
+            ))}
           </div>
-          <p className="mt-1 text-right text-[10px] text-[#9A9A9A]">
-            {CONDITION_LABEL[watch("condition")]}
-          </p>
+          <p className="mt-1 text-right text-[10px] text-[#9A9A9A]">{CONDITION_LABEL[watch("condition")]}</p>
         </div>
       )}
 
-      {/* Grading fields */}
       {isGraded && (
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <label className="w-24 shrink-0 text-xs text-[#9A9A9A]">Company</label>
             <div className="flex gap-2">
-              {(["psa", "bgs", "cgc"] as const).map((co) => {
-                const active = watch("gradingCompany") === co;
-                return (
-                  <button key={co} type="button"
-                    onClick={() => setValue("gradingCompany", co)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-bold uppercase transition ${active ? "border-purple-400 bg-purple-400/10 text-purple-400" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>
-                    {co.toUpperCase()}
-                  </button>
-                );
-              })}
+              {(["psa", "bgs", "cgc"] as const).map((co) => (
+                <button key={co} type="button" onClick={() => setValue("gradingCompany", co)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-bold uppercase transition ${watch("gradingCompany") === co ? "border-purple-400 bg-purple-400/10 text-purple-400" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>
+                  {co.toUpperCase()}
+                </button>
+              ))}
             </div>
-            {errors.gradingCompany && <p className="text-xs text-rose-400">{errors.gradingCompany.message}</p>}
           </div>
           <div className="flex items-center gap-3">
             <label className="w-24 shrink-0 text-xs text-[#9A9A9A]">Grade</label>
-            <input
-              {...register("gradeValue")}
-              type="number"
-              min={1} max={10} step={0.5}
-              placeholder="e.g. 9.5"
-              className="w-24 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none"
-            />
+            <input {...register("gradeValue")} type="number" min={1} max={10} step={0.5} placeholder="e.g. 9.5"
+              className="w-24 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none" />
             {errors.gradeValue && <p className="text-xs text-rose-400">{errors.gradeValue.message}</p>}
           </div>
         </div>
       )}
 
-      {/* Foil + 1st Ed */}
       <div className="flex gap-4">
-        {[
-          { field: "isFoil"         as const, label: "Foil" },
-          { field: "isFirstEdition" as const, label: "1st Edition" },
-        ].map(({ field, label }) => (
+        {([["isFoil", "Foil"], ["isFirstEdition", "1st Edition"]] as const).map(([field, label]) => (
           <label key={field} className="flex cursor-pointer items-center gap-2 text-xs text-[#9A9A9A]">
-            <input {...register(field)} type="checkbox"
-              className="size-4 rounded border-white/20 bg-surface2 accent-accent" />
+            <input {...register(field)} type="checkbox" className="size-4 rounded border-white/20 bg-surface2 accent-accent" />
             {label}
           </label>
         ))}
       </div>
 
-      {/* Purchase price */}
       <div className="flex items-center gap-3">
         <label className="w-24 shrink-0 text-xs text-[#9A9A9A]">Paid (PHP)</label>
-        <input
-          {...register("purchasePrice")}
-          type="number"
-          min={0}
-          step={0.01}
-          placeholder="optional"
-          className="w-36 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
-        />
+        <input {...register("purchasePrice")} type="number" min={0} step={0.01} placeholder="optional"
+          className="w-36 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none" />
       </div>
 
-      {/* Notes */}
       <div>
         <label className="mb-1 block text-xs text-[#9A9A9A]">Notes (optional)</label>
-        <textarea
-          {...register("notes")}
-          rows={2}
-          placeholder="e.g. bought at GP Manila 2024"
-          className="w-full resize-none rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
-        />
+        <textarea {...register("notes")} rows={2} placeholder="e.g. bought at GP Manila 2024"
+          className="w-full resize-none rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none" />
       </div>
 
-      <div className="flex items-center gap-2 pt-1">
-        {onBack && (
-          <button type="button" onClick={onBack}
-            className="rounded-lg border border-white/10 px-3 py-2 text-xs text-[#9A9A9A] hover:text-[#F2F2F2] transition">
-            ← Back
-          </button>
-        )}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="flex-1 rounded-lg bg-accent py-2 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
-        >
-          {isSubmitting ? "Saving…" : submitLabel}
-        </button>
-      </div>
+      <button type="submit" disabled={isSubmitting}
+        className="w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50">
+        {isSubmitting ? "Saving…" : submitLabel}
+      </button>
     </form>
   );
 }
 
 // ── Add Card dialog ───────────────────────────────────────────────────────────
 
-function AddCardDialog({
-  open,
-  onClose,
-  onAdded,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onAdded: () => void;
-}) {
+function AddCardDialog({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: () => void }) {
   const [step, setStep]           = useState<"search" | "configure">("search");
-  const [game, setGame]           = useState<GameFilter>("all");
+  const [game, setGame]           = useState<"all" | "pokemon" | "one_piece">("all");
   const [query, setQuery]         = useState("");
-  const [results, setResults]     = useState<SearchCard[]>([]);
+  const [results, setResults]     = useState<CardCatalog[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selected, setSelected]   = useState<SearchCard | null>(null);
+  const [selected, setSelected]   = useState<CardCatalog | null>(null);
   const debounce                  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset on open
-  useEffect(() => {
-    if (open) {
-      setStep("search"); setQuery(""); setResults([]); setSelected(null);
-    }
-  }, [open]);
+  useEffect(() => { if (open) { setStep("search"); setQuery(""); setResults([]); setSelected(null); } }, [open]);
 
-  // Debounced search
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);
     if (query.trim().length < 2) { setResults([]); return; }
-
     debounce.current = setTimeout(async () => {
       setSearching(true);
       try {
         const params = new URLSearchParams({ q: query });
         if (game !== "all") params.set("game", game);
-        const res  = await fetch(`/api/cards/search?${params}`);
-        const json = await res.json();
-        setResults(json.cards ?? []);
-      } catch { setResults([]); }
-      finally  { setSearching(false); }
+        const res = await fetch(`/api/cards/search?${params}`);
+        setResults((await res.json()).cards ?? []);
+      } catch { setResults([]); } finally { setSearching(false); }
     }, 500);
-
     return () => { if (debounce.current) clearTimeout(debounce.current); };
   }, [query, game]);
 
   async function handleAdd(data: CollectionEntryInput) {
     const res = await fetch("/api/collection", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to add card");
+    if (!res.ok) throw new Error("Failed");
     toast.success(`${selected!.name} added to collection`);
-    onAdded();
-    onClose();
+    onAdded(); onClose();
   }
 
   return (
@@ -422,80 +638,44 @@ function AddCardDialog({
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <DialogPanel className="w-full max-w-md rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
           <div className="mb-5 flex items-center justify-between">
-            <DialogTitle className="text-base font-bold text-[#F2F2F2]">
-              {step === "search" ? "Add a Card" : "Card Details"}
-            </DialogTitle>
-            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2] transition">
-              <XMarkIcon className="size-5" />
-            </button>
+            <DialogTitle className="text-base font-bold text-[#F2F2F2]">{step === "search" ? "Add a Card" : "Card Details"}</DialogTitle>
+            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2] transition"><XMarkIcon className="size-5" /></button>
           </div>
-
           {step === "search" ? (
             <div className="space-y-4">
-              {/* Game filter */}
               <div className="flex gap-1.5 rounded-xl bg-surface2 p-1">
                 {([["all", "All"], ["pokemon", "Pokémon"], ["one_piece", "One Piece"]] as const).map(([g, label]) => (
                   <button key={g} onClick={() => setGame(g)}
-                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${game === g ? "bg-surface text-[#F2F2F2] shadow" : "text-[#9A9A9A] hover:text-[#F2F2F2]"}`}>
-                    {label}
-                  </button>
+                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${game === g ? "bg-surface text-[#F2F2F2] shadow" : "text-[#9A9A9A] hover:text-[#F2F2F2]"}`}>{label}</button>
                 ))}
               </div>
-
-              {/* Search input */}
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9A9A9A]" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search cards…"
-                  autoFocus
-                  className="w-full rounded-xl border border-white/10 bg-surface2 py-2.5 pl-9 pr-4 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
-                />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search cards…" autoFocus
+                  className="w-full rounded-xl border border-white/10 bg-surface2 py-2.5 pl-9 pr-4 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none" />
               </div>
-
-              {/* Results */}
-              <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
-                {searching && (
-                  <p className="py-6 text-center text-xs text-[#9A9A9A]">Searching…</p>
-                )}
+              <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
+                {searching && <p className="py-6 text-center text-xs text-[#9A9A9A]">Searching…</p>}
                 {!searching && query.length >= 2 && results.length === 0 && (
-                  <p className="py-6 text-center text-xs text-[#9A9A9A]">
-                    No cards found. Try a different spelling.
-                  </p>
+                  <p className="py-6 text-center text-xs text-[#9A9A9A]">No cards found.</p>
                 )}
                 {results.map((card) => (
-                  <button
-                    key={card.id}
-                    onClick={() => { setSelected(card); setStep("configure"); }}
-                    className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left transition hover:border-white/10 hover:bg-surface2"
-                  >
+                  <button key={card.id} onClick={() => { setSelected(card); setStep("configure"); }}
+                    className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left transition hover:border-white/10 hover:bg-surface2">
                     <div className="h-12 w-9 shrink-0 overflow-hidden rounded-md">
                       <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-[#F2F2F2]">{card.name}</p>
-                      <p className="truncate text-xs text-[#9A9A9A]">
-                        {card.setName ?? GAME_LABEL[card.game]}
-                        {card.cardNumber ? ` · ${card.cardNumber}` : ""}
-                      </p>
+                      <p className="truncate text-xs text-[#9A9A9A]">{card.setName ?? GAME_LABEL[card.game]}{card.cardNumber ? ` · ${card.cardNumber}` : ""}</p>
                     </div>
-                    {card.marketPrice && (
-                      <Price usd={card.marketPrice} className="shrink-0 text-xs text-[#9A9A9A]" />
-                    )}
+                    {card.marketPrice && <Price usd={card.marketPrice} className="shrink-0 text-xs text-[#9A9A9A]" />}
                   </button>
                 ))}
               </div>
             </div>
-          ) : (
-            selected && (
-              <EntryForm
-                card={selected}
-                onSubmit={handleAdd}
-                onBack={() => setStep("search")}
-                submitLabel="Add to Collection"
-              />
-            )
+          ) : selected && (
+            <EntryForm card={selected} onSubmit={handleAdd} submitLabel="Add to Collection" />
           )}
         </DialogPanel>
       </div>
@@ -505,43 +685,17 @@ function AddCardDialog({
 
 // ── Edit dialog ───────────────────────────────────────────────────────────────
 
-function EditDialog({
-  item,
-  onClose,
-  onSaved,
-}: {
-  item: CollectionEntry | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
+function EditDialog({ item, onClose, onSaved }: { item: CollectionEntry | null; onClose: () => void; onSaved: () => void }) {
   if (!item) return null;
+  const e = item.entry;
 
   async function handleSave(data: CollectionEntryInput) {
-    const res = await fetch(`/api/collection/${item!.entry.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+    const res = await fetch(`/api/collection/${e.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to save");
-    toast.success("Entry updated");
-    onSaved();
-    onClose();
+    if (!res.ok) throw new Error("Failed");
+    toast.success("Entry updated"); onSaved(); onClose();
   }
-
-  const e = item.entry;
-  const defaults: Partial<CollectionEntryInput> = {
-    cardId:         e.cardId,
-    quantity:       e.quantity,
-    isGraded:       e.gradingCompany !== "none",
-    condition:      e.condition,
-    gradingCompany: e.gradingCompany,
-    gradeValue:     e.gradeValue != null ? parseFloat(e.gradeValue) : undefined,
-    isFoil:         e.isFoil,
-    isFirstEdition: e.isFirstEdition,
-    language:       e.language,
-    purchasePrice:  e.purchasePrice != null ? parseFloat(e.purchasePrice) : undefined,
-    notes:          e.notes ?? undefined,
-  };
 
   return (
     <Dialog open onClose={onClose} className="relative z-50">
@@ -550,15 +704,18 @@ function EditDialog({
         <DialogPanel className="w-full max-w-md rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
           <div className="mb-5 flex items-center justify-between">
             <DialogTitle className="text-base font-bold text-[#F2F2F2]">Edit Entry</DialogTitle>
-            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2] transition">
-              <XMarkIcon className="size-5" />
-            </button>
+            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2] transition"><XMarkIcon className="size-5" /></button>
           </div>
-          <EntryForm
-            card={item.card}
-            defaultValues={defaults}
-            onSubmit={handleSave}
-            submitLabel="Save Changes"
+          <EntryForm card={item.card} onSubmit={handleSave} submitLabel="Save Changes"
+            defaultValues={{
+              cardId: e.cardId, quantity: e.quantity,
+              isGraded: e.gradingCompany !== "none", condition: e.condition,
+              gradingCompany: e.gradingCompany,
+              gradeValue: e.gradeValue != null ? parseFloat(e.gradeValue) : undefined,
+              isFoil: e.isFoil, isFirstEdition: e.isFirstEdition, language: e.language,
+              purchasePrice: e.purchasePrice != null ? parseFloat(e.purchasePrice) : undefined,
+              notes: e.notes ?? undefined, isFavorite: e.isFavorite,
+            }}
           />
         </DialogPanel>
       </div>
@@ -570,141 +727,249 @@ function EditDialog({
 
 export default function CollectionPage() {
   const qc = useQueryClient();
-  const { currency, format } = useCurrencyStore();
-  const [addOpen, setAddOpen]           = useState(false);
-  const [editItem, setEditItem]         = useState<CollectionEntry | null>(null);
-  const [deletePending, setDeletePending] = useState<string | null>(null);
+  const { format } = useCurrencyStore();
 
-  const { data, isPending, isError } = useQuery<{ entries: CollectionEntry[] }>({
+  const [addOpen, setAddOpen]       = useState(false);
+  const [editItem, setEditItem]     = useState<CollectionEntry | null>(null);
+  const [moveItem, setMoveItem]     = useState<CollectionEntry | null>(null);
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  // Folder create/rename dialog state
+  const [folderDialog, setFolderDialog] = useState<CollectionFolder | null | "new">(null);
+
+  const { data: collData, isPending: collPending } = useQuery<{ entries: CollectionEntry[] }>({
     queryKey: ["collection"],
     queryFn: () => fetch("/api/collection").then((r) => r.json()),
   });
 
-  const entries = data?.entries ?? [];
-  const cardCount = entries.reduce((n, { entry }) => n + entry.quantity, 0);
-  const value     = totalValue(entries);
+  const { data: folderData } = useQuery<{ folders: CollectionFolder[] }>({
+    queryKey: ["collection-folders"],
+    queryFn: () => fetch("/api/collection/folders").then((r) => r.json()),
+  });
 
-  const refetch = () => qc.invalidateQueries({ queryKey: ["collection"] });
+  const entries = collData?.entries ?? [];
+  const folders = folderData?.folders ?? [];
+
+  const refetchAll = () => {
+    qc.invalidateQueries({ queryKey: ["collection"] });
+    qc.invalidateQueries({ queryKey: ["collection-folders"] });
+  };
+
+  // Filtered view
+  const visible = activeFolder === null
+    ? entries
+    : entries.filter((e) => e.entry.folderId === activeFolder);
+
+  const cardCount = visible.reduce((n, { entry }) => n + entry.quantity, 0);
+  const value     = totalValue(visible);
+
+  // ── DnD setup (mouse only to avoid scroll conflicts on mobile) ──────────────
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+  );
+
+  function onDragStart(event: DragStartEvent) {
+    setDraggingId(String(event.active.id));
+  }
+
+  async function onDragEnd(event: DragEndEvent) {
+    setDraggingId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const entryId  = String(active.id);
+    const targetId = String(over.id);
+    const folderId = targetId === "__all__" ? null : targetId;
+
+    const entry = entries.find((e) => e.entry.id === entryId);
+    if (!entry) return;
+    // Skip if already in target
+    if (entry.entry.folderId === folderId) return;
+
+    try {
+      const res = await fetch(`/api/collection/${entryId}/move`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const folderName = folderId
+        ? folders.find((f) => f.id === folderId)?.name ?? "folder"
+        : "All Cards";
+      toast.success(`Moved to ${folderName}`);
+      qc.invalidateQueries({ queryKey: ["collection"] });
+    } catch {
+      toast.error("Failed to move card");
+    }
+  }
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) =>
-      fetch(`/api/collection/${id}`, { method: "DELETE" }).then((r) => {
-        if (!r.ok) throw new Error("Failed to delete");
-      }),
-    onSuccess: () => { toast.success("Card removed"); refetch(); },
-    onError:   () => toast.error("Failed to remove card"),
-    onSettled: () => setDeletePending(null),
+    mutationFn: (id: string) => fetch(`/api/collection/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error(); }),
+    onSuccess: () => { toast.success("Card removed"); refetchAll(); },
+    onError:   () => toast.error("Failed to remove"),
   });
 
   const favoriteMutation = useMutation({
-    mutationFn: ({ id, isFavorite, entry }: { id: string; isFavorite: boolean; entry: CollectionEntry }) =>
+    mutationFn: ({ id, isFavorite, e }: { id: string; isFavorite: boolean; e: CollectionEntry }) =>
       fetch(`/api/collection/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cardId:         entry.entry.cardId,
-          quantity:       entry.entry.quantity,
-          isGraded:       entry.entry.gradingCompany !== "none",
-          condition:      entry.entry.condition,
-          gradingCompany: entry.entry.gradingCompany,
-          gradeValue:     entry.entry.gradeValue != null ? parseFloat(entry.entry.gradeValue) : undefined,
-          isFoil:         entry.entry.isFoil,
-          isFirstEdition: entry.entry.isFirstEdition,
-          language:       entry.entry.language,
-          purchasePrice:  entry.entry.purchasePrice != null ? parseFloat(entry.entry.purchasePrice) : undefined,
-          notes:          entry.entry.notes ?? undefined,
-          isFavorite,
+          cardId: e.entry.cardId, quantity: e.entry.quantity,
+          isGraded: e.entry.gradingCompany !== "none", condition: e.entry.condition,
+          gradingCompany: e.entry.gradingCompany,
+          gradeValue: e.entry.gradeValue != null ? parseFloat(e.entry.gradeValue) : undefined,
+          isFoil: e.entry.isFoil, isFirstEdition: e.entry.isFirstEdition, language: e.entry.language,
+          purchasePrice: e.entry.purchasePrice != null ? parseFloat(e.entry.purchasePrice) : undefined,
+          notes: e.entry.notes ?? undefined, isFavorite,
         }),
       }),
-    onSuccess: () => refetch(),
+    onSuccess: () => refetchAll(),
   });
+
+  const deleteFolder = async (folder: CollectionFolder) => {
+    if (!confirm(`Delete folder "${folder.name}"? Cards inside will move to All Cards.`)) return;
+    const res = await fetch(`/api/collection/folders/${folder.id}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("Folder deleted");
+      if (activeFolder === folder.id) setActiveFolder(null);
+      refetchAll();
+    }
+  };
+
+  const draggingEntry = draggingId ? entries.find((e) => e.entry.id === draggingId) : null;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10">
+    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-10">
 
-      {/* Header */}
-      <div className="mb-6 flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F2F2F2]">My Collection</h1>
-          <p className="mt-1 text-sm text-[#9A9A9A]">
-            {isPending ? "Loading…" : `${cardCount} card${cardCount !== 1 ? "s" : ""} · ${format(value)} est. value`}
-          </p>
-        </div>
-        <button
-          onClick={() => setAddOpen(true)}
-          className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90"
-        >
-          <PlusIcon className="size-4" />
-          Add Card
-        </button>
-      </div>
-
-      {/* States */}
-      {isPending && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-2xl bg-surface aspect-[3/4]" />
-          ))}
-        </div>
-      )}
-
-      {isError && (
-        <div className="rounded-2xl border border-rose-400/20 bg-rose-400/5 p-6 text-center text-sm text-rose-400">
-          Failed to load collection. Please refresh.
-        </div>
-      )}
-
-      {!isPending && !isError && entries.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-20 text-center">
-          <p className="text-[#F2F2F2] font-medium">No cards yet</p>
-          <p className="mt-1 text-sm text-[#9A9A9A]">
-            Add your first card to start tracking your collection.
-          </p>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="mt-5 flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90 transition"
-          >
-            <PlusIcon className="size-4" />
-            Add Card
+        {/* Header */}
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#F2F2F2]">My Collection</h1>
+            <p className="mt-1 text-sm text-[#9A9A9A]">
+              {collPending ? "Loading…" : `${cardCount} card${cardCount !== 1 ? "s" : ""} · ${format(value)} est. value`}
+            </p>
+          </div>
+          <button onClick={() => setAddOpen(true)}
+            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90">
+            <PlusIcon className="size-4" /> Add Card
           </button>
         </div>
-      )}
 
-      {/* Collection grid */}
-      {!isPending && entries.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {entries.map(({ entry, card }) => (
-            <EntryCard
-              key={entry.id}
-              entry={entry}
-              card={card}
-              onEdit={() => setEditItem({ entry, card })}
-              onDelete={() => {
-                if (deletePending === entry.id) return;
-                setDeletePending(entry.id);
-                deleteMutation.mutate(entry.id);
-              }}
-              onFavorite={() =>
-                favoriteMutation.mutate({ id: entry.id, isFavorite: !entry.isFavorite, entry: { entry, card } })
-              }
+        <div className="flex gap-6">
+          {/* Folder sidebar — desktop */}
+          <aside className="hidden w-52 shrink-0 sm:block">
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-[#9A9A9A]">Folders</p>
+            <FolderSidebar
+              folders={folders}
+              entries={entries}
+              activeFolder={activeFolder}
+              setActiveFolder={setActiveFolder}
+              onCreateFolder={() => setFolderDialog("new")}
+              onRenameFolder={(f) => setFolderDialog(f)}
+              onDeleteFolder={deleteFolder}
             />
-          ))}
+          </aside>
+
+          {/* Mobile folder tabs */}
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1 sm:hidden w-full">
+            <button onClick={() => setActiveFolder(null)}
+              className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-medium transition ${activeFolder === null ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A]"}`}>
+              All ({entries.length})
+            </button>
+            {folders.map((folder) => (
+              <button key={folder.id} onClick={() => setActiveFolder(folder.id)}
+                className={`shrink-0 flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-medium transition ${activeFolder === folder.id ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A]"}`}>
+                <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: folder.color }} />
+                {folder.name}
+              </button>
+            ))}
+            <button onClick={() => setFolderDialog("new")}
+              className="shrink-0 flex items-center gap-1 rounded-full border border-dashed border-white/20 px-4 py-1.5 text-xs text-[#9A9A9A]">
+              <FolderPlusIcon className="size-3.5" /> New
+            </button>
+          </div>
+
+          {/* Main grid area */}
+          <div className="min-w-0 flex-1">
+            {collPending && (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="animate-pulse rounded-2xl bg-surface aspect-[3/4]" />
+                ))}
+              </div>
+            )}
+
+            {!collPending && visible.length === 0 && (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-20 text-center">
+                <p className="text-[#F2F2F2] font-medium">
+                  {activeFolder ? "This folder is empty" : "No cards yet"}
+                </p>
+                <p className="mt-1 text-sm text-[#9A9A9A]">
+                  {activeFolder ? "Drag cards here from All Cards" : "Add your first card to start tracking"}
+                </p>
+                {!activeFolder && (
+                  <button onClick={() => setAddOpen(true)}
+                    className="mt-5 flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90 transition">
+                    <PlusIcon className="size-4" /> Add Card
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!collPending && visible.length > 0 && (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {visible.map(({ entry, card }) => (
+                  <DraggableCard
+                    key={entry.id}
+                    entry={entry}
+                    card={card}
+                    isDragging={draggingId === entry.id}
+                    onEdit={() => setEditItem({ entry, card })}
+                    onDelete={() => deleteMutation.mutate(entry.id)}
+                    onFavorite={() => favoriteMutation.mutate({ id: entry.id, isFavorite: !entry.isFavorite, e: { entry, card } })}
+                    onMove={() => setMoveItem({ entry, card })}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* Drag overlay — ghost card while dragging */}
+      <DragOverlay>
+        {draggingEntry && (
+          <div className="w-36 rounded-2xl border border-accent/40 bg-surface shadow-2xl opacity-90 overflow-hidden">
+            <div className="aspect-[3/4] overflow-hidden">
+              <CardImage url={draggingEntry.card.imageUrl} name={draggingEntry.card.name} className="h-full w-full" />
+            </div>
+            <p className="truncate px-3 py-2 text-xs font-semibold text-[#F2F2F2]">{draggingEntry.card.name}</p>
+          </div>
+        )}
+      </DragOverlay>
 
       {/* Dialogs */}
-      <AddCardDialog
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onAdded={refetch}
+      <AddCardDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={refetchAll} />
+      <EditDialog item={editItem} onClose={() => setEditItem(null)} onSaved={refetchAll} />
+      <MoveFolderDialog
+        entry={moveItem}
+        folders={folders}
+        onClose={() => setMoveItem(null)}
+        onMoved={refetchAll}
       />
-      <EditDialog
-        item={editItem}
-        onClose={() => setEditItem(null)}
-        onSaved={refetch}
-      />
-    </div>
+      {folderDialog !== null && (
+        <FolderDialog
+          folder={folderDialog === "new" ? null : folderDialog}
+          onClose={() => setFolderDialog(null)}
+          onSaved={refetchAll}
+        />
+      )}
+    </DndContext>
   );
 }

@@ -92,6 +92,34 @@ export const cardCatalog = pgTable(
 export type CardCatalog    = typeof cardCatalog.$inferSelect;
 export type NewCardCatalog = typeof cardCatalog.$inferInsert;
 
+// ── collection_folders ────────────────────────────────────────────────────────
+
+export const collectionFolders = pgTable(
+  "collection_folders",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+
+    name:     text("name").notNull(),
+    color:    text("color").default("#6366f1").notNull(),
+    position: integer("position").default(0).notNull(),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("folder_user_idx").on(table.userId),
+  ]
+);
+
+export type CollectionFolder    = typeof collectionFolders.$inferSelect;
+export type NewCollectionFolder = typeof collectionFolders.$inferInsert;
+
 // ── user_collection ───────────────────────────────────────────────────────────
 
 /**
@@ -136,12 +164,17 @@ export const userCollection = pgTable(
     notes:         text("notes"),
     isFavorite:    boolean("is_favorite").default(false).notNull(),
 
+    // Optional folder assignment — null means "unfiled / All Cards"
+    folderId: text("folder_id")
+      .references(() => collectionFolders.id, { onDelete: "set null" }),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     index("collection_user_idx").on(table.userId),
     index("collection_card_idx").on(table.cardId),
+    index("collection_folder_idx").on(table.folderId),
   ]
 );
 
