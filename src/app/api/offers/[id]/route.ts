@@ -15,6 +15,7 @@ import {
   emailOfferCountered,
   emailCounterDeclined,
 } from "@/lib/email";
+import { createNotification } from "@/lib/notify";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -132,6 +133,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         txnId:          txn.id,
       }).catch(console.error);
     }
+    // Notify the buyer (or seller if accept_counter) that the offer was accepted
+    createNotification(
+      action === "accept" ? offer.buyerId : offer.sellerId,
+      "offer_accepted",
+      `Offer accepted — ${row.card.name}`,
+      `Your offer was accepted. View the transaction to coordinate meetup.`,
+      `/transactions/${txn.id}`,
+    ).catch(console.error);
 
     return NextResponse.json({ ok: true, status: "accepted", transactionId: txn.id });
   }
@@ -146,6 +155,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         offerId:    id,
       }).catch(console.error);
     }
+    createNotification(
+      offer.buyerId,
+      "offer_declined",
+      `Offer declined — ${row.card.name}`,
+      `${myName} declined your offer.`,
+      `/offers`,
+    ).catch(console.error);
     return NextResponse.json({ ok: true, status: "declined" });
   }
 
@@ -166,6 +182,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         offerId:        id,
       }).catch(console.error);
     }
+    createNotification(
+      offer.buyerId,
+      "offer_countered",
+      `Counter offer on ${row.card.name}`,
+      `${myName} countered at ₱${parseFloat(String(counterPrice)).toLocaleString("en-PH")}.`,
+      `/offers`,
+    ).catch(console.error);
     return NextResponse.json({ ok: true, status: "countered" });
   }
 

@@ -9,6 +9,7 @@ import { cardCatalog } from "@/db/schema/cards";
 import { user as userTable } from "@/db/schema/auth";
 import { offers } from "@/db/schema/offers";
 import { emailOfferReceived } from "@/lib/email";
+import { createNotification } from "@/lib/notify";
 
 const OFFER_TTL_HOURS = 48;
 
@@ -119,16 +120,25 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
+  const buyerName = session.user.displayName ?? session.user.name;
   emailOfferReceived({
     sellerEmail:  row.seller.email,
     sellerName:   row.seller.displayName ?? row.seller.name,
-    buyerName:    session.user.displayName ?? session.user.name,
+    buyerName,
     cardName:     row.card.name,
     listingPrice: row.listing.price,
     offeredPrice: String(offeredPrice),
     message,
     offerId:      offer.id,
   }).catch(console.error);
+
+  createNotification(
+    row.listing.sellerId,
+    "offer_received",
+    `New offer on ${row.card.name}`,
+    `${buyerName} offered ₱${parseFloat(String(offeredPrice)).toLocaleString("en-PH")}`,
+    `/offers`,
+  ).catch(console.error);
 
   return NextResponse.json({ offer }, { status: 201 });
 }

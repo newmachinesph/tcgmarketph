@@ -9,6 +9,7 @@ import { cardCatalog } from "@/db/schema/cards";
 import { user as userTable } from "@/db/schema/auth";
 import { bidRatelimit } from "@/lib/rate-limit";
 import { publishBid } from "@/lib/ably";
+import { createNotification } from "@/lib/notify";
 
 const ANTI_SNIPE_SECONDS = 30;
 
@@ -140,6 +141,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A higher bid was placed. Refresh and try again." }, { status: 409 });
   }
 
+  // ── Find previous top bidder to notify of outbid ─────────────────────────
+  const [prevTop] = await db
+    .select({ bidderId: bids.bidderId })
+    .from(bids)
+    .where(and(eq(bids.listingId, listingId), sql`${bids.bidderId} != ${uid}`))
+    .orderBy(desc(bids.amount))
+    .limit(1);
+
   // ── Insert bid record ────────────────────────────────────────────────────
   await db.insert(bids).values({ listingId, bidderId: uid, amount: newBidStr });
 
@@ -148,6 +157,17 @@ export async function POST(request: NextRequest) {
     .select({ total: count() })
     .from(bids)
     .where(eq(bids.listingId, listingId));
+
+  // ── Notify outbid user ───────────────────────────────────────────────────
+  if (prevTop && prevTop.bidderId !== uid) {
+    createNotification(
+      prevTop.bidderId,
+      "auction_outbid",
+      `You've been outbid on ${row.card.name}`,
+      `New top bid: ₱${parseFloat(newBidStr).toLocaleString("en-PH")}`,
+      `/listings/${listingId}`,
+    ).catch(console.error);
+  }
 
   // ── Publish via Ably ─────────────────────────────────────────────────────
   const bidderName = session.user.displayName ?? session.user.name;

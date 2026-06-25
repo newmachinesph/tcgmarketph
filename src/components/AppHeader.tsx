@@ -2,12 +2,13 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { BellIcon, Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import { UserMenu } from "./UserMenu";
 import { useCurrencyStore, type Currency } from "@/store/currency";
 import { CurrencySync } from "./CurrencySync";
 import { MessagesNavItem } from "./MessagesUnread";
+import { NotificationsBell } from "./NotificationsBell";
 
 interface AppHeaderProps {
   user: {
@@ -96,12 +97,7 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
               <span className={currency === "USD" ? "text-[#F2F2F2]" : ""}>$</span>
             </button>
 
-            <button
-              className="flex size-9 items-center justify-center rounded-lg border border-white/10 text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
-              aria-label="Notifications"
-            >
-              <BellIcon className="size-5" />
-            </button>
+            <NotificationsBell />
 
             <UserMenu
               name={user.name}

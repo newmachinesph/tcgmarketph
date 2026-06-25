@@ -12,6 +12,7 @@ import {
   emailTransactionAgreed,
   emailTransactionCancelled,
 } from "@/lib/email";
+import { createNotification } from "@/lib/notify";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -154,6 +155,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       price:      txn.agreedPrice,
       txnId:      id,
     }).catch(console.error);
+
+    createNotification(
+      txn.buyerId,
+      "transaction_agreed",
+      `Deal confirmed — ${row.card.name}`,
+      `Seller confirmed. Time to arrange your meetup.`,
+      `/transactions/${id}`,
+    ).catch(console.error);
   }
 
   // When completed: increment reputationScore for both buyer and seller
@@ -162,6 +171,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       .update(userTable)
       .set({ reputationScore: sql`${userTable.reputationScore} + 1` })
       .where(or(eq(userTable.id, txn.buyerId), eq(userTable.id, txn.sellerId)));
+
+    const otherId = isBuyer ? txn.sellerId : txn.buyerId;
+    createNotification(
+      otherId,
+      "transaction_completed",
+      `Deal completed — ${row.card.name}`,
+      `The transaction was marked complete. You can now leave a rating.`,
+      `/transactions/${id}`,
+    ).catch(console.error);
   }
 
   // When no_show: increment noShowCount for the OTHER party (the one who didn't appear)

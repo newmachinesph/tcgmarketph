@@ -74,7 +74,7 @@ This roadmap adds trust, discovery, safety, and seller tooling on top of that fo
 
 ---
 
-### Phase 11 — Notification center `[ ]`
+### Phase 11 — Notification center `[x]`
 
 **Goal:** Wire up the bell icon in the header with real-time in-app notifications.
 

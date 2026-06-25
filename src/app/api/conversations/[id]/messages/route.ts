@@ -9,6 +9,7 @@ import { conversations, messages } from "@/db/schema/messages";
 import { blockedUsers } from "@/db/schema/blocks";
 import { publishBid } from "@/lib/ably";
 import { messageRatelimit } from "@/lib/rate-limit";
+import { createNotification } from "@/lib/notify";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -122,6 +123,15 @@ export async function POST(request: NextRequest, { params }: Params) {
     body:       msg.body,
     sentAt:     msg.sentAt.toISOString(),
   });
+
+  // In-app notification to recipient (fire-and-forget)
+  createNotification(
+    otherId,
+    "message_received",
+    `New message from ${senderName}`,
+    msg.body.length > 80 ? msg.body.slice(0, 80) + "…" : msg.body,
+    `/messages/${id}`,
+  ).catch(console.error);
 
   return NextResponse.json({ message: { ...msg, senderName } }, { status: 201 });
 }
