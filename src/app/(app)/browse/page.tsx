@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
@@ -28,6 +28,7 @@ import {
 } from "@/lib/validations/wishlist";
 import type { CardCatalog } from "@/db/schema/cards";
 import { CardImage } from "@/components/CardImage";
+import { Price } from "@/components/Price";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ function AddToCollectionDialog({
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#F2F2F2]">{card.name}</p>
               <p className="truncate text-xs text-[#9A9A9A]">{card.setName ?? GAME_LABEL[card.game]}{card.cardNumber ? ` · ${card.cardNumber}` : ""}</p>
-              {card.marketPrice && <p className="text-[10px] text-[#9A9A9A]">Market: {fmt(card.marketPrice)} USD</p>}
+              {card.marketPrice && <p className="text-[10px] text-[#9A9A9A]">Market: <Price usd={card.marketPrice} /></p>}
             </div>
           </div>
 
@@ -277,7 +278,7 @@ function AddToWishlistDialog({
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#F2F2F2]">{card.name}</p>
               <p className="truncate text-xs text-[#9A9A9A]">{card.setName ?? GAME_LABEL[card.game]}{card.cardNumber ? ` · ${card.cardNumber}` : ""}</p>
-              {card.marketPrice && <p className="text-[10px] text-[#9A9A9A]">Market: {fmt(card.marketPrice)} USD</p>}
+              {card.marketPrice && <p className="text-[10px] text-[#9A9A9A]">Market: <Price usd={card.marketPrice} /></p>}
             </div>
           </div>
 
@@ -332,8 +333,6 @@ function CardTile({
   onAddCollection: () => void;
   onAddWishlist: () => void;
 }) {
-  const price = fmt(card.marketPrice);
-
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-surface transition hover:border-white/16">
       {/* Image */}
@@ -375,7 +374,9 @@ function CardTile({
           {card.cardNumber ? ` · ${card.cardNumber}` : ""}
         </p>
         <p className="mt-0.5 text-xs font-semibold text-[#F2F2F2]">
-          {price ? `${price} USD` : <span className="text-[#9A9A9A] font-normal">No price</span>}
+          {card.marketPrice
+            ? <Price usd={card.marketPrice} />
+            : <span className="text-[#9A9A9A] font-normal">No price</span>}
         </p>
       </div>
     </div>
@@ -385,47 +386,35 @@ function CardTile({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function BrowsePage() {
-  const [query, setQuery]           = useState("");
-  const [game, setGame]             = useState<GameFilter>("all");
-  const [rarityFilter, setRarity]   = useState<string>("all");
-  const [setFilter, setSetFilter]   = useState<string>("all");
-  const [result, setResult]         = useState<SearchResult | null>(null);
-  const [searching, setSearching]   = useState(false);
-  const [collCard, setCollCard]     = useState<CardCatalog | null>(null);
-  const [wishCard, setWishCard]     = useState<CardCatalog | null>(null);
-  const debounce                    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [query, setQuery]         = useState("");
+  const [game, setGame]           = useState<GameFilter>("all");
+  const [rarityFilter, setRarity] = useState<string>("all");
+  const [setFilter, setSetFilter] = useState<string>("all");
+  const [result, setResult]       = useState<SearchResult | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [collCard, setCollCard]   = useState<CardCatalog | null>(null);
+  const [wishCard, setWishCard]   = useState<CardCatalog | null>(null);
+  // Track which game was used for the current result set
+  const searchedGame              = useRef<GameFilter>("all");
 
-  // Search whenever query or game changes
-  useEffect(() => {
-    if (debounce.current) clearTimeout(debounce.current);
-
-    if (query.trim().length < 2) {
-      setResult(null);
-      setRarity("all");
-      setSetFilter("all");
-      return;
+  const runSearch = useCallback(async (q: string, g: GameFilter) => {
+    if (q.trim().length < 2) return;
+    setSearching(true);
+    setRarity("all");
+    setSetFilter("all");
+    searchedGame.current = g;
+    try {
+      const params = new URLSearchParams({ q: q.trim() });
+      if (g !== "all") params.set("game", g);
+      const res  = await fetch(`/api/cards/search?${params}`);
+      const json = await res.json();
+      setResult(json);
+    } catch {
+      setResult({ cards: [], fromCache: true, apiUnavailable: true });
+    } finally {
+      setSearching(false);
     }
-
-    debounce.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const params = new URLSearchParams({ q: query });
-        if (game !== "all") params.set("game", game);
-        const res  = await fetch(`/api/cards/search?${params}`);
-        const json = await res.json();
-        setResult(json);
-        // Reset secondary filters when new search runs
-        setRarity("all");
-        setSetFilter("all");
-      } catch {
-        setResult({ cards: [], fromCache: true, apiUnavailable: true });
-      } finally {
-        setSearching(false);
-      }
-    }, 350);
-
-    return () => { if (debounce.current) clearTimeout(debounce.current); };
-  }, [query, game]);
+  }, []);
 
   // Derive available filter options from current results
   const allCards = result?.cards ?? [];
@@ -459,26 +448,37 @@ export default function BrowsePage() {
       </div>
 
       {/* Search + game filter */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-[#9A9A9A]" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search cards by name…"
-            autoFocus
-            className="w-full rounded-xl border border-white/10 bg-surface py-3 pl-10 pr-10 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
-          />
-          {query && (
-            <button onClick={() => { setQuery(""); setResult(null); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9A9A] hover:text-[#F2F2F2] transition">
-              <XMarkIcon className="size-4" />
-            </button>
-          )}
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-[#9A9A9A]" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") runSearch(query, game); }}
+              placeholder="Search cards by name… then press Enter or Search"
+              autoFocus
+              className="w-full rounded-xl border border-white/10 bg-surface py-3 pl-10 pr-10 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
+            />
+            {query && (
+              <button onClick={() => { setQuery(""); setResult(null); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9A9A] hover:text-[#F2F2F2] transition">
+                <XMarkIcon className="size-4" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => runSearch(query, game)}
+            disabled={query.trim().length < 2 || searching}
+            className="flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-40"
+          >
+            <MagnifyingGlassIcon className="size-4" />
+            Search
+          </button>
         </div>
 
         {/* Game tabs */}
-        <div className="flex shrink-0 gap-1 rounded-xl bg-surface p-1 border border-white/8">
+        <div className="flex gap-1 rounded-xl bg-surface p-1 border border-white/8 self-start">
           {([["all", "All"], ["pokemon", "Pokémon"], ["one_piece", "One Piece"]] as const).map(([g, label]) => (
             <button key={g} onClick={() => setGame(g)}
               className={`rounded-lg px-4 py-2 text-xs font-medium transition ${game === g ? "bg-surface2 text-[#F2F2F2] shadow" : "text-[#9A9A9A] hover:text-[#F2F2F2]"}`}>
@@ -555,11 +555,11 @@ export default function BrowsePage() {
       )}
 
       {/* Empty states */}
-      {!searching && query.length < 2 && (
+      {!searching && !result && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <MagnifyingGlassIcon className="mb-3 size-10 text-white/20" />
-          <p className="text-[#F2F2F2] font-medium">Start searching</p>
-          <p className="mt-1 text-sm text-[#9A9A9A]">Type at least 2 characters to search cards</p>
+          <p className="text-[#F2F2F2] font-medium">Search for a card</p>
+          <p className="mt-1 text-sm text-[#9A9A9A]">Type a name then press Enter or click Search</p>
         </div>
       )}
 

@@ -23,6 +23,7 @@ import {
 } from "@/lib/validations/wishlist";
 import type { CardCatalog, UserWishlist } from "@/db/schema/cards";
 import { CardImage } from "@/components/CardImage";
+import { Price } from "@/components/Price";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -86,7 +87,7 @@ function WishlistForm({
             {card.cardNumber ? ` · ${card.cardNumber}` : ""}
           </p>
           {card.marketPrice && (
-            <p className="text-[10px] text-[#9A9A9A]">Market: {fmt(card.marketPrice)} USD</p>
+            <p className="text-[10px] text-[#9A9A9A]">Market: <Price usd={card.marketPrice} /></p>
           )}
         </div>
       </div>
@@ -272,7 +273,7 @@ function AddWishlistDialog({
                       </p>
                     </div>
                     {card.marketPrice && (
-                      <span className="shrink-0 text-xs text-[#9A9A9A]">{fmt(card.marketPrice)}</span>
+                      <Price usd={card.marketPrice} className="shrink-0 text-xs text-[#9A9A9A]" />
                     )}
                   </button>
                 ))}
@@ -390,7 +391,7 @@ function WishlistRow({
         </p>
         <div className="mt-1 flex items-center gap-3 text-xs text-[#9A9A9A]">
           {marketPrice != null && (
-            <span>Market: <span className="text-[#F2F2F2]">{fmt(card.marketPrice)} USD</span></span>
+            <span>Market: <Price usd={card.marketPrice} className="text-[#F2F2F2]" /></span>
           )}
           {maxBuy != null && (
             <span>

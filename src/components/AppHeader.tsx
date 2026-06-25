@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BellIcon, Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import { UserMenu } from "./UserMenu";
+import { useCurrencyStore } from "@/store/currency";
 
 interface AppHeaderProps {
   user: {
@@ -24,8 +25,9 @@ const NAV = [
 ];
 
 export function AppHeader({ user }: AppHeaderProps) {
-  const pathname   = usePathname();
-  const [open, setOpen] = useState(false);
+  const pathname             = usePathname();
+  const [open, setOpen]      = useState(false);
+  const { currency, toggle } = useCurrencyStore();
 
   function isActive(href: string) {
     return pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -59,6 +61,17 @@ export function AppHeader({ user }: AppHeaderProps) {
 
         {/* Right */}
         <div className="ml-auto flex items-center gap-2">
+          {/* Currency toggle */}
+          <button
+            onClick={toggle}
+            title={currency === "PHP" ? "Switch to USD" : "Switch to PHP"}
+            className="flex h-8 items-center gap-1 rounded-lg border border-white/10 bg-surface px-2.5 text-xs font-bold text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
+          >
+            <span className={currency === "PHP" ? "text-[#F2F2F2]" : ""}>₱</span>
+            <span className="text-white/20">/</span>
+            <span className={currency === "USD" ? "text-[#F2F2F2]" : ""}>$</span>
+          </button>
+
           <button
             className="flex size-9 items-center justify-center rounded-lg border border-white/10 text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
             aria-label="Notifications"

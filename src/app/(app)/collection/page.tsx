@@ -24,6 +24,8 @@ import {
 } from "@/lib/validations/collection";
 import type { CardCatalog, UserCollection } from "@/db/schema/cards";
 import { CardImage } from "@/components/CardImage";
+import { Price } from "@/components/Price";
+import { useCurrencyStore, PHP_RATE } from "@/store/currency";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -146,9 +148,7 @@ function EntryCard({
               {CONDITION_SHORT[entry.condition]}
             </span>
           )}
-          <span className="text-xs font-semibold text-[#F2F2F2]">
-            {isNaN(entryValue) || entryValue === 0 ? "—" : `$${entryValue.toFixed(2)}`}
-          </span>
+          <Price usd={isNaN(entryValue) || entryValue === 0 ? null : entryValue} className="text-xs font-semibold text-[#F2F2F2]" />
         </div>
       </div>
     </div>
@@ -202,7 +202,7 @@ function EntryForm({
             {card.cardNumber ? ` · ${card.cardNumber}` : ""}
           </p>
           {card.marketPrice && (
-            <p className="text-[10px] text-[#9A9A9A]">Market: {fmt(card.marketPrice)} USD</p>
+            <p className="text-[10px] text-[#9A9A9A]">Market: <Price usd={card.marketPrice} /></p>
           )}
         </div>
       </div>
@@ -476,7 +476,7 @@ function AddCardDialog({
                       </p>
                     </div>
                     {card.marketPrice && (
-                      <span className="shrink-0 text-xs text-[#9A9A9A]">{fmt(card.marketPrice)}</span>
+                      <Price usd={card.marketPrice} className="shrink-0 text-xs text-[#9A9A9A]" />
                     )}
                   </button>
                 ))}
@@ -565,6 +565,7 @@ function EditDialog({
 
 export default function CollectionPage() {
   const qc = useQueryClient();
+  const { currency, format } = useCurrencyStore();
   const [addOpen, setAddOpen]           = useState(false);
   const [editItem, setEditItem]         = useState<CollectionEntry | null>(null);
   const [deletePending, setDeletePending] = useState<string | null>(null);
@@ -623,7 +624,7 @@ export default function CollectionPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#F2F2F2]">My Collection</h1>
           <p className="mt-1 text-sm text-[#9A9A9A]">
-            {isPending ? "Loading…" : `${cardCount} card${cardCount !== 1 ? "s" : ""} · $${value.toFixed(2)} USD est. value`}
+            {isPending ? "Loading…" : `${cardCount} card${cardCount !== 1 ? "s" : ""} · ${format(value)} est. value`}
           </p>
         </div>
         <button
