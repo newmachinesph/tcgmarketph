@@ -2,30 +2,33 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TagIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { TagIcon, XMarkIcon, CreditCardIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 
 interface Props {
   listingId: string;
-  maxQty: number;
-  price: string;
-  cardName: string;
+  maxQty:    number;
+  price:     string;
+  cardName:  string;
 }
+
+type PayMethod = "cash_meetup" | "online";
 
 export function BuyNowButton({ listingId, maxQty, price, cardName }: Props) {
   const router = useRouter();
-  const [open, setOpen]       = useState(false);
-  const [qty, setQty]         = useState(1);
-  const [note, setNote]       = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
+  const [open, setOpen]         = useState(false);
+  const [qty, setQty]           = useState(1);
+  const [note, setNote]         = useState("");
+  const [method, setMethod]     = useState<PayMethod>("cash_meetup");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
 
   async function submit() {
     setLoading(true);
     setError("");
     const res  = await fetch("/api/transactions", {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingId, quantity: qty, buyerNote: note || undefined }),
+      body:    JSON.stringify({ listingId, quantity: qty, buyerNote: note || undefined, method }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -33,12 +36,16 @@ export function BuyNowButton({ listingId, maxQty, price, cardName }: Props) {
       setLoading(false);
       return;
     }
+    // Online payment: redirect to PayMongo checkout
+    if (method === "online" && data.checkoutUrl) {
+      window.location.href = data.checkoutUrl;
+      return;
+    }
     router.push(`/transactions/${data.transaction.id}`);
   }
 
   const total = parseFloat(price) * qty;
-  const fmt   = (n: number) =>
-    "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2 });
+  const fmt   = (n: number) => "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
   return (
     <>
@@ -91,13 +98,46 @@ export function BuyNowButton({ listingId, maxQty, price, cardName }: Props) {
               />
             </div>
 
+            {/* Payment method selector */}
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-medium text-[#9A9A9A]">Payment method</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMethod("cash_meetup")}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 text-xs font-medium transition ${
+                    method === "cash_meetup"
+                      ? "border-accent bg-accent/10 text-accent"
+                      : "border-white/10 bg-surface text-[#9A9A9A] hover:border-white/20"
+                  }`}
+                >
+                  <BanknotesIcon className="size-5" />
+                  Cash on meetup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod("online")}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 text-xs font-medium transition ${
+                    method === "online"
+                      ? "border-accent bg-accent/10 text-accent"
+                      : "border-white/10 bg-surface text-[#9A9A9A] hover:border-white/20"
+                  }`}
+                >
+                  <CreditCardIcon className="size-5" />
+                  GCash / Card
+                </button>
+              </div>
+            </div>
+
             <div className="mb-4 rounded-xl bg-surface p-3">
               <div className="flex justify-between text-sm">
                 <span className="text-[#9A9A9A]">Total</span>
                 <span className="font-bold text-[#F2F2F2]">{fmt(total)}</span>
               </div>
               <p className="mt-1.5 text-[10px] text-[#9A9A9A]">
-                💵 Cash on meetup — the seller will confirm and you&apos;ll arrange a safe meetup location.
+                {method === "online"
+                  ? "💳 You'll be redirected to PayMongo to pay via GCash, Maya, or card. The card is still exchanged at meetup."
+                  : "💵 Cash on meetup — the seller will confirm and you'll arrange a safe meetup location."}
               </p>
             </div>
 
@@ -110,7 +150,9 @@ export function BuyNowButton({ listingId, maxQty, price, cardName }: Props) {
               disabled={loading}
               className="w-full rounded-xl bg-accent py-3 text-sm font-semibold text-white transition hover:bg-accent/80 disabled:opacity-50"
             >
-              {loading ? "Confirming…" : "Confirm purchase request"}
+              {loading
+                ? method === "online" ? "Creating payment…" : "Confirming…"
+                : method === "online" ? "Pay with GCash / Card →" : "Confirm purchase request"}
             </button>
           </div>
         </div>

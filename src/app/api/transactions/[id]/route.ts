@@ -105,6 +105,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (action === "confirm") {
     if (!isSeller) return NextResponse.json({ error: "Only seller can confirm" }, { status: 403 });
     if (txn.status !== "pending") return NextResponse.json({ error: "Nothing to confirm" }, { status: 409 });
+    if (txn.method === "online" && !txn.paidAt) {
+      return NextResponse.json({ error: "Awaiting buyer's online payment" }, { status: 409 });
+    }
   }
   if (action === "cancel") {
     if (!["pending", "agreed"].includes(txn.status)) {

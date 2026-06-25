@@ -9,11 +9,13 @@ import { cardCatalog } from "@/db/schema/cards";
 import { user as userTable } from "@/db/schema/auth";
 import { transactions, meetupProposals } from "@/db/schema/transactions";
 import { emailTransactionCreated } from "@/lib/email";
+import { createPaymentLink } from "@/lib/paymongo";
 
 const createSchema = z.object({
   listingId: z.string().min(1),
   quantity:  z.coerce.number().int().min(1).max(99).default(1),
   buyerNote: z.string().max(500).optional(),
+  method:    z.enum(["cash_meetup", "online"]).default("cash_meetup"),
 });
 
 // GET /api/transactions — my transactions (buyer + seller)
@@ -70,7 +72,7 @@ export async function POST(request: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { listingId, quantity, buyerNote } = parsed.data;
+  const { listingId, quantity, buyerNote, method } = parsed.data;
 
   // Fetch listing + seller email
   const [row] = await db
@@ -91,27 +93,59 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Only ${row.listing.quantity} available` }, { status: 400 });
   }
 
+  // For online payments, create the PayMongo link BEFORE inserting the transaction
+  let paymongoLinkId:      string | undefined;
+  let paymongoCheckoutUrl: string | undefined;
+
+  if (method === "online") {
+    if (!process.env.PAYMONGO_SECRET_KEY) {
+      return NextResponse.json({ error: "Online payments not configured" }, { status: 503 });
+    }
+    try {
+      const totalPHP = parseFloat(row.listing.price) * quantity;
+      const link = await createPaymentLink({
+        amountPHP:   totalPHP,
+        description: `TCGmarket: ${row.card.name} (${quantity > 1 ? `×${quantity}` : row.card.setName ?? "card"})`,
+        txnId:       "pending", // updated below after insert
+      });
+      paymongoLinkId      = link.id;
+      paymongoCheckoutUrl = link.checkoutUrl;
+    } catch (err) {
+      console.error("[transactions] PayMongo link creation failed:", err);
+      return NextResponse.json({ error: "Payment provider unavailable — try cash meetup" }, { status: 502 });
+    }
+  }
+
   const [txn] = await db
     .insert(transactions)
     .values({
       listingId,
-      buyerId:     session.user.id,
-      sellerId:    row.listing.sellerId,
-      agreedPrice: row.listing.price,
+      buyerId:             session.user.id,
+      sellerId:            row.listing.sellerId,
+      agreedPrice:         row.listing.price,
       quantity,
       buyerNote,
+      method,
+      paymongoLinkId:      paymongoLinkId ?? null,
+      paymongoCheckoutUrl: paymongoCheckoutUrl ?? null,
     })
     .returning();
 
-  // Notify seller (fire-and-forget)
-  emailTransactionCreated({
-    sellerEmail: row.seller.email,
-    sellerName:  row.seller.displayName ?? row.seller.name,
-    buyerName:   session.user.displayName ?? session.user.name,
-    cardName:    row.card.name,
-    price:       row.listing.price,
-    txnId:       txn.id,
-  }).catch(console.error);
+  // For cash meetup: notify seller immediately.
+  // For online: notify when payment is confirmed (webhook).
+  if (method === "cash_meetup") {
+    emailTransactionCreated({
+      sellerEmail: row.seller.email,
+      sellerName:  row.seller.displayName ?? row.seller.name,
+      buyerName:   session.user.displayName ?? session.user.name,
+      cardName:    row.card.name,
+      price:       row.listing.price,
+      txnId:       txn.id,
+    }).catch(console.error);
+  }
 
-  return NextResponse.json({ transaction: txn }, { status: 201 });
+  return NextResponse.json(
+    { transaction: txn, checkoutUrl: paymongoCheckoutUrl ?? null },
+    { status: 201 },
+  );
 }

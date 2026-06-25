@@ -13,6 +13,8 @@ import {
   CalendarIcon,
   ExclamationCircleIcon,
   ChatBubbleLeftEllipsisIcon,
+  CreditCardIcon,
+  BanknotesIcon,
 } from "@heroicons/react/24/outline";
 import { CONDITION_LABEL } from "@/lib/validations/listing";
 
@@ -44,9 +46,12 @@ interface Transaction {
   sellerId: string;
   agreedPrice: string;
   quantity: number;
+  method: string;
   status: string;
   buyerNote: string | null;
   cancelReason: string | null;
+  paymongoCheckoutUrl: string | null;
+  paidAt: string | null;
   createdAt: string;
   updatedAt: string;
   card: { name: string; setName: string | null; game: string; imageUrl: string | null };
@@ -66,6 +71,45 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   no_show:   { label: "No-show reported",            color: "text-orange-400",  bg: "bg-orange-400/10 border-orange-400/30" },
   disputed:  { label: "Disputed",                    color: "text-red-400",     bg: "bg-red-400/10 border-red-400/30" },
 };
+
+function PaymentBadge({ method, paidAt, checkoutUrl, isBuyer }: {
+  method:      string;
+  paidAt:      string | null;
+  checkoutUrl: string | null;
+  isBuyer:     boolean;
+}) {
+  if (method !== "online") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-surface2 px-2.5 py-1 text-[10px] font-semibold text-[#9A9A9A]">
+        <BanknotesIcon className="size-3" /> Cash on meetup
+      </span>
+    );
+  }
+  if (paidAt) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-400">
+        <CreditCardIcon className="size-3" /> Paid online ✓
+      </span>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 text-[10px] font-semibold text-yellow-400">
+        <CreditCardIcon className="size-3" /> Awaiting payment
+      </span>
+      {isBuyer && checkoutUrl && (
+        <a
+          href={checkoutUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-accent/80 transition"
+        >
+          Pay Now →
+        </a>
+      )}
+    </div>
+  );
+}
 
 function formatPHP(price: string | number) {
   return "₱" + parseFloat(String(price)).toLocaleString("en-PH", { minimumFractionDigits: 2 });
@@ -265,7 +309,11 @@ export default function TransactionDetailPage() {
     );
   }
 
-  const cfg       = STATUS_CONFIG[txn.status] ?? STATUS_CONFIG.pending;
+  const isOnlineUnpaid = txn.method === "online" && !txn.paidAt && txn.status === "pending";
+  const rawCfg    = STATUS_CONFIG[txn.status] ?? STATUS_CONFIG.pending;
+  const cfg       = isOnlineUnpaid
+    ? { ...rawCfg, label: "Awaiting online payment" }
+    : rawCfg;
   const isBuyer   = txn.role === "buyer";
   const isSeller  = txn.role === "seller";
   const isActive  = ["pending", "agreed"].includes(txn.status);
@@ -278,9 +326,12 @@ export default function TransactionDetailPage() {
       </Link>
 
       {/* Status banner */}
-      <div className={`mb-6 rounded-2xl border p-4 ${cfg.bg}`}>
+      <div className={`mb-4 rounded-2xl border p-4 ${cfg.bg}`}>
         <p className={`text-sm font-semibold ${cfg.color}`}>{cfg.label}</p>
-        {txn.status === "pending" && isBuyer && (
+        {isOnlineUnpaid && isBuyer && (
+          <p className="mt-1 text-xs text-[#9A9A9A]">Complete your payment to confirm the purchase.</p>
+        )}
+        {txn.status === "pending" && isBuyer && !isOnlineUnpaid && (
           <p className="mt-1 text-xs text-[#9A9A9A]">Waiting for the seller to confirm your request.</p>
         )}
         {txn.status === "agreed" && (
@@ -289,6 +340,16 @@ export default function TransactionDetailPage() {
         {txn.cancelReason && (
           <p className="mt-1 text-xs text-[#9A9A9A]">Reason: {txn.cancelReason}</p>
         )}
+      </div>
+
+      {/* Payment badge */}
+      <div className="mb-4">
+        <PaymentBadge
+          method={txn.method}
+          paidAt={txn.paidAt}
+          checkoutUrl={txn.paymongoCheckoutUrl}
+          isBuyer={isBuyer}
+        />
       </div>
 
       {error && (

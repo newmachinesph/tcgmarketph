@@ -15,7 +15,7 @@ import { listings } from "./listings";
 
 export const transactionMethodEnum = pgEnum("transaction_method", [
   "cash_meetup",
-  "online", // future
+  "online",
 ]);
 
 export const transactionStatusEnum = pgEnum("transaction_status", [
@@ -67,6 +67,11 @@ export const transactions = pgTable(
 
     buyerNote:    text("buyer_note"),
     cancelReason: text("cancel_reason"),
+
+    // PayMongo online payment
+    paymongoLinkId:      text("paymongo_link_id"),
+    paymongoCheckoutUrl: text("paymongo_checkout_url"),
+    paidAt:              timestamp("paid_at"),
 
     // Dispute resolution (set by admin)
     resolvedBy:   text("resolved_by").references(() => user.id),
