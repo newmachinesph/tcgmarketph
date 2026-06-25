@@ -1,16 +1,26 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
+type Duration = `${number} s` | `${number} m` | `${number} h` | `${number} d`;
+
+function makeRedis() {
+  return new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  });
+}
+
+function hasRedis() {
+  return !!(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  );
+}
+
 // Returns null when Upstash env vars are not set (dev without Redis).
-function makeRatelimiter(requests: number, window: `${number} s` | `${number} m`) {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return null;
-  }
+function makeRatelimiter(requests: number, window: Duration) {
+  if (!hasRedis()) return null;
   return new Ratelimit({
-    redis: new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    }),
+    redis: makeRedis(),
     limiter: Ratelimit.slidingWindow(requests, window),
     analytics: true,
   });
@@ -24,3 +34,14 @@ export const resetRatelimit = makeRatelimiter(5, "60 m");
 
 // 3 OTP sends per 10 minutes per user
 export const otpRatelimit = makeRatelimiter(3, "10 m");
+
+// Protects our 100 req/day TCG API quota. Fixed daily window mirrors tcgapi.dev's
+// reset schedule. Key must always be "global" (shared across all users).
+export const tcgApiRatelimit = hasRedis()
+  ? new Ratelimit({
+      redis: makeRedis(),
+      limiter: Ratelimit.fixedWindow(90, "1 d"),
+      analytics: true,
+      prefix: "tcg-api",
+    })
+  : null;
