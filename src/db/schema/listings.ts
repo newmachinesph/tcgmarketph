@@ -167,3 +167,24 @@ export const bids = pgTable(
 
 export type Bid    = typeof bids.$inferSelect;
 export type NewBid = typeof bids.$inferInsert;
+
+// ── listing_views ─────────────────────────────────────────────────────────────
+
+export const listingViews = pgTable(
+  "listing_views",
+  {
+    id:        text("id").primaryKey().$defaultFn(() => createId()),
+    listingId: text("listing_id").notNull().references(() => listings.id, { onDelete: "cascade" }),
+    viewerId:  text("viewer_id").references(() => user.id, { onDelete: "set null" }),
+    ipHash:    text("ip_hash"),
+    viewedAt:  timestamp("viewed_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("view_listing_idx").on(t.listingId),
+    index("view_viewer_idx").on(t.viewerId),
+    index("view_viewed_at_idx").on(t.viewedAt),
+  ]
+);
+
+export type ListingView    = typeof listingViews.$inferSelect;
+export type NewListingView = typeof listingViews.$inferInsert;

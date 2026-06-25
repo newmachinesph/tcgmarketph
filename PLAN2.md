@@ -117,7 +117,7 @@ This roadmap adds trust, discovery, safety, and seller tooling on top of that fo
 
 ---
 
-### Phase 12 — Wishlist match alerts `[ ]`
+### Phase 12 — Wishlist match alerts `[x]`
 
 **Goal:** When a card a buyer wants gets listed, notify them automatically.
 

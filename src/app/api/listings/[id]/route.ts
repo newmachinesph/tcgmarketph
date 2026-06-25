@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { eq, and } from "drizzle-orm";
+import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { listings, listingPhotos } from "@/db/schema/listings";
+import { listings, listingPhotos, listingViews } from "@/db/schema/listings";
 import { cardCatalog } from "@/db/schema/cards";
 import { user } from "@/db/schema/auth";
 import { editListingSchema } from "@/lib/validations/listing";
@@ -11,7 +12,7 @@ import { editListingSchema } from "@/lib/validations/listing";
 type Params = { params: Promise<{ id: string }> };
 
 // GET /api/listings/[id] — public listing detail
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
 
   const [row] = await db
@@ -28,6 +29,27 @@ export async function GET(_request: NextRequest, { params }: Params) {
     .from(listingPhotos)
     .where(eq(listingPhotos.listingId, id))
     .orderBy(listingPhotos.order);
+
+  // Record view (fire-and-forget — never block the response)
+  ;(async () => {
+    try {
+      const hdrs = await headers();
+      const session = await auth.api.getSession({ headers: hdrs });
+      const viewerId = session?.user.id ?? null;
+
+      // Skip own views
+      if (viewerId && viewerId === row.listing.sellerId) return;
+
+      const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+        ?? request.headers.get("x-real-ip")
+        ?? "unknown";
+      const ipHash = createHash("sha256").update(ip).digest("hex").slice(0, 16);
+
+      await db.insert(listingViews).values({ listingId: id, viewerId, ipHash });
+    } catch {
+      // non-fatal
+    }
+  })();
 
   return NextResponse.json({
     listing: {

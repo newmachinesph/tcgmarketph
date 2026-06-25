@@ -22,8 +22,14 @@ import { ChevronUpIcon } from "@heroicons/react/20/solid";
 import { CardImage } from "@/components/CardImage";
 import { Price } from "@/components/Price";
 import { GAME_LABEL } from "@/lib/constants/games";
+import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
 
@@ -120,6 +126,33 @@ export default async function DashboardPage() {
           Edit Profile
         </Link>
       </div>
+
+      {/* ── Tab bar ─────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 border-b border-white/10">
+        {[
+          { label: "Overview",  href: "/dashboard" },
+          { label: "Analytics", href: "/dashboard?tab=analytics" },
+        ].map(({ label, href }) => {
+          const active = label === "Analytics" ? tab === "analytics" : !tab || tab === "overview";
+          return (
+            <Link
+              key={label}
+              href={href}
+              className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
+                active
+                  ? "border-accent text-[#F2F2F2]"
+                  : "border-transparent text-[#9A9A9A] hover:text-[#F2F2F2]"
+              }`}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+
+      {tab === "analytics" && <AnalyticsDashboard />}
+
+      {tab !== "analytics" && (<>
 
       {/* ── TCG collection stats ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -272,6 +305,8 @@ export default async function DashboardPage() {
           );
         })}
       </div>
+
+      </>)}
 
     </div>
   );
