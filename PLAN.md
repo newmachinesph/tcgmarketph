@@ -48,7 +48,7 @@ TCG marketplace for the Philippines — Pokémon and One Piece cards.
 
 ## Phases
 
-### Phase 1 — Listings (fixed-price sell) `[ ]`
+### Phase 1 — Listings (fixed-price sell) `[x]`
 
 **Goal:** A phone-verified user can list a card for sale at a fixed price.
 
@@ -72,7 +72,7 @@ TCG marketplace for the Philippines — Pokémon and One Piece cards.
 
 ---
 
-### Phase 2 — Browse & search listings `[ ]`
+### Phase 2 — Browse & search listings `[x]`
 
 **Goal:** Buyers can find cards for sale.
 
