@@ -291,21 +291,16 @@ function ChangeEmailForm({ currentEmail, onClose }: { currentEmail: string; onCl
 // ─── Delete Account ───────────────────────────────────────────────────────────
 
 function DeleteAccountForm({ onClose }: { onClose: () => void }) {
-  const [showPass, setShowPass] = useState(false);
-
   const {
     register,
     handleSubmit,
-    setError,
     formState: { errors, isSubmitting },
   } = useForm<DeleteAccountInput>({ resolver: zodResolver(deleteAccountSchema) });
 
-  const onSubmit = async (data: DeleteAccountInput) => {
-    const { error } = await (authClient as any).deleteUser({
-      password: data.password,
-    });
+  const onSubmit = async () => {
+    const { error } = await (authClient as any).deleteUser();
     if (error) {
-      setError("password", { message: error.message ?? "Incorrect password." });
+      toast.error(error.message ?? "Failed to delete account.");
     } else {
       toast.success("Account deleted.");
       await authClient.signOut();
@@ -322,23 +317,6 @@ function DeleteAccountForm({ onClose }: { onClose: () => void }) {
       <p className="text-xs text-ask">
         This is permanent. All your listings, messages, and account data will be deleted and cannot be recovered.
       </p>
-
-      <Field label="Your password" htmlFor="del-password" error={errors.password?.message}>
-        <div className="relative">
-          <input
-            {...register("password")}
-            id="del-password"
-            type={showPass ? "text" : "password"}
-            placeholder="••••••••"
-            autoComplete="current-password"
-            className={inputCls(!!errors.password)}
-          />
-          <button type="button" onClick={() => setShowPass(v => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9A9A] hover:text-[#F2F2F2]">
-            {showPass ? <EyeSlashIcon className="size-4" /> : <EyeIcon className="size-4" />}
-          </button>
-        </div>
-      </Field>
 
       <Field
         label='Type "DELETE" to confirm'

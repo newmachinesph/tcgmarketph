@@ -81,15 +81,9 @@ export const changeEmailSchema = z.object({
   newEmail: emailField,
 });
 
-export const deleteAccountSchema = z
-  .object({
-    password: z.string().min(1, "Password is required"),
-    confirm: z.string(),
-  })
-  .refine((d) => d.confirm === "DELETE", {
-    message: 'Type DELETE to confirm',
-    path: ["confirm"],
-  });
+export const deleteAccountSchema = z.object({
+  confirm: z.literal("DELETE", { message: 'Type DELETE to confirm' }),
+});
 
 export type LoginInput          = z.infer<typeof loginSchema>;
 export type SignupInput         = z.infer<typeof signupSchema>;
