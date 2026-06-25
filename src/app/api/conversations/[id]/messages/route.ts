@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { eq, and, asc, sql } from "drizzle-orm";
+import { eq, and, or, asc, sql } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { user as userTable } from "@/db/schema/auth";
 import { conversations, messages } from "@/db/schema/messages";
+import { blockedUsers } from "@/db/schema/blocks";
 import { publishBid } from "@/lib/ably";
 import { messageRatelimit } from "@/lib/rate-limit";
 
@@ -83,6 +84,22 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!conv) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (conv.participantA !== uid && conv.participantB !== uid) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Block check — if the other party has blocked the sender (or vice versa)
+  const otherId = conv.participantA === uid ? conv.participantB : conv.participantA;
+  const blockRows = await db
+    .select({ id: blockedUsers.id })
+    .from(blockedUsers)
+    .where(
+      or(
+        and(eq(blockedUsers.blockerId, otherId), eq(blockedUsers.blockedId, uid)),
+        and(eq(blockedUsers.blockerId, uid),     eq(blockedUsers.blockedId, otherId)),
+      )
+    )
+    .limit(1);
+  if (blockRows.length) {
+    return NextResponse.json({ error: "Cannot send messages in this conversation" }, { status: 403 });
   }
 
   const body   = await request.json().catch(() => null);

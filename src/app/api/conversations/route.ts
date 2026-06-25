@@ -8,6 +8,7 @@ import { user as userTable } from "@/db/schema/auth";
 import { conversations, messages } from "@/db/schema/messages";
 import { listings } from "@/db/schema/listings";
 import { cardCatalog } from "@/db/schema/cards";
+import { blockedUsers } from "@/db/schema/blocks";
 
 const createSchema = z.object({
   recipientId: z.string().min(1),
@@ -110,6 +111,21 @@ export async function POST(request: NextRequest) {
   const uid = session.user.id;
 
   if (uid === recipientId) return NextResponse.json({ error: "Cannot message yourself" }, { status: 400 });
+
+  // Block check — either direction
+  const blockRows = await db
+    .select({ id: blockedUsers.id })
+    .from(blockedUsers)
+    .where(
+      or(
+        and(eq(blockedUsers.blockerId, uid),         eq(blockedUsers.blockedId, recipientId)),
+        and(eq(blockedUsers.blockerId, recipientId), eq(blockedUsers.blockedId, uid)),
+      )
+    )
+    .limit(1);
+  if (blockRows.length) {
+    return NextResponse.json({ error: "Cannot start a conversation with this user" }, { status: 403 });
+  }
 
   // Normalise participant order
   const [pA, pB] = uid < recipientId ? [uid, recipientId] : [recipientId, uid];

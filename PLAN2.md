@@ -13,7 +13,7 @@ This roadmap adds trust, discovery, safety, and seller tooling on top of that fo
 
 ## Phases
 
-### Phase 9 — Block user `[ ]`
+### Phase 9 — Block user `[x]`
 
 **Goal:** Users can block others from contacting or messaging them.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import {
   EyeSlashIcon,
   XMarkIcon,
   CurrencyDollarIcon,
+  NoSymbolIcon,
 } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -402,6 +403,76 @@ function PreferencesSection() {
   );
 }
 
+// ─── Blocked Users ────────────────────────────────────────────────────────────
+
+interface BlockEntry {
+  id:        string;
+  blockedId: string;
+  createdAt: string;
+  user: { id: string; name: string; displayName: string | null; image: string | null } | null;
+}
+
+function BlockedUsersSection() {
+  const [blocks, setBlocks]   = useState<BlockEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/blocks")
+      .then((r) => r.json())
+      .then((d) => { setBlocks(d.blocks ?? []); setLoading(false); });
+  }, []);
+
+  async function unblock(blockedId: string) {
+    setWorking(blockedId);
+    await fetch(`/api/blocks/${blockedId}`, { method: "DELETE" });
+    setBlocks((prev) => prev.filter((b) => b.blockedId !== blockedId));
+    setWorking(null);
+  }
+
+  return (
+    <Section title="Blocked Users">
+      {loading ? (
+        <div className="px-6 py-4">
+          <div className="h-4 w-32 animate-pulse rounded bg-surface2" />
+        </div>
+      ) : blocks.length === 0 ? (
+        <div className="px-6 py-4">
+          <p className="text-sm text-[#9A9A9A]">You haven&apos;t blocked anyone.</p>
+        </div>
+      ) : (
+        blocks.map((b) => {
+          const name = b.user?.displayName ?? b.user?.name ?? "Unknown user";
+          return (
+            <div key={b.id} className="flex items-center gap-4 px-6 py-4">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface2">
+                {b.user?.image ? (
+                  <img src={b.user.image} alt={name} className="size-9 rounded-xl object-cover" />
+                ) : (
+                  <NoSymbolIcon className="size-4 text-[#9A9A9A]" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-[#F2F2F2]">{name}</p>
+                <p className="text-xs text-[#9A9A9A]">
+                  Blocked {new Date(b.createdAt).toLocaleDateString("en-PH")}
+                </p>
+              </div>
+              <button
+                onClick={() => unblock(b.blockedId)}
+                disabled={working === b.blockedId}
+                className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2] disabled:opacity-50"
+              >
+                {working === b.blockedId ? "Unblocking…" : "Unblock"}
+              </button>
+            </div>
+          );
+        })
+      )}
+    </Section>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -526,6 +597,9 @@ export default function SettingsPage() {
             action={<ComingSoonBadge />}
           />
         </Section>
+
+        {/* Blocked users */}
+        <BlockedUsersSection />
 
         {/* Danger zone */}
         <Section title="Danger Zone">

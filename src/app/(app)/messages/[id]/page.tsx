@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Ably from "ably";
-import { PaperAirplaneIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { PaperAirplaneIcon, ArrowLeftIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
 import { ReportButton } from "@/components/ReportButton";
 
@@ -45,24 +45,53 @@ export default function ChatPage() {
   const { data: session } = authClient.useSession();
   const uid      = session?.user.id ?? "";
 
-  const [conv, setConv]       = useState<ConvDetail | null>(null);
-  const [msgs, setMsgs]       = useState<MsgEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [body, setBody]       = useState("");
-  const [sending, setSending] = useState(false);
-  const [error, setError]     = useState("");
+  const [conv, setConv]         = useState<ConvDetail | null>(null);
+  const [msgs, setMsgs]         = useState<MsgEntry[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [body, setBody]         = useState("");
+  const [sending, setSending]   = useState(false);
+  const [error, setError]       = useState("");
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blocking, setBlocking]   = useState(false);
   const bottomRef             = useRef<HTMLDivElement>(null);
   const inputRef              = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
-    const res  = await fetch(`/api/conversations/${id}/messages`);
-    const data = await res.json();
-    if (res.ok) {
-      setConv({ ...data.conversation, listingCard: data.conversation.listingCard ?? null });
-      setMsgs(data.messages ?? []);
+    const [convRes, blocksRes] = await Promise.all([
+      fetch(`/api/conversations/${id}/messages`),
+      fetch("/api/blocks"),
+    ]);
+    const convData   = await convRes.json();
+    const blocksData = await blocksRes.json();
+    if (convRes.ok) {
+      setConv({ ...convData.conversation, listingCard: convData.conversation.listingCard ?? null });
+      setMsgs(convData.messages ?? []);
+      // Check if we have blocked the other participant
+      const otherId = convData.conversation?.other?.id;
+      if (otherId && blocksRes.ok) {
+        const blocked = (blocksData.blocks ?? []).some((b: { blockedId: string }) => b.blockedId === otherId);
+        setIsBlocked(blocked);
+      }
     }
     setLoading(false);
   }, [id]);
+
+  async function toggleBlock() {
+    if (!conv?.other) return;
+    setBlocking(true);
+    if (isBlocked) {
+      await fetch(`/api/blocks/${conv.other.id}`, { method: "DELETE" });
+      setIsBlocked(false);
+    } else {
+      await fetch("/api/blocks", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ blockedId: conv.other.id }),
+      });
+      setIsBlocked(true);
+    }
+    setBlocking(false);
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -169,8 +198,18 @@ export default function ChatPage() {
           )}
         </div>
         {conv?.other && (
-          <div className="shrink-0">
-            <ReportButton targetType="user" targetId={conv.other.id} label="Report user" />
+          <div className="shrink-0 flex items-center gap-3">
+            <button
+              onClick={toggleBlock}
+              disabled={blocking}
+              className={`flex items-center gap-1.5 text-xs transition disabled:opacity-50 ${
+                isBlocked ? "text-emerald-400 hover:text-emerald-300" : "text-[#9A9A9A] hover:text-red-400"
+              }`}
+            >
+              <NoSymbolIcon className="size-3.5" />
+              {isBlocked ? "Unblock" : "Block"}
+            </button>
+            <ReportButton targetType="user" targetId={conv.other.id} label="Report" />
           </div>
         )}
       </div>
@@ -214,6 +253,15 @@ export default function ChatPage() {
 
       {/* Input */}
       <div className="shrink-0 border-t border-white/10 bg-primary px-4 py-3">
+        {isBlocked ? (
+          <div className="flex items-center justify-between rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+            <span>You have blocked this user. Unblock to send messages.</span>
+            <button onClick={toggleBlock} disabled={blocking} className="ml-3 font-semibold underline hover:text-red-300 disabled:opacity-50">
+              Unblock
+            </button>
+          </div>
+        ) : (
+        <>
         {error && <p className="mb-2 text-xs text-red-400">{error}</p>}
         <div className="flex items-end gap-2">
           <textarea
@@ -235,6 +283,8 @@ export default function ChatPage() {
             <PaperAirplaneIcon className="size-4" />
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
