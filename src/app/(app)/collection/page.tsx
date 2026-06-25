@@ -26,6 +26,7 @@ import {
   FolderPlusIcon,
   FolderIcon,
   CheckIcon,
+  TagIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import {
@@ -152,6 +153,10 @@ function DraggableCard({
               className="rounded-lg bg-rose-500/20 p-1.5 text-rose-400 hover:bg-rose-500/30 transition">
               <TrashIcon className="size-3.5" />
             </button>
+            <a href={`/listings/new?fromCollection=${entry.id}`} aria-label="List this card for sale"
+              className="rounded-lg bg-accent/20 p-1.5 text-accent hover:bg-accent/30 transition">
+              <TagIcon className="size-3.5" />
+            </a>
           </div>
         </div>
       </div>
