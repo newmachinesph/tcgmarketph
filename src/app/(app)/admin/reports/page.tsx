@@ -88,7 +88,7 @@ export default function AdminReportsPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10">
+    <div className="space-y-6">
       <div className="mb-6 flex items-center gap-3">
         <FlagIcon className="size-6 text-accent" />
         <h1 className="text-2xl font-bold text-[#F2F2F2]">Reports Queue</h1>
