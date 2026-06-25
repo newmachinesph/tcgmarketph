@@ -108,7 +108,7 @@ This roadmap closes the remaining operational gaps: admin visibility, dispute re
 
 ---
 
-### Phase 17 — Saved searches & price drop alerts `[ ]`
+### Phase 17 — Saved searches & price drop alerts `[x]`
 
 **Goal:** Buyers can save a marketplace search and get notified when a new listing matches, or when a listed card drops in price.
 
@@ -144,7 +144,7 @@ This roadmap closes the remaining operational gaps: admin visibility, dispute re
 
 ---
 
-### Phase 18 — Platform health & moderation metrics `[ ]`
+### Phase 18 — Platform health & moderation metrics `[x]`
 
 **Goal:** Admins can monitor platform trends and catch abuse early without manually sifting through data.
 
