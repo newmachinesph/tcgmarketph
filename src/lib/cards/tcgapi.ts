@@ -82,6 +82,32 @@ export async function searchTcgApi(
   return json.data;
 }
 
+/**
+ * Fetch a single card from tcgapi.dev by its numeric external ID.
+ * Used by the price-refresh job to get fresh prices without a name search.
+ * Returns null if the card is not found (404) or no longer has pricing data.
+ */
+export async function fetchCardByExternalId(
+  externalId: string,
+  game: GameKey
+): Promise<TcgApiCard | null> {
+  const url = new URL(`${BASE}/v1/cards/${externalId}`);
+  url.searchParams.set("game", GAME_SLUG[game]);
+
+  const res = await fetch(url.toString(), {
+    headers: { "X-API-Key": apiKey() },
+    signal: AbortSignal.timeout(8000),
+    next: { revalidate: 0 },
+  });
+
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`tcgapi.dev ${res.status}: ${await res.text()}`);
+
+  const json = await res.json();
+  // API may return { data: TcgApiCard } or TcgApiCard directly
+  return (json.data ?? json) as TcgApiCard;
+}
+
 /** Resolve a tcgapi.dev game slug back to our enum, or null if unsupported. */
 export function slugToGameKey(slug: string): GameKey | null {
   return SLUG_TO_GAME[slug] ?? null;

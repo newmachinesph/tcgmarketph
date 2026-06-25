@@ -194,3 +194,35 @@ export const userWishlist = pgTable(
 
 export type UserWishlist    = typeof userWishlist.$inferSelect;
 export type NewUserWishlist = typeof userWishlist.$inferInsert;
+
+// ── price_history ─────────────────────────────────────────────────────────────
+
+/**
+ * price_history — one row per price snapshot per card.
+ * Written by the scheduled price-refresh Inngest job.
+ * Used to show price trends over time (Phase 6+).
+ */
+export const priceHistory = pgTable(
+  "price_history",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+
+    cardId: text("card_id")
+      .notNull()
+      .references(() => cardCatalog.id, { onDelete: "cascade" }),
+
+    price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+    source: text("source").notNull().default("tcgapi"),
+
+    recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("price_history_card_idx").on(table.cardId),
+    index("price_history_recorded_idx").on(table.recordedAt),
+  ]
+);
+
+export type PriceHistory    = typeof priceHistory.$inferSelect;
+export type NewPriceHistory = typeof priceHistory.$inferInsert;
