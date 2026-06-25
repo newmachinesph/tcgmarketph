@@ -50,6 +50,7 @@ export async function GET(_request: NextRequest) {
   const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
   return NextResponse.json({
+    uid,
     transactions: rows.map((r) => ({
       ...r.transaction,
       card:   r.card,

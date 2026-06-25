@@ -1,13 +1,7 @@
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { eq, or, desc, inArray } from "drizzle-orm";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { transactions } from "@/db/schema/transactions";
-import { listings } from "@/db/schema/listings";
-import { cardCatalog } from "@/db/schema/cards";
-import { user as userTable } from "@/db/schema/auth";
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -68,52 +62,49 @@ function TransactionRow({ txn, uid }: { txn: any; uid: string }) {
   );
 }
 
-export default async function TransactionsPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect("/login");
+export default function TransactionsPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [all, setAll]         = useState<any[]>([]);
+  const [uid, setUid]         = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(false);
 
-  const uid = session.user.id;
+  useEffect(() => {
+    fetch("/api/transactions")
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((d) => {
+        setAll(d.transactions ?? []);
+        // derive uid from first row if available
+        if (d.uid) setUid(d.uid);
+        else if (d.transactions?.length) {
+          // fallback: figure out uid from role field
+          const first = d.transactions[0];
+          setUid(first.role === "buyer" ? first.buyerId : first.sellerId);
+        }
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const rows = await db
-    .select({
-      transaction: transactions,
-      card: {
-        name:     cardCatalog.name,
-        setName:  cardCatalog.setName,
-        game:     cardCatalog.game,
-        imageUrl: cardCatalog.imageUrl,
-      },
-    })
-    .from(transactions)
-    .innerJoin(listings, eq(transactions.listingId, listings.id))
-    .innerJoin(cardCatalog, eq(listings.cardId, cardCatalog.id))
-    .where(or(eq(transactions.buyerId, uid), eq(transactions.sellerId, uid)))
-    .orderBy(desc(transactions.updatedAt));
-
-  const userIds = [...new Set(rows.flatMap((r) => [r.transaction.buyerId, r.transaction.sellerId]))];
-  const users = userIds.length
-    ? await db
-        .select({ id: userTable.id, name: userTable.name, displayName: userTable.displayName, image: userTable.image })
-        .from(userTable)
-        .where(inArray(userTable.id, userIds))
-    : [];
-  const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
-
-  const all = rows.map((r) => ({
-    ...r.transaction,
-    card:   r.card,
-    buyer:  userMap[r.transaction.buyerId],
-    seller: userMap[r.transaction.sellerId],
-  }));
-
-  const buying  = all.filter((t) => t.buyerId === uid);
-  const selling = all.filter((t) => t.sellerId === uid);
+  const buying  = all.filter((t) => t.role === "buyer");
+  const selling = all.filter((t) => t.role === "seller");
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-8 lg:px-10">
       <h1 className="mb-6 text-2xl font-bold text-[#F2F2F2]">Transactions</h1>
 
-      {all.length === 0 ? (
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-surface" />)}
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6 text-center">
+          <p className="text-sm text-red-400">Could not load transactions. Please try again.</p>
+        </div>
+      ) : all.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-24 text-center">
           <p className="text-2xl">🤝</p>
           <p className="font-semibold text-[#F2F2F2]">No transactions yet</p>
