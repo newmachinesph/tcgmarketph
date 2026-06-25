@@ -41,6 +41,9 @@ export const searchRatelimit = makeRatelimiter(30, "60 s");
 // 15 bids per minute per user — prevents rapid-fire bot bidding
 export const bidRatelimit = makeRatelimiter(15, "60 s");
 
+// 30 messages per minute per user
+export const messageRatelimit = makeRatelimiter(30, "60 s");
+
 // Protects our 100 req/day TCG API quota. Fixed daily window mirrors tcgapi.dev's
 // reset schedule. Key must always be "global" (shared across all users).
 export const tcgApiRatelimit = hasRedis()

@@ -12,6 +12,7 @@ import {
   MapPinIcon,
   CalendarIcon,
   ExclamationCircleIcon,
+  ChatBubbleLeftEllipsisIcon,
 } from "@heroicons/react/24/outline";
 import { CONDITION_LABEL } from "@/lib/validations/listing";
 
@@ -111,6 +112,33 @@ function UserCard({ user, label }: { user: TxnUser; label: string }) {
         </p>
       )}
     </div>
+  );
+}
+
+// ── Message button ────────────────────────────────────────────────────────────
+
+function MessageButton({ otherId, listingId }: { otherId: string; listingId: string }) {
+  const [loading, setLoading] = useState(false);
+  async function open() {
+    setLoading(true);
+    const res  = await fetch("/api/conversations", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ recipientId: otherId, listingId }),
+    });
+    const data = await res.json();
+    if (res.ok) window.location.href = `/messages/${data.conversation.id}`;
+    else setLoading(false);
+  }
+  return (
+    <button
+      onClick={open}
+      disabled={loading}
+      className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2] disabled:opacity-50"
+    >
+      <ChatBubbleLeftEllipsisIcon className="size-4" />
+      {loading ? "Opening…" : "Message"}
+    </button>
   );
 }
 
@@ -268,6 +296,11 @@ export default function TransactionDetailPage() {
           {error}
         </div>
       )}
+
+      {/* Message counterparty */}
+      <div className="mb-4">
+        <MessageButton otherId={isBuyer ? txn.sellerId : txn.buyerId} listingId={txn.listingId} />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
 

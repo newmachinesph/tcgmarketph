@@ -7,6 +7,7 @@ import { useState } from "react";
 import { UserMenu } from "./UserMenu";
 import { useCurrencyStore, type Currency } from "@/store/currency";
 import { CurrencySync } from "./CurrencySync";
+import { MessagesNavItem } from "./MessagesUnread";
 
 interface AppHeaderProps {
   user: {
@@ -79,6 +80,7 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
                 {item.label}
               </Link>
             ))}
+            <MessagesNavItem />
           </nav>
 
           {/* Right */}
@@ -138,6 +140,7 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
                   {item.label}
                 </Link>
               ))}
+              <MessagesNavItem mobile onClick={() => setOpen(false)} />
             </nav>
           </div>
         )}

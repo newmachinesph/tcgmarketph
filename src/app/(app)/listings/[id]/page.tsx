@@ -8,6 +8,7 @@ import { Price } from "@/components/Price";
 import { ListingGallery } from "./ListingGallery";
 import { BuyNowButton } from "./BuyNowButton";
 import { MakeOfferButton } from "./MakeOfferButton";
+import { MessageSellerButton } from "./MessageSellerButton";
 import { AuctionPanel } from "./AuctionPanel";
 import {
   MapPinIcon,
@@ -155,6 +156,10 @@ export default async function ListingDetailPage({ params }: Params) {
                 listingId={listing.id}
                 listingPrice={listing.price}
                 cardName={listing.card.name}
+              />
+              <MessageSellerButton
+                sellerId={listing.sellerId}
+                listingId={listing.id}
               />
             </div>
           ) : (
