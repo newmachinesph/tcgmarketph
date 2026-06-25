@@ -65,9 +65,17 @@ export const listings = pgTable(
     quantity:    integer("quantity").notNull().default(1),
     description: text("description"),
 
+    // Auction-specific fields (null for fixed_price listings)
+    startingPrice: numeric("starting_price", { precision: 10, scale: 2 }),
+    currentBid:    numeric("current_bid",    { precision: 10, scale: 2 }),
+    bidIncrement:  numeric("bid_increment",  { precision: 10, scale: 2 }),
+    reservePrice:  numeric("reserve_price",  { precision: 10, scale: 2 }),
+    auctionStart:  timestamp("auction_start"),
+    auctionEnd:    timestamp("auction_end"),
+
     // Status & lifecycle
     status:    listingStatusEnum("status").notNull().default("active"),
-    expiresAt: timestamp("expires_at").notNull(), // 30 days from creation
+    expiresAt: timestamp("expires_at").notNull(), // 30 days for fixed; = auctionEnd for auctions
 
     // Optional link back to the collection entry this was created from
     sourceCollectionId: text("source_collection_id")
@@ -121,3 +129,41 @@ export const listingPhotos = pgTable(
 
 export type ListingPhoto    = typeof listingPhotos.$inferSelect;
 export type NewListingPhoto = typeof listingPhotos.$inferInsert;
+
+// ── bids ──────────────────────────────────────────────────────────────────────
+
+/**
+ * bids — every bid placed on an auction listing.
+ *
+ * The highest bid at auction_end wins. current_bid on the listing is
+ * denormalised for fast reads and updated atomically alongside bid insert.
+ *
+ * Row-level atomicity is achieved via a conditional UPDATE on listings
+ * (WHERE current_bid IS NULL OR current_bid < minRequired) before INSERT.
+ */
+export const bids = pgTable(
+  "bids",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listings.id),
+
+    bidderId: text("bidder_id")
+      .notNull()
+      .references(() => user.id),
+
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("bid_listing_idx").on(t.listingId),
+    index("bid_bidder_idx").on(t.bidderId),
+    index("bid_created_idx").on(t.createdAt),
+  ]
+);
+
+export type Bid    = typeof bids.$inferSelect;
+export type NewBid = typeof bids.$inferInsert;

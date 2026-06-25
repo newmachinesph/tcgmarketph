@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { eq, or, desc } from "drizzle-orm";
+import { eq, or, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -154,6 +154,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       price:      txn.agreedPrice,
       txnId:      id,
     }).catch(console.error);
+  }
+
+  // When completed: increment reputationScore for both buyer and seller
+  if (action === "complete") {
+    await db
+      .update(userTable)
+      .set({ reputationScore: sql`${userTable.reputationScore} + 1` })
+      .where(or(eq(userTable.id, txn.buyerId), eq(userTable.id, txn.sellerId)));
+  }
+
+  // When no_show: increment noShowCount for the OTHER party (the one who didn't appear)
+  if (action === "no_show") {
+    const absentId = isBuyer ? txn.sellerId : txn.buyerId;
+    await db
+      .update(userTable)
+      .set({ noShowCount: sql`${userTable.noShowCount} + 1` })
+      .where(eq(userTable.id, absentId));
   }
 
   // When cancelled: if it was "agreed", restore listing quantity

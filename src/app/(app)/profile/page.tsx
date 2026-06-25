@@ -4,13 +4,21 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { CheckCircleIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, ShieldCheckIcon, StarIcon } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
 import { settingsProfileSchema, type SettingsProfileInput } from "@/lib/validations/auth";
 import { Button, Field } from "@/components/ui";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { PhoneVerify } from "@/components/PhoneVerify";
 import { GAMES, PH_CITIES, type GameId } from "@/lib/constants";
+
+interface RatingEntry {
+  id: string;
+  score: number;
+  comment: string | null;
+  createdAt: string;
+  rater: { id: string; name: string; displayName: string | null; image: string | null };
+}
 
 export default function EditProfilePage() {
   const { data: session, isPending } = authClient.useSession();
@@ -22,12 +30,18 @@ export default function EditProfilePage() {
     phoneVerified?: boolean;
     games?: string | null;
     image?: string | null;
+    reputationScore?: number;
+    noShowCount?: number;
   };
   const user = session?.user as ExtendedUser | undefined;
 
   const [avatar, setAvatar]               = useState<string | null | undefined>(null);
   const [selectedGames, setSelectedGames] = useState<Set<GameId>>(new Set());
   const [bioLen, setBioLen]               = useState(0);
+
+  const [ratings, setRatings]     = useState<RatingEntry[]>([]);
+  const [avgScore, setAvgScore]   = useState<string | null>(null);
+  const [ratingTotal, setRatingTotal] = useState(0);
 
   const {
     register,
@@ -55,6 +69,16 @@ export default function EditProfilePage() {
       (user.games ?? "").split(",").filter(Boolean) as GameId[]
     ));
     setBioLen((user.bio ?? "").length);
+
+    // Load reputation stats
+    fetch(`/api/ratings?userId=${user.id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setRatings(d.ratings ?? []);
+        setAvgScore(d.avgScore ?? null);
+        setRatingTotal(d.total ?? 0);
+      })
+      .catch(() => {});
   }, [user, reset]);
 
   function toggleGame(id: GameId) {
@@ -238,6 +262,77 @@ export default function EditProfilePage() {
         </div>
 
       </form>
+
+      {/* ── Reputation ─────────────────────────────────────────────── */}
+      <div className="mt-10 space-y-4">
+        <h2 className="text-lg font-bold text-[#F2F2F2]">Your Reputation</h2>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-surface p-4 text-center">
+            <p className="text-2xl font-bold text-[#F2F2F2]">{user?.reputationScore ?? 0}</p>
+            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[#9A9A9A]">Completed Deals</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-surface p-4 text-center">
+            <p className="text-2xl font-bold text-[#F2F2F2]">
+              {avgScore ? `${avgScore}★` : "—"}
+            </p>
+            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[#9A9A9A]">Avg Rating ({ratingTotal})</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-surface p-4 text-center">
+            <div className="flex items-center justify-center gap-1">
+              {user?.phoneVerified ? (
+                <ShieldCheckIcon className="size-5 text-emerald-400" />
+              ) : (
+                <span className="text-2xl text-[#9A9A9A]">—</span>
+              )}
+            </div>
+            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[#9A9A9A]">
+              {user?.phoneVerified ? "Verified" : "Not Verified"}
+            </p>
+          </div>
+        </div>
+
+        {user?.noShowCount ? (
+          <p className="rounded-xl bg-orange-500/10 px-3 py-2 text-xs text-orange-400">
+            ⚠️ {user.noShowCount} no-show report{user.noShowCount !== 1 ? "s" : ""} on record.
+          </p>
+        ) : null}
+
+        {/* Ratings list */}
+        {ratings.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9A9A9A]">Received ratings</p>
+            {ratings.map((r) => (
+              <div key={r.id} className="rounded-2xl border border-white/10 bg-surface p-4">
+                <div className="flex items-start gap-3">
+                  {r.rater.image ? (
+                    <img src={r.rater.image} alt={r.rater.name} className="size-8 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="flex size-8 items-center justify-center rounded-full bg-surface2 text-xs font-bold text-[#9A9A9A] shrink-0">
+                      {(r.rater.displayName ?? r.rater.name).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-[#F2F2F2]">{r.rater.displayName ?? r.rater.name}</p>
+                      <span className="shrink-0 text-sm text-yellow-400">{"★".repeat(r.score)}{"☆".repeat(5 - r.score)}</span>
+                    </div>
+                    {r.comment && (
+                      <p className="mt-1 text-xs text-[#9A9A9A]">{r.comment}</p>
+                    )}
+                    <p className="mt-1 text-[10px] text-[#9A9A9A]">
+                      {new Date(r.createdAt).toLocaleDateString("en-PH")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[#9A9A9A]">No ratings received yet. Complete a transaction to get your first rating.</p>
+        )}
+      </div>
     </div>
   );
 }

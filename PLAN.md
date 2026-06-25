@@ -125,7 +125,7 @@ TCG marketplace for the Philippines — Pokémon and One Piece cards.
 
 ---
 
-### Phase 5 — Auctions & live bidding `[ ]`
+### Phase 5 — Auctions & live bidding `[x]`
 
 **Goal:** Card sold by timed auction; highest bid at close wins.
 
@@ -151,7 +151,7 @@ TCG marketplace for the Philippines — Pokémon and One Piece cards.
 
 ---
 
-### Phase 6 — Trust system (ratings & reputation) `[ ]`
+### Phase 6 — Trust system (ratings & reputation) `[x]`
 
 **Goal:** Strangers trust each other enough to meet.
 

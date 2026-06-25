@@ -8,6 +8,7 @@ import { Price } from "@/components/Price";
 import { ListingGallery } from "./ListingGallery";
 import { BuyNowButton } from "./BuyNowButton";
 import { MakeOfferButton } from "./MakeOfferButton";
+import { AuctionPanel } from "./AuctionPanel";
 import {
   MapPinIcon,
   StarIcon,
@@ -131,6 +132,17 @@ export default async function ListingDetailPage({ params }: Params) {
                 <PencilSquareIcon className="size-4" /> Edit Listing
               </Link>
             </div>
+          ) : listing.type === "auction" ? (
+            <AuctionPanel
+              listingId={listing.id}
+              startingPrice={listing.startingPrice ?? listing.price}
+              currentBid={listing.currentBid}
+              bidIncrement={listing.bidIncrement}
+              reservePrice={listing.reservePrice}
+              auctionEnd={listing.auctionEnd ?? listing.expiresAt}
+              isOwner={isOwner}
+              isActive={isActive}
+            />
           ) : isActive ? (
             <div className="space-y-2">
               <BuyNowButton

@@ -95,8 +95,12 @@ export async function POST(request: NextRequest) {
     // Future: check session.user.kycStatus === "verified"
   }
 
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + LISTING_TTL_DAYS);
+  const isAuction = d.type === "auction";
+  const auctionEnd = isAuction && d.auctionEnd ? new Date(d.auctionEnd) : null;
+
+  const expiresAt = isAuction && auctionEnd
+    ? auctionEnd
+    : (() => { const d = new Date(); d.setDate(d.getDate() + LISTING_TTL_DAYS); return d; })();
 
   const [listing] = await db
     .insert(listings)
@@ -109,11 +113,17 @@ export async function POST(request: NextRequest) {
       gradeValue:         d.gradeValue != null ? String(d.gradeValue) : null,
       isFoil:             d.isFoil,
       isFirstEdition:     d.isFirstEdition,
-      type:               "fixed_price",
-      price:              String(d.price),
-      quantity:           d.quantity,
+      type:               d.type,
+      price:              isAuction ? (d.startingPrice ? String(d.startingPrice) : "0") : String(d.price),
+      quantity:           isAuction ? 1 : d.quantity,
       description:        d.description,
       sourceCollectionId: d.sourceCollectionId,
+      // Auction fields
+      startingPrice:  isAuction && d.startingPrice ? String(d.startingPrice) : null,
+      bidIncrement:   isAuction ? String(d.bidIncrement ?? 50) : null,
+      reservePrice:   isAuction && d.reservePrice ? String(d.reservePrice) : null,
+      auctionStart:   isAuction ? new Date() : null,
+      auctionEnd:     auctionEnd,
       expiresAt,
     })
     .returning();

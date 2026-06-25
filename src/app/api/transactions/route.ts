@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { eq, and, or, desc } from "drizzle-orm";
+import { eq, or, desc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -26,43 +26,26 @@ export async function GET(_request: NextRequest) {
   const rows = await db
     .select({
       transaction: transactions,
-      listing: {
-        id:    listings.id,
-        price: listings.price,
-      },
       card: {
-        name:    cardCatalog.name,
-        setName: cardCatalog.setName,
-        game:    cardCatalog.game,
+        name:     cardCatalog.name,
+        setName:  cardCatalog.setName,
+        game:     cardCatalog.game,
         imageUrl: cardCatalog.imageUrl,
-      },
-      buyer: {
-        id:          userTable.id,
-        name:        userTable.name,
-        displayName: userTable.displayName,
-        image:       userTable.image,
-      },
-      seller: {
-        id:          userTable.id,
-        name:        userTable.name,
-        displayName: userTable.displayName,
-        image:       userTable.image,
       },
     })
     .from(transactions)
     .innerJoin(listings, eq(transactions.listingId, listings.id))
     .innerJoin(cardCatalog, eq(listings.cardId, cardCatalog.id))
-    // Can't join userTable twice in one select — pull buyer & seller separately below
     .where(or(eq(transactions.buyerId, uid), eq(transactions.sellerId, uid)))
     .orderBy(desc(transactions.updatedAt));
 
-  // Collect unique user ids (buyers + sellers) and fetch in one query
+  // Fetch all involved users in one query
   const userIds = [...new Set(rows.flatMap((r) => [r.transaction.buyerId, r.transaction.sellerId]))];
   const users = userIds.length
     ? await db
         .select({ id: userTable.id, name: userTable.name, displayName: userTable.displayName, image: userTable.image })
         .from(userTable)
-        .where(or(...userIds.map((id) => eq(userTable.id, id))))
+        .where(inArray(userTable.id, userIds))
     : [];
   const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 

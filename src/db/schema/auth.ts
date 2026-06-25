@@ -56,6 +56,7 @@ export const user = pgTable(
     isAdmin: boolean("is_admin").notNull().default(false),
 
     reputationScore: integer("reputation_score").notNull().default(0),
+    noShowCount:     integer("no_show_count").notNull().default(0),
 
     preferredCurrency: text("preferred_currency").notNull().default("PHP"),
 

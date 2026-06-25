@@ -19,12 +19,31 @@ export const createListingSchema = z.object({
   gradeValue:  z.coerce.number().min(1).max(10).optional(),
   isFoil:      z.boolean().default(false),
   isFirstEdition: z.boolean().default(false),
-  price:       z.coerce.number().positive("Price must be greater than 0"),
+
+  // Listing type
+  type:        z.enum(["fixed_price", "auction"]).default("fixed_price"),
+
+  // Fixed price fields
+  price:       z.coerce.number().positive("Price must be greater than 0").optional(),
   quantity:    z.coerce.number().int().min(1).max(99).default(1),
+
+  // Auction fields (required when type = "auction")
+  startingPrice: z.coerce.number().positive().optional(),
+  bidIncrement:  z.coerce.number().positive().optional(),
+  reservePrice:  z.coerce.number().positive().optional(),
+  auctionEnd:    z.string().datetime({ offset: true }).optional(),
+
   description: z.string().max(1000).optional(),
   photoUrls:   z.array(z.string().url()).default([]),
-  // Set by the "list from collection" flow — not required
   sourceCollectionId: z.string().optional(),
+}).superRefine((d, ctx) => {
+  if (d.type === "fixed_price" && !d.price) {
+    ctx.addIssue({ code: "custom", path: ["price"], message: "Price is required for fixed-price listings" });
+  }
+  if (d.type === "auction") {
+    if (!d.startingPrice) ctx.addIssue({ code: "custom", path: ["startingPrice"], message: "Starting price is required for auctions" });
+    if (!d.auctionEnd)    ctx.addIssue({ code: "custom", path: ["auctionEnd"],    message: "Auction end date is required" });
+  }
 });
 
 export const editListingSchema = z.object({

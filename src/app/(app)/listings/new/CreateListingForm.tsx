@@ -204,6 +204,7 @@ export function CreateListingForm({ prefill, maxPhotos }: Props) {
     resolver: zodResolver(createListingSchema) as Resolver<CreateListingInput>,
     defaultValues: {
       cardId:             prefill?.cardId ?? "",
+      type:               "fixed_price",
       condition:          (prefill?.condition as CreateListingInput["condition"]) ?? "near_mint",
       isGraded:           prefill?.isGraded ?? false,
       gradingCompany:     (prefill?.gradingCompany as CreateListingInput["gradingCompany"]) ?? "none",
@@ -211,13 +212,15 @@ export function CreateListingForm({ prefill, maxPhotos }: Props) {
       isFoil:             prefill?.isFoil ?? false,
       isFirstEdition:     prefill?.isFirstEdition ?? false,
       quantity:           1,
+      bidIncrement:       50,
       photoUrls:          [],
       sourceCollectionId: prefill?.sourceCollectionId,
     },
   });
 
-  const isGraded = watch("isGraded");
+  const isGraded  = watch("isGraded");
   const condition = watch("condition");
+  const listingType = watch("type");
 
   function handleCardSelect(card: PickedCard | null) {
     setSelectedCard(card);
@@ -227,10 +230,17 @@ export function CreateListingForm({ prefill, maxPhotos }: Props) {
   async function onSubmit(data: CreateListingInput) {
     if (!selectedCard) { toast.error("Select a card first"); return; }
 
+    // datetime-local gives local time without timezone — convert to ISO
+    const payload = {
+      ...data,
+      photoUrls,
+      auctionEnd: data.auctionEnd ? new Date(data.auctionEnd).toISOString() : undefined,
+    };
+
     const res = await fetch("/api/listings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, photoUrls }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -246,6 +256,20 @@ export function CreateListingForm({ prefill, maxPhotos }: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+
+      {/* Listing type */}
+      <div>
+        <label className="mb-2 block text-xs font-medium text-[#9A9A9A]">Listing type</label>
+        <div className="flex gap-2">
+          {([["fixed_price", "Fixed Price"], ["auction", "Auction"]] as const).map(([val, label]) => (
+            <button key={val} type="button"
+              onClick={() => setValue("type", val)}
+              className={`flex-1 rounded-xl border py-2.5 text-sm font-semibold transition ${listingType === val ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Card selection */}
       <div>
@@ -321,23 +345,65 @@ export function CreateListingForm({ prefill, maxPhotos }: Props) {
         ))}
       </div>
 
-      {/* Price + Quantity */}
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <label className="mb-1 block text-xs font-medium text-[#9A9A9A]">Price (PHP) *</label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#9A9A9A]">₱</span>
-            <input {...register("price")} type="number" min={1} step={0.01} placeholder="0.00"
-              className="w-full rounded-xl border border-white/10 bg-surface2 py-2.5 pl-7 pr-3 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none" />
+      {/* Fixed price fields */}
+      {listingType !== "auction" && (
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <label className="mb-1 block text-xs font-medium text-[#9A9A9A]">Price (PHP) *</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#9A9A9A]">₱</span>
+              <input {...register("price")} type="number" min={1} step={0.01} placeholder="0.00"
+                className="w-full rounded-xl border border-white/10 bg-surface2 py-2.5 pl-7 pr-3 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none" />
+            </div>
+            {errors.price && <p className="mt-1 text-xs text-rose-400">{errors.price.message}</p>}
           </div>
-          {errors.price && <p className="mt-1 text-xs text-rose-400">{errors.price.message}</p>}
+          <div className="w-28">
+            <label className="mb-1 block text-xs font-medium text-[#9A9A9A]">Quantity</label>
+            <input {...register("quantity")} type="number" min={1} max={99}
+              className="w-full rounded-xl border border-white/10 bg-surface2 px-3 py-2.5 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none" />
+          </div>
         </div>
-        <div className="w-28">
-          <label className="mb-1 block text-xs font-medium text-[#9A9A9A]">Quantity</label>
-          <input {...register("quantity")} type="number" min={1} max={99}
-            className="w-full rounded-xl border border-white/10 bg-surface2 px-3 py-2.5 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none" />
+      )}
+
+      {/* Auction fields */}
+      {listingType === "auction" && (
+        <div className="space-y-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-4">
+          <p className="text-xs font-semibold text-yellow-400">Auction settings</p>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-[#9A9A9A]">Starting price (₱) *</label>
+              <input {...register("startingPrice")} type="number" min={1} step={0.01} placeholder="0.00"
+                className="w-full rounded-xl border border-white/10 bg-surface2 px-3 py-2.5 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none" />
+              {errors.startingPrice && <p className="mt-1 text-xs text-rose-400">{errors.startingPrice.message}</p>}
+            </div>
+            <div className="w-32">
+              <label className="mb-1 block text-xs font-medium text-[#9A9A9A]">Bid increment (₱)</label>
+              <input {...register("bidIncrement")} type="number" min={1} step={1} placeholder="50"
+                className="w-full rounded-xl border border-white/10 bg-surface2 px-3 py-2.5 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none" />
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-[#9A9A9A]">Reserve price (₱, optional)</label>
+              <input {...register("reservePrice")} type="number" min={1} step={0.01} placeholder="Minimum to sell"
+                className="w-full rounded-xl border border-white/10 bg-surface2 px-3 py-2.5 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none" />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-[#9A9A9A]">Auction ends *</label>
+              <input {...register("auctionEnd")} type="datetime-local"
+                min={new Date(Date.now() + 3_600_000).toISOString().slice(0, 16)}
+                className="w-full rounded-xl border border-white/10 bg-surface2 px-3 py-2.5 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none" />
+              {errors.auctionEnd && <p className="mt-1 text-xs text-rose-400">{errors.auctionEnd.message}</p>}
+            </div>
+          </div>
+
+          <p className="text-[10px] text-[#9A9A9A]">
+            Anti-snipe: bids in the final 30 seconds extend the auction by 30 seconds.
+          </p>
         </div>
-      </div>
+      )}
 
       {/* Description */}
       <div>
@@ -361,7 +427,7 @@ export function CreateListingForm({ prefill, maxPhotos }: Props) {
         </button>
         <button type="submit" disabled={isSubmitting || !selectedCard}
           className="flex-1 rounded-xl bg-accent py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50">
-          {isSubmitting ? "Publishing…" : "Publish Listing"}
+          {isSubmitting ? "Publishing…" : listingType === "auction" ? "Start Auction" : "Publish Listing"}
         </button>
       </div>
     </form>

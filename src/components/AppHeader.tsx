@@ -28,6 +28,7 @@ const NAV = [
   { label: "Listings",     href: "/listings"     },
   { label: "Offers",        href: "/offers"        },
   { label: "Transactions",  href: "/transactions"  },
+  { label: "My Bids",      href: "/bids"          },
 ];
 
 export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {

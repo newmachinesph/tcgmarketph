@@ -133,6 +133,14 @@ export default function TransactionDetailPage() {
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason]     = useState("");
 
+  // Rating
+  const [myRating, setMyRating]           = useState<number | null>(null);
+  const [ratingScore, setRatingScore]     = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
+  const [ratingWorking, setRatingWorking] = useState(false);
+  const [ratingError, setRatingError]     = useState("");
+  const [ratingDone, setRatingDone]       = useState(false);
+
   const load = useCallback(async () => {
     const res  = await fetch(`/api/transactions/${id}`);
     const data = await res.json();
@@ -190,6 +198,25 @@ export default function TransactionDetailPage() {
     setWorking(false);
   }
 
+  async function submitRating() {
+    if (!ratingScore) return;
+    setRatingWorking(true);
+    setRatingError("");
+    const res  = await fetch("/api/ratings", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ transactionId: id, score: ratingScore, comment: ratingComment || undefined }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setRatingError(data.error ?? "Could not submit rating");
+    } else {
+      setMyRating(ratingScore);
+      setRatingDone(true);
+    }
+    setRatingWorking(false);
+  }
+
   // ── Loading / not found ────────────────────────────────────────────────────
 
   if (loading) {
@@ -210,10 +237,10 @@ export default function TransactionDetailPage() {
     );
   }
 
-  const cfg    = STATUS_CONFIG[txn.status] ?? STATUS_CONFIG.pending;
-  const isBuyer  = txn.role === "buyer";
-  const isSeller = txn.role === "seller";
-  const isActive = ["pending", "agreed"].includes(txn.status);
+  const cfg       = STATUS_CONFIG[txn.status] ?? STATUS_CONFIG.pending;
+  const isBuyer   = txn.role === "buyer";
+  const isSeller  = txn.role === "seller";
+  const isActive  = ["pending", "agreed"].includes(txn.status);
   const acceptedMeetup = txn.meetups.find((m) => m.status === "accepted");
 
   return (
@@ -475,14 +502,68 @@ export default function TransactionDetailPage() {
       )}
 
       {/* Safe meetup note */}
-      <div className="mt-6 rounded-2xl border border-white/10 bg-surface p-4">
-        <p className="text-[11px] text-[#9A9A9A]">
-          <strong className="text-[#F2F2F2]">Safe meetup tips:</strong>{" "}
-          Always meet in a public, well-lit place (mall food court, coffee shop, Jollibee).
-          Prefer daytime. Bring a friend if possible. Inspect the card thoroughly before paying.
-          Use exact change — never wire money or pay advance.
-        </p>
-      </div>
+      {isActive && (
+        <div className="mt-6 rounded-2xl border border-white/10 bg-surface p-4">
+          <p className="text-[11px] text-[#9A9A9A]">
+            <strong className="text-[#F2F2F2]">Safe meetup tips:</strong>{" "}
+            Always meet in a public, well-lit place (mall food court, coffee shop, Jollibee).
+            Prefer daytime. Bring a friend if possible. Inspect the card thoroughly before paying.
+            Use exact change — never wire money or pay advance.
+          </p>
+        </div>
+      )}
+
+      {/* Rating section */}
+      {txn.status === "completed" && (
+        <div className="mt-6">
+          {ratingDone || myRating !== null ? (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
+              <p className="text-sm font-semibold text-emerald-400">
+                {"★".repeat(ratingDone ? ratingScore : myRating ?? 0)}
+                {"☆".repeat(5 - (ratingDone ? ratingScore : myRating ?? 0))}
+              </p>
+              <p className="mt-1 text-xs text-[#9A9A9A]">
+                {ratingDone ? "Thanks for rating!" : "You've already rated this transaction."}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-surface p-4">
+              <p className="mb-3 text-sm font-semibold text-[#F2F2F2]">
+                Rate your {isBuyer ? "seller" : "buyer"}
+              </p>
+              {/* Star picker */}
+              <div className="mb-3 flex gap-2">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setRatingScore(s)}
+                    className={`text-2xl transition ${s <= ratingScore ? "text-yellow-400" : "text-white/20 hover:text-yellow-400/60"}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={ratingComment}
+                onChange={(e) => setRatingComment(e.target.value)}
+                placeholder="Leave a comment (optional)"
+                rows={2}
+                maxLength={500}
+                className="mb-3 w-full rounded-xl border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-white/20 focus:outline-none"
+              />
+              {ratingError && <p className="mb-2 text-xs text-red-400">{ratingError}</p>}
+              <button
+                onClick={submitRating}
+                disabled={!ratingScore || ratingWorking}
+                className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 hover:bg-accent/80 transition"
+              >
+                {ratingWorking ? "Submitting…" : "Submit Rating"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
