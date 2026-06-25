@@ -26,6 +26,18 @@ export const CONDITION_SHORT: Record<(typeof CONDITIONS)[number], string> = {
   damaged:           "DMG",
 };
 
+/**
+ * Condition price multipliers relative to NM market price.
+ * Industry-standard TCG condition discounts.
+ */
+export const CONDITION_MULTIPLIER: Record<(typeof CONDITIONS)[number], number> = {
+  near_mint:         1.00,
+  lightly_played:    0.80,
+  moderately_played: 0.60,
+  heavily_played:    0.40,
+  damaged:           0.20,
+};
+
 export const collectionEntrySchema = z
   .object({
     cardId:          z.string().min(1, "Card is required"),

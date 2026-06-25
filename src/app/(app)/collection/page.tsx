@@ -19,6 +19,7 @@ import {
   collectionEntrySchema,
   CONDITION_LABEL,
   CONDITION_SHORT,
+  CONDITION_MULTIPLIER,
   CONDITIONS,
   type CollectionEntryInput,
 } from "@/lib/validations/collection";
@@ -58,8 +59,10 @@ function fmt(n: string | null | undefined, fallback = "—") {
 
 function totalValue(entries: CollectionEntry[]) {
   return entries.reduce((sum, { entry, card }) => {
-    const price = parseFloat(card.marketPrice ?? "0");
-    return sum + price * entry.quantity;
+    const price  = parseFloat(card.marketPrice ?? "0");
+    const isGrad = entry.gradingCompany !== "none";
+    const mult   = isGrad ? 1 : (CONDITION_MULTIPLIER[entry.condition] ?? 1);
+    return sum + price * entry.quantity * mult;
   }, 0);
 }
 
@@ -80,8 +83,10 @@ function EntryCard({
   onDelete: () => void;
   onFavorite: () => void;
 }) {
-  const isGraded = entry.gradingCompany !== "none";
-  const entryValue = parseFloat(card.marketPrice ?? "0") * entry.quantity;
+  const isGraded   = entry.gradingCompany !== "none";
+  // Condition multiplier only applies to raw cards; graded cards use market price as-is
+  const condMult   = isGraded ? 1 : (CONDITION_MULTIPLIER[entry.condition] ?? 1);
+  const entryValue = parseFloat(card.marketPrice ?? "0") * entry.quantity * condMult;
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-surface transition hover:border-white/16">
