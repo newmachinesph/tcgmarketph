@@ -57,6 +57,8 @@ export const user = pgTable(
 
     reputationScore: integer("reputation_score").notNull().default(0),
 
+    preferredCurrency: text("preferred_currency").notNull().default("PHP"),
+
     isBanned: boolean("is_banned").notNull().default(false),
     bannedReason: text("banned_reason"),
 

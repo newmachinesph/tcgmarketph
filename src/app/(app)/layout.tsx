@@ -9,7 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-primary">
-      <AppHeader user={session.user} />
+      <AppHeader user={session.user} preferredCurrency={(session.user.preferredCurrency as "USD" | "PHP") ?? "PHP"} />
       <main>{children}</main>
     </div>
   );

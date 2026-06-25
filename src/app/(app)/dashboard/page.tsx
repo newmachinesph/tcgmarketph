@@ -20,6 +20,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { ChevronUpIcon } from "@heroicons/react/20/solid";
 import { CardImage } from "@/components/CardImage";
+import { Price } from "@/components/Price";
 import { GAME_LABEL } from "@/lib/constants/games";
 
 export default async function DashboardPage() {
@@ -134,7 +135,7 @@ export default async function DashboardPage() {
               </p>
               <p className="mt-0.5 text-xs text-[#9A9A9A]">
                 {collectionStats.totalEntries} {collectionStats.totalEntries === 1 ? "entry" : "entries"}
-                {collectionValue > 0 && ` · $${collectionValue.toFixed(2)} USD est.`}
+                {collectionValue > 0 && <> · est. <Price usd={collectionValue} /></>}
               </p>
             </div>
             <RectangleStackIcon className="size-6 text-accent/60" />

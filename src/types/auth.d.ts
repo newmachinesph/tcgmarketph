@@ -11,6 +11,7 @@ declare module "better-auth" {
     sellerEnabled?: boolean;
     subscriptionTier?: string;
     reputationScore?: number;
+    preferredCurrency?: string;
     isAdmin?: boolean;
     city?: string | null;
     bio?: string | null;

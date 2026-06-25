@@ -14,6 +14,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   XMarkIcon,
+  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -25,6 +26,7 @@ import {
   type DeleteAccountInput,
 } from "@/lib/validations/auth";
 import { Field } from "@/components/ui";
+import { useCurrencyStore, type Currency } from "@/store/currency";
 
 // ─── Layout helpers ───────────────────────────────────────────────────────────
 
@@ -370,6 +372,58 @@ function DeleteAccountForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Preferences section ──────────────────────────────────────────────────────
+
+function PreferencesSection() {
+  const { currency, setCurrency } = useCurrencyStore();
+  const [saving, setSaving] = useState(false);
+
+  async function handleCurrency(c: Currency) {
+    if (c === currency) return;
+    setSaving(true);
+    setCurrency(c); // instant update
+    const res = await fetch("/api/account/currency", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currency: c }),
+    });
+    setSaving(false);
+    if (!res.ok) toast.error("Failed to save currency preference");
+    else toast.success(`Currency set to ${c}`);
+  }
+
+  return (
+    <Section title="Preferences">
+      <Row
+        icon={CurrencyDollarIcon}
+        label="Display currency"
+        description="Prices throughout the app will be shown in your chosen currency."
+        action={
+          <div className="flex items-center gap-1">
+            {saving && (
+              <span className="mr-1 text-[10px] text-[#9A9A9A]">Saving…</span>
+            )}
+            {(["PHP", "USD"] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => handleCurrency(c)}
+                disabled={saving}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                  currency === c
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-white/10 text-[#9A9A9A] hover:border-white/20 hover:text-[#F2F2F2]"
+                }`}
+              >
+                {c === "PHP" ? "₱ PHP" : "$ USD"}
+              </button>
+            ))}
+          </div>
+        }
+      />
+    </Section>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -384,6 +438,7 @@ export default function SettingsPage() {
   type ExtendedUser = NonNullable<typeof session>["user"] & {
     phone?: string | null;
     phoneVerified?: boolean;
+    preferredCurrency?: string;
   };
   const user = session?.user as ExtendedUser | undefined;
 
@@ -419,6 +474,9 @@ export default function SettingsPage() {
       )}
 
       <div className="space-y-6">
+
+        {/* Preferences */}
+        <PreferencesSection />
 
         {/* Notifications */}
         <Section title="Notifications">

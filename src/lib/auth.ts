@@ -27,8 +27,9 @@ export const auth = betterAuth({
       sellerEnabled:    { type: "boolean", required: false, defaultValue: false,   input: false },
       subscriptionTier: { type: "string",  required: false, defaultValue: "free",  input: false },
       isAdmin:          { type: "boolean", required: false, defaultValue: false,   input: false },
-      reputationScore:  { type: "number",  required: false, defaultValue: 0,       input: false },
-      isBanned:         { type: "boolean", required: false, defaultValue: false,   input: false },
+      reputationScore:   { type: "number",  required: false, defaultValue: 0,      input: false },
+      preferredCurrency: { type: "string",  required: false, defaultValue: "PHP" },
+      isBanned:          { type: "boolean", required: false, defaultValue: false,  input: false },
     },
   },
 
