@@ -10,6 +10,7 @@ import {
   UserIcon,
   TagIcon,
   ChatBubbleLeftEllipsisIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 type ReportStatus = "open" | "reviewing" | "resolved" | "dismissed";
@@ -22,6 +23,7 @@ interface ReportEntry {
   details:    string | null;
   status:     ReportStatus;
   createdAt:  string;
+  openCount:  number;
   reporter:   { id: string; name: string; displayName: string | null; email: string } | null;
   resolver:   { id: string; name: string; displayName: string | null } | null;
 }
@@ -124,15 +126,24 @@ export default function AdminReportsPage() {
         <div className="space-y-3">
           {rows.map((r) => {
             const Icon = TARGET_ICON[r.targetType];
+            const isHotUser    = r.targetType === "user"    && r.openCount > 5;
+            const isHotListing = r.targetType === "listing" && r.openCount > 3;
+            const isHot        = isHotUser || isHotListing;
             return (
-              <div key={r.id} className="rounded-2xl border border-white/10 bg-surface p-5 space-y-3">
+              <div key={r.id} className={`rounded-2xl border p-5 space-y-3 ${isHot ? "border-orange-500/40 bg-orange-500/5" : "border-white/10 bg-surface"}`}>
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Icon className="size-4 shrink-0 text-[#9A9A9A]" />
                     <span className="text-xs font-semibold uppercase tracking-wider text-[#9A9A9A]">
                       {r.targetType}
                     </span>
                     <TargetLink type={r.targetType} id={r.targetId} />
+                    {isHot && (
+                      <span className="flex items-center gap-1 rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] font-bold text-orange-400">
+                        <ExclamationTriangleIcon className="size-2.5" />
+                        {isHotUser ? "FREQUENTLY REPORTED USER" : "FREQUENTLY REPORTED"} · {r.openCount} open
+                      </span>
+                    )}
                   </div>
                   <span className="shrink-0 text-[11px] text-[#9A9A9A]">{timeAgo(r.createdAt)}</span>
                 </div>

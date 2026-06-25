@@ -25,6 +25,7 @@ const NAV = [
   { label: "Dashboard",    href: "/dashboard"    },
   { label: "Browse",       href: "/browse"       },
   { label: "Marketplace",  href: "/marketplace"  },
+  { label: "Sellers",      href: "/sellers"      },
   { label: "Collection",   href: "/collection"   },
   { label: "Wishlist",     href: "/wishlist"     },
   { label: "Listings",     href: "/listings"     },

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { MagnifyingGlassIcon, NoSymbolIcon, CheckBadgeIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon, NoSymbolIcon, CheckBadgeIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 
 interface UserRow {
   id:              string;
@@ -132,6 +132,12 @@ export default function AdminUsersPage() {
                     )}
                     {u.isBanned && (
                       <NoSymbolIcon className="size-3.5 shrink-0 text-red-400" />
+                    )}
+                    {u.noShowCount >= 3 && (
+                      <span className="flex items-center gap-0.5 rounded bg-orange-500/20 px-1 py-0.5 text-[9px] font-bold text-orange-400">
+                        <ExclamationTriangleIcon className="size-2.5" />
+                        NO-SHOW ×{u.noShowCount}
+                      </span>
                     )}
                   </div>
                   <p className="truncate text-[11px] text-[#9A9A9A]">{u.email}</p>

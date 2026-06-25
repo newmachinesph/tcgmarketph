@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { BellIcon, CheckIcon } from "@heroicons/react/24/outline";
 import Ably from "ably";
 import { authClient } from "@/lib/auth-client";
@@ -152,7 +153,7 @@ export function NotificationsBell() {
                 <p className="text-xs text-[#9A9A9A]">No notifications yet.</p>
               </div>
             ) : (
-              notifs.map((n) => (
+              notifs.slice(0, 10).map((n) => (
                 <button
                   key={n.id}
                   onClick={() => markRead(n)}
@@ -174,6 +175,17 @@ export function NotificationsBell() {
                 </button>
               ))
             )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-white/10 px-4 py-2.5">
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="block text-center text-xs text-[#9A9A9A] transition hover:text-[#F2F2F2]"
+            >
+              View all notifications →
+            </Link>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, or, count } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { reports } from "@/db/schema/reports";
@@ -28,25 +28,37 @@ export async function GET(request: NextRequest) {
     .orderBy(desc(reports.createdAt))
     .limit(100);
 
-  // Fetch reporter + resolver user info
+  // Fetch reporter + resolver user info and open report counts in parallel
   const userIds = [
     ...new Set([
       ...rows.map((r) => r.reporterId),
       ...rows.map((r) => r.resolvedBy).filter(Boolean) as string[],
     ]),
   ];
-  const users = userIds.length
-    ? await db
-        .select({ id: userTable.id, name: userTable.name, displayName: userTable.displayName, email: userTable.email })
-        .from(userTable)
-        .where(inArray(userTable.id, userIds))
-    : [];
-  const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
+  const [users, openCounts] = await Promise.all([
+    userIds.length
+      ? db
+          .select({ id: userTable.id, name: userTable.name, displayName: userTable.displayName, email: userTable.email })
+          .from(userTable)
+          .where(inArray(userTable.id, userIds))
+      : Promise.resolve([]),
+    // Count unresolved (open + reviewing) reports per target across all reports
+    db
+      .select({ targetType: reports.targetType, targetId: reports.targetId, cnt: count() })
+      .from(reports)
+      .where(or(eq(reports.status, "open"), eq(reports.status, "reviewing")))
+      .groupBy(reports.targetType, reports.targetId),
+  ]);
+
+  const userMap     = Object.fromEntries(users.map((u) => [u.id, u]));
+  const countMap    = Object.fromEntries(openCounts.map((c) => [`${c.targetType}:${c.targetId}`, c.cnt]));
 
   const enriched = rows.map((r) => ({
     ...r,
-    reporter: userMap[r.reporterId] ?? null,
-    resolver: r.resolvedBy ? (userMap[r.resolvedBy] ?? null) : null,
+    reporter:  userMap[r.reporterId] ?? null,
+    resolver:  r.resolvedBy ? (userMap[r.resolvedBy] ?? null) : null,
+    openCount: countMap[`${r.targetType}:${r.targetId}`] ?? 0,
   }));
 
   return NextResponse.json({ reports: enriched });
