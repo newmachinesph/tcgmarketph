@@ -5,6 +5,7 @@ import { listings, bids } from "@/db/schema/listings";
 import { user as userTable } from "@/db/schema/auth";
 import { transactions } from "@/db/schema/transactions";
 import { emailTransactionAgreed } from "@/lib/email";
+import { createNotification } from "@/lib/notify";
 
 /**
  * close-auctions — runs every minute.
@@ -86,12 +87,20 @@ export const closeAuctions = inngest.createFunction(
           .from(userTable)
           .where(eq(userTable.id, listing.sellerId));
 
-        // Notify winner
+        // Notify winner — in-app + email
+        createNotification(
+          topBid.bid.bidderId,
+          "auction_won",
+          "You won the auction!",
+          `Winning bid: ₱${parseFloat(topBid.bid.amount).toLocaleString("en-PH")}. Arrange a meetup with the seller.`,
+          `/transactions/${txn.id}`,
+        ).catch(console.error);
+
         await emailTransactionAgreed({
           buyerEmail:  topBid.bidder.email,
           buyerName:   topBid.bidder.displayName ?? topBid.bidder.name,
           sellerName:  seller?.displayName ?? seller?.name ?? "Seller",
-          cardName:    "your auction win", // card name omitted for simplicity in cron context
+          cardName:    "your auction win",
           price:       topBid.bid.amount,
           txnId:       txn.id,
         });
