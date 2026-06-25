@@ -7,6 +7,7 @@ import {
   pgEnum,
   uniqueIndex,
   index,
+  json,
 } from "drizzle-orm/pg-core";
 import { createId } from "@paralleldrive/cuid2";
 
@@ -23,6 +24,17 @@ export const subscriptionTierEnum = pgEnum("subscription_tier", [
   "free",
   "power_seller",
 ]);
+
+// =============================================================
+// TYPES
+// =============================================================
+
+export type EmailPrefs = {
+  offers:       boolean;
+  messages:     boolean;
+  wishlist:     boolean;
+  transactions: boolean;
+};
 
 // =============================================================
 // USER
@@ -59,6 +71,8 @@ export const user = pgTable(
     noShowCount:     integer("no_show_count").notNull().default(0),
 
     preferredCurrency: text("preferred_currency").notNull().default("PHP"),
+
+    emailPrefs: json("email_prefs").$type<EmailPrefs>(),
 
     isBanned: boolean("is_banned").notNull().default(false),
     bannedReason: text("banned_reason"),

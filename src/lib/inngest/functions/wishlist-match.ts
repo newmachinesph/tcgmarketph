@@ -6,6 +6,7 @@ import { user as userTable } from "@/db/schema/auth";
 import { blockedUsers } from "@/db/schema/blocks";
 import { createNotification } from "@/lib/notify";
 import { emailWishlistMatch } from "@/lib/email";
+import { DEFAULT_PREFS } from "@/lib/email-prefs";
 
 export const wishlistMatch = inngest.createFunction(
   {
@@ -25,6 +26,7 @@ export const wishlistMatch = inngest.createFunction(
           email:       userTable.email,
           name:        userTable.name,
           displayName: userTable.displayName,
+          emailPrefs:  userTable.emailPrefs,
         })
         .from(userWishlist)
         .innerJoin(userTable, eq(userWishlist.userId, userTable.id))
@@ -75,13 +77,17 @@ export const wishlistMatch = inngest.createFunction(
           link,
         ).catch(console.error);
 
-        emailWishlistMatch({
-          wisherEmail: wisher.email,
-          wisherName:  displayName,
-          cardName,
-          price,
-          listingId,
-        }).catch(console.error);
+        const prefs = { ...DEFAULT_PREFS, ...(wisher.emailPrefs ?? {}) };
+        if (prefs.wishlist) {
+          emailWishlistMatch({
+            wisherEmail: wisher.email,
+            wisherName:  displayName,
+            cardName,
+            price,
+            listingId,
+            wisherId:    wisher.userId,
+          }).catch(console.error);
+        }
 
         notified++;
       }

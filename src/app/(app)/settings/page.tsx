@@ -28,6 +28,8 @@ import {
 } from "@/lib/validations/auth";
 import { Field } from "@/components/ui";
 import { useCurrencyStore, type Currency } from "@/store/currency";
+import type { EmailPrefs, PrefCategory } from "@/lib/email-prefs";
+import { DEFAULT_PREFS, PREF_LABELS } from "@/lib/email-prefs";
 
 // ─── Layout helpers ───────────────────────────────────────────────────────────
 
@@ -80,17 +82,103 @@ function ComingSoonBadge() {
   );
 }
 
-function Toggle({ disabled = false }: { disabled?: boolean }) {
+function Toggle({
+  checked,
+  disabled = false,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange?: () => void;
+}) {
   return (
     <button
       type="button"
       disabled={disabled}
-      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent bg-surface2 transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+      onClick={onChange}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 ${
+        checked ? "bg-accent" : "bg-surface2"
+      }`}
       role="switch"
-      aria-checked={false}
+      aria-checked={checked}
     >
-      <span className="inline-block size-4 translate-x-0.5 rounded-full bg-[#9A9A9A] shadow transition-transform" />
+      <span
+        className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
+      />
     </button>
+  );
+}
+
+// ─── Email Preferences ────────────────────────────────────────────────────────
+
+const PREF_ICONS: Record<PrefCategory, React.ElementType> = {
+  offers:       BellIcon,
+  messages:     EnvelopeIcon,
+  wishlist:     BellIcon,
+  transactions: EnvelopeIcon,
+};
+
+function EmailPrefsSection() {
+  const [prefs, setPrefs]   = useState<EmailPrefs | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/account/email-prefs")
+      .then((r) => r.json())
+      .then((d) => { if (d.prefs) setPrefs(d.prefs); });
+  }, []);
+
+  async function toggle(category: PrefCategory) {
+    if (!prefs || saving) return;
+    const enabled = !prefs[category];
+    setPrefs((p) => p ? { ...p, [category]: enabled } : p);
+    setSaving(category);
+    const res = await fetch("/api/account/email-prefs", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ category, enabled }),
+    });
+    if (!res.ok) {
+      setPrefs((p) => p ? { ...p, [category]: !enabled } : p);
+      toast.error("Failed to save preference");
+    }
+    setSaving(null);
+  }
+
+  const cats = Object.keys(DEFAULT_PREFS) as PrefCategory[];
+
+  return (
+    <Section title="Email Notifications">
+      {prefs === null ? (
+        <div className="px-6 py-4 space-y-3">
+          {cats.map((k) => (
+            <div key={k} className="h-4 w-48 animate-pulse rounded bg-surface2" />
+          ))}
+        </div>
+      ) : (
+        cats.map((cat) => {
+          const Icon = PREF_ICONS[cat];
+          const meta = PREF_LABELS[cat];
+          return (
+            <Row
+              key={cat}
+              icon={Icon}
+              label={meta.label}
+              description={meta.description}
+              action={
+                <Toggle
+                  checked={prefs[cat]}
+                  disabled={saving !== null}
+                  onChange={() => toggle(cat)}
+                />
+              }
+            />
+          );
+        })
+      )}
+    </Section>
   );
 }
 
@@ -527,20 +615,11 @@ export default function SettingsPage() {
         {/* Preferences */}
         <PreferencesSection />
 
+        {/* Email notification preferences */}
+        <EmailPrefsSection />
+
         {/* Notifications */}
-        <Section title="Notifications">
-          <Row
-            icon={EnvelopeIcon}
-            label="Email notifications"
-            description="Order updates, messages, and marketplace alerts."
-            action={<Toggle disabled />}
-          />
-          <Row
-            icon={BellIcon}
-            label="Offer alerts"
-            description="Get notified when someone makes an offer on your listing."
-            action={<Toggle disabled />}
-          />
+        <Section title="Other Notifications">
           <Row
             icon={DevicePhoneMobileIcon}
             label="SMS notifications"
@@ -549,7 +628,13 @@ export default function SettingsPage() {
                 ? "Transaction alerts sent to your verified number."
                 : "Verify your phone in Edit Profile to enable."
             }
-            action={user?.phoneVerified ? <Toggle disabled /> : <ComingSoonBadge />}
+            action={
+              user?.phoneVerified ? (
+                <Toggle checked={false} disabled />
+              ) : (
+                <ComingSoonBadge />
+              )
+            }
           />
         </Section>
 

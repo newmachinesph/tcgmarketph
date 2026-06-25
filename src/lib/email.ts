@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { generateUnsubToken } from "./unsub-token";
 
 const transporter = nodemailer.createTransport({
   host:   process.env.SMTP_HOST,
@@ -210,8 +211,12 @@ export async function emailWishlistMatch(opts: {
   cardName:    string;
   price:       string;
   listingId:   string;
+  wisherId?:   string;
 }) {
-  const link = `${BASE_URL}/listings/${opts.listingId}`;
+  const link       = `${BASE_URL}/listings/${opts.listingId}`;
+  const unsubLink  = opts.wisherId
+    ? `${BASE_URL}/api/unsubscribe?token=${generateUnsubToken(opts.wisherId, "wishlist")}`
+    : `${BASE_URL}/settings`;
   await send(
     opts.wisherEmail,
     `A card on your wishlist is now listed — ${opts.cardName}`,
@@ -219,7 +224,7 @@ export async function emailWishlistMatch(opts: {
      <p>A card on your wishlist just got listed on TCGMarket PH.</p>
      <p><strong>${opts.cardName}</strong> is now available for <strong>${phpFmt(opts.price)}</strong>.</p>
      <p><a href="${link}">View listing →</a></p>
-     <hr/><p style="color:#888;font-size:12px">You received this because you added this card to your wishlist. Remove it any time from your <a href="${BASE_URL}/wishlist">Wishlist</a>.</p>`
+     <hr/><p style="color:#888;font-size:12px">You received this because you added this card to your wishlist. <a href="${unsubLink}">Unsubscribe from wishlist alerts</a>.</p>`
   );
 }
 
