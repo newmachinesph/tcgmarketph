@@ -91,7 +91,7 @@ export default async function DashboardPage({
     { label: "Profile set up",  done: !!(u.city && u.bio) },
     { label: "Phone verified",  done: !!u.phoneVerified, href: "/profile" },
     { label: "KYC verified",    done: u.kycStatus === "verified", href: "#", disabled: true },
-    { label: "Seller enabled",  done: !!u.sellerEnabled, href: "#", disabled: true },
+    { label: "Seller enabled",  done: !!u.phoneVerified, href: "/profile" },
   ];
   const completedSteps = steps.filter((s) => s.done).length;
   const progressPct    = Math.round((completedSteps / steps.length) * 100);
@@ -286,7 +286,7 @@ export default async function DashboardPage({
           { label: "Reputation", value: (u.reputationScore ?? 0).toString(), sub: "points", icon: StarIcon, color: "text-yellow-400" },
           { label: "Phone", value: caps.canList ? "Verified" : "Not verified", sub: caps.canList ? "Can list cards" : "Verify to list", icon: PhoneIcon, color: caps.canList ? "text-bid" : "text-[#9A9A9A]" },
           { label: "KYC", value: u.kycStatus === "verified" ? "Verified" : u.kycStatus === "pending" ? "Pending" : "Not started", sub: "Identity check", icon: ShieldCheckIcon, color: u.kycStatus === "verified" ? "text-bid" : u.kycStatus === "pending" ? "text-yellow-400" : "text-[#9A9A9A]" },
-          { label: "Seller", value: caps.canSell ? (u.subscriptionTier === "power_seller" ? "Power Seller" : "Enabled") : "Not enabled", sub: caps.canSell ? "Active seller" : "Coming soon", icon: TagIcon, color: caps.canSell ? "text-bid" : "text-[#9A9A9A]" },
+          { label: "Seller", value: caps.canSell ? (u.subscriptionTier === "power_seller" ? "Power Seller" : "Enabled") : "Not enabled", sub: caps.canSell ? "Active seller" : "Verify phone to sell", icon: TagIcon, color: caps.canSell ? "text-bid" : "text-[#9A9A9A]" },
         ].map((stat) => {
           const Icon = stat.icon;
           return (

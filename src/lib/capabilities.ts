@@ -18,7 +18,7 @@ export async function getUserCapabilities(userId: string): Promise<UserCapabilit
   return {
     canBrowse:     !u.isBanned,
     canList:       u.phoneVerified && !u.isBanned,
-    canSell:       u.sellerEnabled && !u.isBanned,
+    canSell:       u.phoneVerified && !u.isBanned,
     isKycVerified: u.kycStatus === "verified",
     isPowerSeller: u.subscriptionTier === "power_seller",
     isAdmin:       u.isAdmin,
