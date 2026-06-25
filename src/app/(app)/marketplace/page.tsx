@@ -185,7 +185,10 @@ function ListingCard({ listing }: { listing: MarketListing }) {
               {sellerName.charAt(0).toUpperCase()}
             </div>
           )}
-          <span className="min-w-0 truncate text-[11px] text-[#9A9A9A]">{sellerName}</span>
+          <span
+            className="min-w-0 truncate text-[11px] text-[#9A9A9A] hover:text-accent hover:underline cursor-pointer"
+            onClick={(e) => { e.preventDefault(); window.location.href = `/sellers/${listing.seller.id}`; }}
+          >{sellerName}</span>
           <span className="ml-auto flex shrink-0 items-center gap-0.5 text-[10px] text-[#9A9A9A]">
             <StarIcon className="size-3" />
             {listing.seller.reputationScore}

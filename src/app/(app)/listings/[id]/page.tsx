@@ -180,9 +180,9 @@ export default async function ListingDetailPage({ params }: Params) {
                 </div>
               )}
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[#F2F2F2]">
+                <Link href={`/sellers/${listing.sellerId}`} className="text-sm font-semibold text-[#F2F2F2] hover:underline">
                   {listing.seller.displayName ?? listing.seller.name}
-                </p>
+                </Link>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="flex items-center gap-1 text-xs text-[#9A9A9A]">
                     <StarIcon className="size-3" />

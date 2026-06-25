@@ -43,7 +43,7 @@ This roadmap adds trust, discovery, safety, and seller tooling on top of that fo
 
 ---
 
-### Phase 10 — Public seller profiles `[ ]`
+### Phase 10 — Public seller profiles `[x]`
 
 **Goal:** Buyers can view any seller's public presence before committing to a deal.
 
