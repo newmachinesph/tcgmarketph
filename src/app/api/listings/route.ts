@@ -136,16 +136,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Trigger wishlist-match alerts asynchronously (fire-and-forget)
-  inngest.send({
-    name: "listings/wishlist.match",
-    data: {
-      listingId: listing.id,
-      cardId:    listing.cardId,
-      sellerId:  listing.sellerId,
-      price:     listing.price,
+  // Trigger wishlist + saved-search match alerts asynchronously
+  inngest.send([
+    {
+      name: "listings/wishlist.match",
+      data: { listingId: listing.id, cardId: listing.cardId, sellerId: listing.sellerId, price: listing.price },
     },
-  }).catch(console.error);
+    {
+      name: "listings/saved-search.match",
+      data: { listingId: listing.id },
+    },
+  ]).catch(console.error);
 
   return NextResponse.json({ listing }, { status: 201 });
 }

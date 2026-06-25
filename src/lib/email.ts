@@ -228,6 +228,30 @@ export async function emailWishlistMatch(opts: {
   );
 }
 
+export async function emailSavedSearchMatch(opts: {
+  userEmail:  string;
+  userName:   string;
+  searchName: string;
+  cardName:   string;
+  price:      string;
+  listingId:  string;
+  userId?:    string;
+}) {
+  const link      = `${BASE_URL}/listings/${opts.listingId}`;
+  const unsubLink = opts.userId
+    ? `${BASE_URL}/api/unsubscribe?token=${generateUnsubToken(opts.userId, "wishlist")}`
+    : `${BASE_URL}/settings`;
+  await send(
+    opts.userEmail,
+    `New listing matches your search "${opts.searchName}"`,
+    `<p>Hi ${opts.userName},</p>
+     <p>A new listing matches your saved search: <strong>${opts.searchName}</strong>.</p>
+     <p><strong>${opts.cardName}</strong> is now available for <strong>${phpFmt(opts.price)}</strong>.</p>
+     <p><a href="${link}">View listing →</a></p>
+     <hr/><p style="color:#888;font-size:12px">You received this because you saved a search on TCGMarket PH. <a href="${unsubLink}">Unsubscribe from search alerts</a>.</p>`
+  );
+}
+
 export async function emailCounterDeclined(opts: {
   sellerEmail: string;
   sellerName:  string;

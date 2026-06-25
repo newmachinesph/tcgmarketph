@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import {
   TrashIcon,
   XMarkIcon,
   CheckIcon,
+  BookmarkIcon,
 } from "@heroicons/react/24/outline";
 import {
   PRIORITIES,
@@ -287,12 +288,113 @@ function WishlistRow({
   );
 }
 
+// ── Saved Searches list ───────────────────────────────────────────────────────
+
+type SavedSearch = {
+  id:             string;
+  name:           string;
+  query:          { q?: string; game?: string; condition?: string; minPrice?: string; maxPrice?: string };
+  lastNotifiedAt: string | null;
+  createdAt:      string;
+};
+
+function describeQuery(q: SavedSearch["query"]): string {
+  const parts: string[] = [];
+  if (q.q)         parts.push(`"${q.q}"`);
+  if (q.game)      parts.push(q.game === "pokemon" ? "Pokémon" : "One Piece");
+  if (q.condition) parts.push(q.condition.replace(/_/g, " "));
+  if (q.minPrice)  parts.push(`₱${q.minPrice}+`);
+  if (q.maxPrice)  parts.push(`up to ₱${q.maxPrice}`);
+  return parts.length ? parts.join(" · ") : "All listings";
+}
+
+function SavedSearchesList() {
+  const [searches, setSearches] = useState<SavedSearch[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/saved-searches")
+      .then((r) => r.json())
+      .then((d) => { setSearches(d.searches ?? []); setLoading(false); });
+  }, []);
+
+  async function remove(id: string) {
+    setDeleting(id);
+    await fetch(`/api/saved-searches/${id}`, { method: "DELETE" });
+    setSearches((prev) => prev.filter((s) => s.id !== id));
+    setDeleting(null);
+    toast.success("Saved search deleted");
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-surface" />)}
+      </div>
+    );
+  }
+
+  if (searches.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-20 text-center">
+        <BookmarkIcon className="mx-auto mb-3 size-10 text-white/20" />
+        <p className="font-medium text-[#F2F2F2]">No saved searches</p>
+        <p className="mt-1 text-sm text-[#9A9A9A]">
+          Save a search from the{" "}
+          <a href="/marketplace" className="text-accent hover:underline">Marketplace</a>{" "}
+          to get notified of new matching listings.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {searches.map((s) => (
+        <div key={s.id} className="flex items-center gap-4 rounded-2xl border border-white/8 bg-surface px-4 py-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface2">
+            <BookmarkIcon className="size-4 text-[#9A9A9A]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[#F2F2F2]">{s.name}</p>
+            <p className="mt-0.5 text-xs text-[#9A9A9A]">{describeQuery(s.query)}</p>
+            {s.lastNotifiedAt && (
+              <p className="mt-0.5 text-[10px] text-[#9A9A9A]">
+                Last alert: {new Date(s.lastNotifiedAt).toLocaleDateString("en-PH")}
+              </p>
+            )}
+          </div>
+          <a
+            href={`/marketplace?${new URLSearchParams(
+              Object.fromEntries(
+                Object.entries(s.query).filter(([, v]) => v) as [string, string][]
+              )
+            )}`}
+            className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
+          >
+            Browse
+          </a>
+          <button
+            onClick={() => remove(s.id)}
+            disabled={deleting === s.id}
+            className="shrink-0 rounded-lg bg-rose-500/10 p-2 text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50"
+          >
+            <TrashIcon className="size-4" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 export default function WishlistPage() {
   const qc = useQueryClient();
+  const [tab, setTab]                 = useState<"wishlist" | "searches">("wishlist");
   const [addOpen, setAddOpen]         = useState(false);
   const [editItem, setEditItem]       = useState<WishlistEntry | null>(null);
   const [acquireItem, setAcquireItem] = useState<WishlistEntry | null>(null);
@@ -329,62 +431,93 @@ export default function WishlistPage() {
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-10 lg:px-10">
 
-      <div className="mb-6 flex items-end justify-between">
+      <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#F2F2F2]">Wishlist</h1>
-          <p className="mt-1 text-sm text-[#9A9A9A]">
-            {isPending ? "Loading…" : (
-              <>
-                {entries.length} card{entries.length !== 1 ? "s" : ""}
-                {highCount > 0 && <> · <span className="text-rose-400">{highCount} high priority</span></>}
-                {budgetCount > 0 && <> · <span className="text-emerald-400">{budgetCount} under budget</span></>}
-              </>
-            )}
-          </p>
+          {tab === "wishlist" && (
+            <p className="mt-1 text-sm text-[#9A9A9A]">
+              {isPending ? "Loading…" : (
+                <>
+                  {entries.length} card{entries.length !== 1 ? "s" : ""}
+                  {highCount > 0 && <> · <span className="text-rose-400">{highCount} high priority</span></>}
+                  {budgetCount > 0 && <> · <span className="text-emerald-400">{budgetCount} under budget</span></>}
+                </>
+              )}
+            </p>
+          )}
         </div>
-        <button onClick={() => setAddOpen(true)}
-          className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90">
-          <PlusIcon className="size-4" /> Add to Wishlist
-        </button>
-      </div>
-
-      {isPending && (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-2xl bg-surface h-24" />
-          ))}
-        </div>
-      )}
-
-      {isError && (
-        <div className="rounded-2xl border border-rose-400/20 bg-rose-400/5 p-6 text-center text-sm text-rose-400">
-          Failed to load wishlist. Please refresh.
-        </div>
-      )}
-
-      {!isPending && !isError && entries.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-20 text-center">
-          <p className="font-medium text-[#F2F2F2]">Your wishlist is empty</p>
-          <p className="mt-1 text-sm text-[#9A9A9A]">Track cards you want to acquire.</p>
+        {tab === "wishlist" && (
           <button onClick={() => setAddOpen(true)}
-            className="mt-5 flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90 transition">
+            className="shrink-0 flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90">
             <PlusIcon className="size-4" /> Add to Wishlist
           </button>
-        </div>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-6 flex gap-1 border-b border-white/10 pb-0">
+        {([
+          { key: "wishlist",  label: "My Wishlist",    icon: CheckIcon      },
+          { key: "searches",  label: "Saved Searches",  icon: BookmarkIcon   },
+        ] as const).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition -mb-px ${
+              tab === key
+                ? "border-accent text-[#F2F2F2]"
+                : "border-transparent text-[#9A9A9A] hover:text-[#F2F2F2]"
+            }`}
+          >
+            <Icon className="size-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "wishlist" && (
+        <>
+          {isPending && (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-2xl bg-surface h-24" />
+              ))}
+            </div>
+          )}
+
+          {isError && (
+            <div className="rounded-2xl border border-rose-400/20 bg-rose-400/5 p-6 text-center text-sm text-rose-400">
+              Failed to load wishlist. Please refresh.
+            </div>
+          )}
+
+          {!isPending && !isError && entries.length === 0 && (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-20 text-center">
+              <p className="font-medium text-[#F2F2F2]">Your wishlist is empty</p>
+              <p className="mt-1 text-sm text-[#9A9A9A]">Track cards you want to acquire.</p>
+              <button onClick={() => setAddOpen(true)}
+                className="mt-5 flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90 transition">
+                <PlusIcon className="size-4" /> Add to Wishlist
+              </button>
+            </div>
+          )}
+
+          {!isPending && entries.length > 0 && (
+            <div className="space-y-3">
+              {entries.map(({ entry, card }) => (
+                <WishlistRow
+                  key={entry.id} entry={entry} card={card}
+                  onEdit={() => setEditItem({ entry, card })}
+                  onDelete={() => deleteMutation.mutate(entry.id)}
+                  onAcquire={() => setAcquireItem({ entry, card })}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {!isPending && entries.length > 0 && (
-        <div className="space-y-3">
-          {entries.map(({ entry, card }) => (
-            <WishlistRow
-              key={entry.id} entry={entry} card={card}
-              onEdit={() => setEditItem({ entry, card })}
-              onDelete={() => deleteMutation.mutate(entry.id)}
-              onAcquire={() => setAcquireItem({ entry, card })}
-            />
-          ))}
-        </div>
-      )}
+      {tab === "searches" && <SavedSearchesList />}
 
       <AddWishlistDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={refetch} />
       <EditDialog item={editItem} onClose={() => setEditItem(null)} onSaved={refetch} />

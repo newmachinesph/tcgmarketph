@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, isNull } from "drizzle-orm";
 import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listings, listingPhotos, listingViews } from "@/db/schema/listings";
 import { cardCatalog } from "@/db/schema/cards";
 import { user } from "@/db/schema/auth";
+import { priceAlerts } from "@/db/schema/searches";
 import { editListingSchema } from "@/lib/validations/listing";
+import { createNotification } from "@/lib/notify";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -95,6 +97,43 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .returning();
 
   if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // If price was updated, check for triggered price-drop alerts (fire-and-forget)
+  if (parsed.data.price != null) {
+    void (async () => {
+      try {
+        const newPriceNum = parseFloat(updated.price);
+        // Trigger alerts where user's targetPrice >= new listing price (price fell to/below target)
+        const triggered = await db
+          .select({ alertId: priceAlerts.id, userId: priceAlerts.userId })
+          .from(priceAlerts)
+          .where(
+            and(
+              eq(priceAlerts.listingId, id),
+              isNull(priceAlerts.triggeredAt),
+              gte(priceAlerts.targetPrice, updated.price),
+            )
+          );
+        if (triggered.length === 0) return;
+        const now = new Date();
+        await Promise.all(
+          triggered.map((a) => {
+            createNotification(
+              a.userId,
+              "system",
+              "Price drop alert",
+              `A listing you're watching dropped to ₱${newPriceNum.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`,
+              `/listings/${id}`,
+            ).catch(console.error);
+            return db
+              .update(priceAlerts)
+              .set({ triggeredAt: now })
+              .where(eq(priceAlerts.id, a.alertId));
+          })
+        );
+      } catch { /* non-fatal */ }
+    })();
+  }
 
   return NextResponse.json({ listing: updated });
 }

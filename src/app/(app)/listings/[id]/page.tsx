@@ -11,6 +11,7 @@ import { MakeOfferButton } from "./MakeOfferButton";
 import { MessageSellerButton } from "./MessageSellerButton";
 import { AuctionPanel } from "./AuctionPanel";
 import { ReportButton } from "@/components/ReportButton";
+import { PriceAlertButton } from "@/components/PriceAlertButton";
 import {
   MapPinIcon,
   StarIcon,
@@ -162,6 +163,12 @@ export default async function ListingDetailPage({ params }: Params) {
                 sellerId={listing.sellerId}
                 listingId={listing.id}
               />
+              {session && (
+                <PriceAlertButton
+                  listingId={listing.id}
+                  currentPrice={listing.price}
+                />
+              )}
             </div>
           ) : (
             <p className="text-center text-sm text-[#9A9A9A]">This listing is no longer available.</p>

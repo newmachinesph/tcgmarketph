@@ -10,6 +10,7 @@ import * as messagesSchema from "@/db/schema/messages";
 import * as reportsSchema from "@/db/schema/reports";
 import * as blocksSchema from "@/db/schema/blocks";
 import * as notificationsSchema from "@/db/schema/notifications";
+import * as searchesSchema from "@/db/schema/searches";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set — check your environment variables");
@@ -28,5 +29,6 @@ export const db = drizzle(sql, {
     ...reportsSchema,
     ...blocksSchema,
     ...notificationsSchema,
+    ...searchesSchema,
   },
 });

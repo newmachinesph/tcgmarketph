@@ -1,0 +1,27 @@
+import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { and, eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { priceAlerts } from "@/db/schema/searches";
+
+type Params = { params: Promise<{ listingId: string }> };
+
+export async function DELETE(_request: NextRequest, { params }: Params) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { listingId } = await params;
+  const [deleted] = await db
+    .delete(priceAlerts)
+    .where(
+      and(
+        eq(priceAlerts.listingId, listingId),
+        eq(priceAlerts.userId, session.user.id),
+      )
+    )
+    .returning({ id: priceAlerts.id });
+
+  if (!deleted) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json({ ok: true });
+}

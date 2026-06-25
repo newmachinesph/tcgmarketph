@@ -10,7 +10,10 @@ import {
   PhotoIcon,
   AdjustmentsHorizontalIcon,
   XMarkIcon,
+  BookmarkIcon,
+  CheckIcon,
 } from "@heroicons/react/24/outline";
+import { toast } from "sonner";
 import { CONDITION_LABEL } from "@/lib/validations/listing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -208,6 +211,106 @@ function ListingCard({ listing }: { listing: MarketListing }) {
   );
 }
 
+// ── Save Search dialog ────────────────────────────────────────────────────────
+
+function SaveSearchDialog({ query }: {
+  query: { q: string; game: string; condition: string; minPrice: string; maxPrice: string };
+}) {
+  const [open, setOpen]   = useState(false);
+  const [name, setName]   = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved]  = useState(false);
+
+  const hasQuery = query.q || query.game || query.condition || query.minPrice || query.maxPrice;
+
+  async function save() {
+    if (!name.trim()) { toast.error("Give your search a name"); return; }
+    setSaving(true);
+    const res = await fetch("/api/saved-searches", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({
+        name: name.trim(),
+        query: {
+          q:         query.q   || undefined,
+          game:      query.game || undefined,
+          condition: query.condition || undefined,
+          minPrice:  query.minPrice  || undefined,
+          maxPrice:  query.maxPrice  || undefined,
+        },
+      }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setSaved(true);
+      setOpen(false);
+      setName("");
+      toast.success("Search saved — we'll alert you when new listings match.");
+    } else {
+      const d = await res.json();
+      toast.error(d.error ?? "Failed to save search");
+    }
+  }
+
+  if (saved) {
+    return (
+      <div className="flex items-center gap-1 text-xs text-bid">
+        <CheckIcon className="size-3.5" /> Saved
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title={hasQuery ? "Save this search" : "Add filters first"}
+        className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition ${
+          open
+            ? "border-bid/40 bg-bid/10 text-bid"
+            : "border-white/10 bg-surface text-[#9A9A9A] hover:border-white/20 hover:text-[#F2F2F2]"
+        }`}
+      >
+        <BookmarkIcon className="size-4" />
+        Save
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-20 mt-2 w-64 rounded-xl border border-white/10 bg-surface p-4 shadow-xl">
+          <p className="mb-2 text-sm font-medium text-[#F2F2F2]">Save this search</p>
+          <input
+            autoFocus
+            type="text"
+            placeholder="Name (e.g. Charizard PSA 10)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+            maxLength={60}
+            className="w-full rounded-lg border border-white/10 bg-surface2 px-3 py-1.5 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-white/20 focus:outline-none"
+          />
+          <p className="mt-1.5 text-[10px] text-[#9A9A9A]">
+            We&apos;ll notify you when new listings match your current filters.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="flex-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save Search"}
+            </button>
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#9A9A9A] transition hover:text-[#F2F2F2]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function MarketplacePage() {
@@ -363,6 +466,8 @@ export default function MarketplacePage() {
             <XMarkIcon className="size-3.5" /> Clear
           </button>
         )}
+
+        <SaveSearchDialog query={{ q, game, condition, minPrice, maxPrice }} />
       </div>
 
       {/* Filter panel */}
