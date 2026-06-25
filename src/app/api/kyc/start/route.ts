@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { user as userTable, kycVerification } from "@/db/schema/auth";
+import { kycRatelimit } from "@/lib/rate-limit";
 
 const DIDIT_API    = "https://verification.didit.me/v3/session/";
 const WORKFLOW_ID  = "4d1c8c29-9c61-44c1-9aba-d72614a80518";
@@ -14,6 +15,11 @@ export async function POST() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = session.user.id;
+
+  if (kycRatelimit) {
+    const { success } = await kycRatelimit.limit(userId);
+    if (!success) return NextResponse.json({ error: "Too many verification attempts — please try again later" }, { status: 429 });
+  }
 
   // Block if already verified or pending
   const currentStatus = (session.user as { kycStatus?: string }).kycStatus;

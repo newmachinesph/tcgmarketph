@@ -149,6 +149,7 @@ export async function POST(request: NextRequest) {
       cardName:    "your listing",
       price:       txnRecord.agreedPrice,
       txnId:       txnRecord.id,
+      buyerId:     txnRecord.buyerId,
     }).catch(console.error);
   }
 

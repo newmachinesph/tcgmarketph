@@ -103,6 +103,7 @@ export const closeAuctions = inngest.createFunction(
           cardName:    "your auction win",
           price:       topBid.bid.amount,
           txnId:       txn.id,
+          buyerId:     topBid.bid.bidderId,
         });
 
         sold++;

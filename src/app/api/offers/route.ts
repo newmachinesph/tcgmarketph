@@ -10,6 +10,7 @@ import { user as userTable } from "@/db/schema/auth";
 import { offers } from "@/db/schema/offers";
 import { emailOfferReceived } from "@/lib/email";
 import { createNotification } from "@/lib/notify";
+import { offerRatelimit } from "@/lib/rate-limit";
 
 const OFFER_TTL_HOURS = 48;
 
@@ -67,6 +68,11 @@ export async function GET(_request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (offerRatelimit) {
+    const { success } = await offerRatelimit.limit(session.user.id);
+    if (!success) return NextResponse.json({ error: "Too many offers — please slow down" }, { status: 429 });
+  }
 
   const body   = await request.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
@@ -130,6 +136,7 @@ export async function POST(request: NextRequest) {
     offeredPrice: String(offeredPrice),
     message,
     offerId:      offer.id,
+    sellerId:     row.listing.sellerId,
   }).catch(console.error);
 
   createNotification(

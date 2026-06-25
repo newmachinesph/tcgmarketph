@@ -70,6 +70,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       location:       parsed.data.location,
       proposedAt:     new Date(parsed.data.proposedAt),
       txnId:          id,
+      recipientId:    otherId,
     }).catch(console.error);
   }
 

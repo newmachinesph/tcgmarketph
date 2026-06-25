@@ -131,6 +131,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         cardName:       row.card.name,
         agreedPrice,
         txnId:          txn.id,
+        recipientId:    otherId,
       }).catch(console.error);
     }
     // Notify the buyer (or seller if accept_counter) that the offer was accepted
@@ -153,6 +154,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         buyerName:  otherName,
         cardName:   row.card.name,
         offerId:    id,
+        buyerId:    otherId,
       }).catch(console.error);
     }
     createNotification(
@@ -180,6 +182,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         counterPrice:   String(counterPrice),
         counterMessage,
         offerId:        id,
+        buyerId:        otherId,
       }).catch(console.error);
     }
     createNotification(
@@ -200,6 +203,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         sellerName:  otherName,
         cardName:    row.card.name,
         offerId:     id,
+        sellerId:    otherId,
       }).catch(console.error);
     }
     return NextResponse.json({ ok: true, status: "declined" });

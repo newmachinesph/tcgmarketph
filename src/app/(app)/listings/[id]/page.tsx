@@ -191,10 +191,15 @@ export default async function ListingDetailPage({ params }: Params) {
                   {listing.seller.displayName ?? listing.seller.name}
                 </Link>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="flex items-center gap-1 text-xs text-[#9A9A9A]">
-                    <StarIcon className="size-3" />
-                    {listing.seller.reputationScore ?? 0} rep
-                  </span>
+                  {listing.seller.avgRating ? (
+                    <span className="flex items-center gap-1 text-xs text-yellow-400">
+                      <StarIcon className="size-3" />
+                      {listing.seller.avgRating}
+                      <span className="text-[#9A9A9A]">({listing.seller.ratingCount})</span>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-[#9A9A9A]">{listing.seller.reputationScore ?? 0} deals</span>
+                  )}
                   {listing.seller.phoneVerified && (
                     <span className="flex items-center gap-0.5 text-[10px] font-semibold text-emerald-400">
                       <ShieldCheckIcon className="size-3" /> Verified

@@ -10,6 +10,7 @@ import { user as userTable } from "@/db/schema/auth";
 import { transactions, meetupProposals } from "@/db/schema/transactions";
 import { emailTransactionCreated } from "@/lib/email";
 import { createPaymentLink } from "@/lib/paymongo";
+import { transactionRatelimit } from "@/lib/rate-limit";
 
 const createSchema = z.object({
   listingId: z.string().min(1),
@@ -67,6 +68,11 @@ export async function GET(_request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (transactionRatelimit) {
+    const { success } = await transactionRatelimit.limit(session.user.id);
+    if (!success) return NextResponse.json({ error: "Too many purchase requests — please slow down" }, { status: 429 });
+  }
 
   const body   = await request.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
@@ -141,6 +147,7 @@ export async function POST(request: NextRequest) {
       cardName:    row.card.name,
       price:       row.listing.price,
       txnId:       txn.id,
+      sellerId:    row.listing.sellerId,
     }).catch(console.error);
   }
 

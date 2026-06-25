@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { eq, and, gte, isNull } from "drizzle-orm";
+import { eq, and, gte, isNull, avg, count } from "drizzle-orm";
 import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listings, listingPhotos, listingViews } from "@/db/schema/listings";
 import { cardCatalog } from "@/db/schema/cards";
 import { user } from "@/db/schema/auth";
+import { ratings } from "@/db/schema/ratings";
 import { priceAlerts } from "@/db/schema/searches";
 import { editListingSchema } from "@/lib/validations/listing";
 import { createNotification } from "@/lib/notify";
@@ -26,11 +27,11 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const photos = await db
-    .select()
-    .from(listingPhotos)
-    .where(eq(listingPhotos.listingId, id))
-    .orderBy(listingPhotos.order);
+  const [photos, sellerRatings] = await Promise.all([
+    db.select().from(listingPhotos).where(eq(listingPhotos.listingId, id)).orderBy(listingPhotos.order),
+    db.select({ avg: avg(ratings.score), total: count(ratings.id) })
+      .from(ratings).where(eq(ratings.rateeId, row.seller.id)),
+  ]);
 
   // Record view (fire-and-forget — never block the response)
   ;(async () => {
@@ -59,13 +60,15 @@ export async function GET(request: NextRequest, { params }: Params) {
       card: row.card,
       photos,
       seller: {
-        id:             row.seller.id,
-        name:           row.seller.name,
-        displayName:    row.seller.displayName,
-        image:          row.seller.image,
-        city:           row.seller.city,
+        id:              row.seller.id,
+        name:            row.seller.name,
+        displayName:     row.seller.displayName,
+        image:           row.seller.image,
+        city:            row.seller.city,
         reputationScore: row.seller.reputationScore,
-        phoneVerified:  row.seller.phoneVerified,
+        phoneVerified:   row.seller.phoneVerified,
+        avgRating:       sellerRatings[0]?.avg ? parseFloat(sellerRatings[0].avg).toFixed(1) : null,
+        ratingCount:     sellerRatings[0]?.total ?? 0,
       },
     },
   });

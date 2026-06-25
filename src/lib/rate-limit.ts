@@ -44,6 +44,18 @@ export const bidRatelimit = makeRatelimiter(15, "60 s");
 // 30 messages per minute per user
 export const messageRatelimit = makeRatelimiter(30, "60 s");
 
+// 10 buy requests per hour per user — prevents spam transaction creation
+export const transactionRatelimit = makeRatelimiter(10, "60 m");
+
+// 20 offers per hour per user — prevents offer flooding
+export const offerRatelimit = makeRatelimiter(20, "60 m");
+
+// 5 new listings per 10 minutes per seller
+export const listingRatelimit = makeRatelimiter(5, "10 m");
+
+// 3 KYC session starts per hour per user — Didit API calls cost money
+export const kycRatelimit = makeRatelimiter(3, "60 m");
+
 // Protects our 100 req/day TCG API quota. Fixed daily window mirrors tcgapi.dev's
 // reset schedule. Key must always be "global" (shared across all users).
 export const tcgApiRatelimit = hasRedis()

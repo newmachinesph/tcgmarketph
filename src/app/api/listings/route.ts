@@ -8,6 +8,7 @@ import { cardCatalog } from "@/db/schema/cards";
 import { createListingSchema } from "@/lib/validations/listing";
 import { getTierLimits } from "@/lib/constants/tiers";
 import { inngest } from "@/lib/inngest/client";
+import { listingRatelimit } from "@/lib/rate-limit";
 
 const LISTING_TTL_DAYS = 30;
 
@@ -51,6 +52,11 @@ export async function GET(_request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (listingRatelimit) {
+    const { success } = await listingRatelimit.limit(session.user.id);
+    if (!success) return NextResponse.json({ error: "Too many listings created — please wait a few minutes" }, { status: 429 });
+  }
 
   // Gate: phone verified
   if (!session.user.phoneVerified) {

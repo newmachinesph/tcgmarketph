@@ -157,6 +157,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       cardName:   row.card.name,
       price:      txn.agreedPrice,
       txnId:      id,
+      buyerId:    txn.buyerId,
     }).catch(console.error);
 
     createNotification(
@@ -220,6 +221,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         cancelledBy:    cancellerName,
         reason:         cancelReason,
         txnId:          id,
+        recipientId:    otherId,
       }).catch(console.error);
     }
   }
