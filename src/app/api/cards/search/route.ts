@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findCards } from "@/lib/cards/search";
+import { searchRatelimit } from "@/lib/rate-limit";
 import type { GameKey } from "@/lib/cards/tcgapi";
 
 /**
@@ -13,6 +14,17 @@ import type { GameKey } from "@/lib/cards/tcgapi";
  *   X-Api-Unavailable: "true"          — present when API failed
  */
 export async function GET(request: NextRequest) {
+  // Per-IP rate limit: 30 searches/minute
+  if (searchRatelimit) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      ?? request.headers.get("x-real-ip")
+      ?? "anonymous";
+    const { success } = await searchRatelimit.limit(ip);
+    if (!success) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+  }
+
   const { searchParams } = request.nextUrl;
   const query = searchParams.get("q")?.trim() ?? "";
   const gameParam = searchParams.get("game");

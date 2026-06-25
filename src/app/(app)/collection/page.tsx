@@ -1,16 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm, type Resolver } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { toast } from "sonner";
 import {
   DndContext,
   DragOverlay,
   MouseSensor,
-  TouchSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -28,39 +25,31 @@ import {
   XMarkIcon,
   FolderPlusIcon,
   FolderIcon,
-  EllipsisVerticalIcon,
   CheckIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import {
-  collectionEntrySchema,
-  CONDITIONS,
-  CONDITION_LABEL,
-  CONDITION_SHORT,
   CONDITION_MULTIPLIER,
   CONDITION_COLOR,
+  CONDITION_SHORT,
   type CollectionEntryInput,
 } from "@/lib/validations/collection";
+import { GAME_LABEL } from "@/lib/constants/games";
+import { FOLDER_COLORS } from "@/lib/constants/folders";
 import type { CardCatalog, UserCollection, CollectionFolder } from "@/db/schema/cards";
 import { CardImage } from "@/components/CardImage";
 import { Price } from "@/components/Price";
+import { CollectionEntryForm } from "@/components/CollectionEntryForm";
 import { useCurrencyStore } from "@/store/currency";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type CollectionEntry = { entry: UserCollection; card: CardCatalog };
 
-// ── Folder colors ─────────────────────────────────────────────────────────────
-
-export const FOLDER_COLORS = [
-  "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
-  "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6",
-] as const;
-
-const GAME_LABEL: Record<string, string> = {
-  pokemon:   "Pokémon",
-  one_piece: "One Piece",
-};
+type FolderDialogState =
+  | { mode: "create" }
+  | { mode: "edit"; folder: CollectionFolder }
+  | null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,32 +66,19 @@ function totalValue(entries: CollectionEntry[]) {
 // ── Droppable folder sidebar item ─────────────────────────────────────────────
 
 function DroppableFolder({
-  id,
-  label,
-  color,
-  count,
-  active,
-  isDragOver,
-  onClick,
-  children,
+  id, label, color, count, active, onClick, children,
 }: {
-  id: string;
-  label: string;
-  color?: string;
-  count: number;
-  active: boolean;
-  isDragOver: boolean;
-  onClick: () => void;
-  children?: React.ReactNode;
+  id: string; label: string; color?: string; count: number;
+  active: boolean; onClick: () => void; children?: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
-  const over = isOver || isDragOver;
 
   return (
-    <div ref={setNodeRef}
+    <div
+      ref={setNodeRef}
       className={`group flex items-center gap-2 rounded-xl px-3 py-2 cursor-pointer transition select-none
         ${active ? "bg-surface2 text-[#F2F2F2]" : "text-[#9A9A9A] hover:bg-surface2/50 hover:text-[#F2F2F2]"}
-        ${over ? "ring-2 ring-accent/60 bg-accent/10" : ""}`}
+        ${isOver ? "ring-2 ring-accent/60 bg-accent/10" : ""}`}
       onClick={onClick}
     >
       <FolderIcon className="size-4 shrink-0" style={{ color: color ?? "#9A9A9A" }} />
@@ -116,20 +92,11 @@ function DroppableFolder({
 // ── Draggable card tile ───────────────────────────────────────────────────────
 
 function DraggableCard({
-  entry,
-  card,
-  onEdit,
-  onDelete,
-  onFavorite,
-  onMove,
-  isDragging,
+  entry, card, onEdit, onDelete, onFavorite, onMove, isDragging,
 }: {
-  entry: UserCollection;
-  card: CardCatalog;
-  onEdit: () => void;
-  onDelete: () => void;
-  onFavorite: () => void;
-  onMove: () => void;
+  entry: UserCollection; card: CardCatalog;
+  onEdit: () => void; onDelete: () => void;
+  onFavorite: () => void; onMove: () => void;
   isDragging: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: entry.id });
@@ -138,13 +105,15 @@ function DraggableCard({
     : undefined;
 
   return (
-    <div ref={setNodeRef} style={style}
+    <div
+      ref={setNodeRef} style={style}
       className={`group relative flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-surface transition hover:border-white/16 ${isDragging ? "opacity-40" : ""}`}
     >
-      {/* Drag handle — only shown on desktop via pointer-coarse detection */}
-      <div {...listeners} {...attributes}
+      {/* Drag handle — desktop only */}
+      <div
+        {...listeners} {...attributes}
         className="absolute left-0 right-0 top-0 z-10 h-6 cursor-grab active:cursor-grabbing hidden sm:block"
-        title="Drag to move to a folder"
+        aria-label="Drag to move to a folder"
       />
 
       {/* Image */}
@@ -163,19 +132,23 @@ function DraggableCard({
 
         {/* Hover actions */}
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <button onClick={onFavorite} className="p-1 text-yellow-400 hover:scale-110 transition">
+          <button
+            onClick={onFavorite}
+            aria-label={entry.isFavorite ? "Remove from favourites" : "Add to favourites"}
+            className="p-1 text-yellow-400 hover:scale-110 transition"
+          >
             {entry.isFavorite ? <StarSolid className="size-4" /> : <StarIcon className="size-4 text-white/60" />}
           </button>
           <div className="flex gap-1">
-            <button onClick={onMove} title="Move to folder"
+            <button onClick={onMove} aria-label="Move to folder"
               className="rounded-lg bg-white/10 p-1.5 text-white hover:bg-white/20 transition">
               <FolderIcon className="size-3.5" />
             </button>
-            <button onClick={onEdit}
+            <button onClick={onEdit} aria-label="Edit entry"
               className="rounded-lg bg-white/10 p-1.5 text-white hover:bg-white/20 transition">
               <PencilSquareIcon className="size-3.5" />
             </button>
-            <button onClick={onDelete}
+            <button onClick={onDelete} aria-label="Delete from collection"
               className="rounded-lg bg-rose-500/20 p-1.5 text-rose-400 hover:bg-rose-500/30 transition">
               <TrashIcon className="size-3.5" />
             </button>
@@ -199,19 +172,13 @@ function DraggableCard({
               {CONDITION_SHORT[entry.condition]}
             </span>
           )}
-          <Price
-            usd={conditionAdjustedValue(entry, card) || null}
-            className="text-xs font-semibold text-[#F2F2F2]"
-          />
+          <Price usd={conditionAdjustedValue(entry, card) || null} className="text-xs font-semibold text-[#F2F2F2]" />
         </div>
       </div>
 
-      {/* Mobile move button — always visible on small screens */}
-      <button
-        onClick={onMove}
-        className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/50 text-white/70 sm:hidden"
-        title="Move to folder"
-      >
+      {/* Mobile move button */}
+      <button onClick={onMove} aria-label="Move to folder"
+        className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/50 text-white/70 sm:hidden">
         <FolderIcon className="size-3.5" />
       </button>
     </div>
@@ -221,33 +188,20 @@ function DraggableCard({
 // ── Folder sidebar ────────────────────────────────────────────────────────────
 
 function FolderSidebar({
-  folders,
-  entries,
-  activeFolder,
-  setActiveFolder,
-  onCreateFolder,
-  onRenameFolder,
-  onDeleteFolder,
+  folders, entries, activeFolder, setActiveFolder,
+  onCreateFolder, onRenameFolder, onDeleteFolder,
 }: {
-  folders: CollectionFolder[];
-  entries: CollectionEntry[];
-  activeFolder: string | null;
-  setActiveFolder: (id: string | null) => void;
+  folders: CollectionFolder[]; entries: CollectionEntry[];
+  activeFolder: string | null; setActiveFolder: (id: string | null) => void;
   onCreateFolder: () => void;
   onRenameFolder: (folder: CollectionFolder) => void;
   onDeleteFolder: (folder: CollectionFolder) => void;
 }) {
-  const allCount = entries.length;
-
   return (
     <div className="flex flex-col gap-1">
       <DroppableFolder
-        id="__all__"
-        label="All Cards"
-        count={allCount}
-        active={activeFolder === null}
-        isDragOver={false}
-        onClick={() => setActiveFolder(null)}
+        id="__all__" label="All Cards" count={entries.length}
+        active={activeFolder === null} onClick={() => setActiveFolder(null)}
       />
 
       {folders.length > 0 && <div className="my-1 border-t border-white/8" />}
@@ -257,27 +211,22 @@ function FolderSidebar({
         return (
           <div key={folder.id} className="group/folder relative">
             <DroppableFolder
-              id={folder.id}
-              label={folder.name}
-              color={folder.color}
-              count={count}
-              active={activeFolder === folder.id}
-              isDragOver={false}
+              id={folder.id} label={folder.name} color={folder.color}
+              count={count} active={activeFolder === folder.id}
               onClick={() => setActiveFolder(folder.id)}
             >
-              {/* Folder context menu */}
               <div className="invisible flex items-center gap-0.5 group-hover/folder:visible">
                 <button
                   onClick={(e) => { e.stopPropagation(); onRenameFolder(folder); }}
+                  aria-label={`Rename folder ${folder.name}`}
                   className="rounded p-0.5 text-[#9A9A9A] hover:text-[#F2F2F2] transition"
-                  title="Rename"
                 >
                   <PencilSquareIcon className="size-3.5" />
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onDeleteFolder(folder); }}
+                  aria-label={`Delete folder ${folder.name}`}
                   className="rounded p-0.5 text-[#9A9A9A] hover:text-rose-400 transition"
-                  title="Delete folder"
                 >
                   <TrashIcon className="size-3.5" />
                 </button>
@@ -287,10 +236,8 @@ function FolderSidebar({
         );
       })}
 
-      <button
-        onClick={onCreateFolder}
-        className="mt-1 flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#9A9A9A] transition hover:text-[#F2F2F2]"
-      >
+      <button onClick={onCreateFolder}
+        className="mt-1 flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#9A9A9A] transition hover:text-[#F2F2F2]">
         <FolderPlusIcon className="size-4" />
         New Folder
       </button>
@@ -300,34 +247,28 @@ function FolderSidebar({
 
 // ── Create / Rename folder dialog ─────────────────────────────────────────────
 
-function FolderDialog({
-  folder,
-  onClose,
-  onSaved,
-}: {
-  folder: CollectionFolder | null; // null = create mode
-  onClose: () => void;
-  onSaved: () => void;
+function FolderDialog({ state, onClose, onSaved }: {
+  state: FolderDialogState; onClose: () => void; onSaved: () => void;
 }) {
-  const [name, setName]   = useState(folder?.name ?? "");
-  const [color, setColor] = useState(folder?.color ?? "#6366f1");
+  const isEdit      = state?.mode === "edit";
+  const folder      = isEdit ? state.folder : null;
+  const [name, setName]     = useState(folder?.name ?? "");
+  const [color, setColor]   = useState(folder?.color ?? "#6366f1");
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const url    = folder ? `/api/collection/folders/${folder.id}` : "/api/collection/folders";
-      const method = folder ? "PATCH" : "POST";
+      const url    = isEdit ? `/api/collection/folders/${folder!.id}` : "/api/collection/folders";
+      const method = isEdit ? "PATCH" : "POST";
       const res    = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
+        method, headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), color }),
       });
       if (!res.ok) throw new Error("Failed");
-      toast.success(folder ? "Folder renamed" : "Folder created");
-      onSaved();
-      onClose();
+      toast.success(isEdit ? "Folder renamed" : "Folder created");
+      onSaved(); onClose();
     } catch {
       toast.error("Something went wrong");
     } finally {
@@ -335,41 +276,35 @@ function FolderDialog({
     }
   }
 
+  if (!state) return null;
+
   return (
     <Dialog open onClose={onClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <DialogPanel className="w-full max-w-sm rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
           <DialogTitle className="mb-5 text-base font-bold text-[#F2F2F2]">
-            {folder ? "Rename Folder" : "New Folder"}
+            {isEdit ? "Rename Folder" : "New Folder"}
           </DialogTitle>
-
           <div className="space-y-4">
             <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={name} onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-              placeholder="Folder name"
-              autoFocus
-              maxLength={50}
+              placeholder="Folder name" autoFocus maxLength={50}
               className="w-full rounded-xl border border-white/10 bg-surface2 px-4 py-2.5 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
             />
-
             <div>
               <p className="mb-2 text-xs text-[#9A9A9A]">Color</p>
               <div className="flex flex-wrap gap-2">
                 {FOLDER_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setColor(c)}
+                  <button key={c} onClick={() => setColor(c)}
+                    aria-label={`Select color ${c}`}
                     className={`size-7 rounded-full transition hover:scale-110 ${color === c ? "ring-2 ring-white ring-offset-2 ring-offset-surface" : ""}`}
-                    style={{ backgroundColor: c }}
-                  />
+                    style={{ backgroundColor: c }} />
                 ))}
               </div>
             </div>
           </div>
-
           <div className="mt-6 flex gap-2">
             <button onClick={onClose}
               className="flex-1 rounded-lg border border-white/10 py-2 text-sm text-[#9A9A9A] hover:text-[#F2F2F2] transition">
@@ -377,7 +312,7 @@ function FolderDialog({
             </button>
             <button onClick={handleSave} disabled={saving || !name.trim()}
               className="flex-1 rounded-lg bg-accent py-2 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50">
-              {saving ? "Saving…" : folder ? "Rename" : "Create"}
+              {saving ? "Saving…" : isEdit ? "Rename" : "Create"}
             </button>
           </div>
         </DialogPanel>
@@ -386,35 +321,57 @@ function FolderDialog({
   );
 }
 
-// ── Move to folder dialog (mobile + fallback) ─────────────────────────────────
+// ── Confirm delete folder dialog ──────────────────────────────────────────────
 
-function MoveFolderDialog({
-  entry,
-  folders,
-  onClose,
-  onMoved,
-}: {
-  entry: CollectionEntry | null;
-  folders: CollectionFolder[];
-  onClose: () => void;
-  onMoved: () => void;
+function ConfirmDeleteFolderDialog({ folder, onClose, onConfirm }: {
+  folder: CollectionFolder | null; onClose: () => void; onConfirm: () => void;
+}) {
+  if (!folder) return null;
+  return (
+    <Dialog open onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel className="w-full max-w-sm rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
+          <DialogTitle className="mb-2 text-base font-bold text-[#F2F2F2]">Delete folder?</DialogTitle>
+          <p className="text-sm text-[#9A9A9A]">
+            <span className="font-semibold text-[#F2F2F2]">{folder.name}</span> will be deleted.
+            Cards inside will move back to All Cards.
+          </p>
+          <div className="mt-5 flex gap-2">
+            <button onClick={onClose}
+              className="flex-1 rounded-lg border border-white/10 py-2 text-sm text-[#9A9A9A] hover:text-[#F2F2F2] transition">
+              Cancel
+            </button>
+            <button onClick={onConfirm}
+              className="flex-1 rounded-lg bg-rose-500 py-2 text-sm font-semibold text-white transition hover:bg-rose-600">
+              Delete
+            </button>
+          </div>
+        </DialogPanel>
+      </div>
+    </Dialog>
+  );
+}
+
+// ── Move to folder dialog (mobile) ────────────────────────────────────────────
+
+function MoveFolderDialog({ entry, folders, onClose, onMoved }: {
+  entry: CollectionEntry | null; folders: CollectionFolder[];
+  onClose: () => void; onMoved: () => void;
 }) {
   const [moving, setMoving] = useState<string | null>(null);
-
   if (!entry) return null;
 
   async function moveTo(folderId: string | null) {
     setMoving(folderId ?? "__null__");
     try {
       const res = await fetch(`/api/collection/${entry!.entry.id}/move`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ folderId }),
       });
       if (!res.ok) throw new Error("Failed");
       toast.success(folderId ? "Moved to folder" : "Moved to All Cards");
-      onMoved();
-      onClose();
+      onMoved(); onClose();
     } catch {
       toast.error("Failed to move card");
     } finally {
@@ -430,168 +387,35 @@ function MoveFolderDialog({
       <div className="fixed inset-0 flex items-end justify-center p-4 sm:items-center">
         <DialogPanel className="w-full max-w-sm rounded-2xl border border-white/10 bg-surface p-5 shadow-2xl">
           <div className="mb-4 flex items-center justify-between">
-            <DialogTitle className="text-sm font-bold text-[#F2F2F2]">
-              Move — {entry.card.name}
-            </DialogTitle>
-            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2]">
+            <DialogTitle className="text-sm font-bold text-[#F2F2F2]">Move — {entry.card.name}</DialogTitle>
+            <button onClick={onClose} aria-label="Close" className="text-[#9A9A9A] hover:text-[#F2F2F2]">
               <XMarkIcon className="size-5" />
             </button>
           </div>
-
           <div className="space-y-1">
-            {/* All Cards option */}
-            <button
-              onClick={() => moveTo(null)}
-              disabled={moving !== null}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition hover:bg-surface2 ${currentFolder === null ? "text-accent" : "text-[#9A9A9A]"}`}
-            >
+            <button onClick={() => moveTo(null)} disabled={moving !== null}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition hover:bg-surface2 ${currentFolder === null ? "text-accent" : "text-[#9A9A9A]"}`}>
               <FolderIcon className="size-4 shrink-0 text-[#9A9A9A]" />
               <span className="flex-1 text-left font-medium">All Cards (unfiled)</span>
               {currentFolder === null && <CheckIcon className="size-4 text-accent" />}
               {moving === "__null__" && <span className="text-xs">Moving…</span>}
             </button>
-
             {folders.map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => moveTo(folder.id)}
-                disabled={moving !== null}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition hover:bg-surface2 ${currentFolder === folder.id ? "text-accent" : "text-[#9A9A9A]"}`}
-              >
+              <button key={folder.id} onClick={() => moveTo(folder.id)} disabled={moving !== null}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition hover:bg-surface2 ${currentFolder === folder.id ? "text-accent" : "text-[#9A9A9A]"}`}>
                 <FolderIcon className="size-4 shrink-0" style={{ color: folder.color }} />
                 <span className="flex-1 text-left font-medium">{folder.name}</span>
                 {currentFolder === folder.id && <CheckIcon className="size-4 text-accent" />}
                 {moving === folder.id && <span className="text-xs">Moving…</span>}
               </button>
             ))}
-
             {folders.length === 0 && (
-              <p className="px-3 py-4 text-center text-xs text-[#9A9A9A]">
-                No folders yet — create one first
-              </p>
+              <p className="px-3 py-4 text-center text-xs text-[#9A9A9A]">No folders yet — create one first</p>
             )}
           </div>
         </DialogPanel>
       </div>
     </Dialog>
-  );
-}
-
-// ── Entry form ────────────────────────────────────────────────────────────────
-
-function EntryForm({
-  card,
-  defaultValues,
-  onSubmit,
-  submitLabel,
-}: {
-  card: CardCatalog;
-  defaultValues?: Partial<CollectionEntryInput>;
-  onSubmit: (data: CollectionEntryInput) => Promise<void>;
-  submitLabel: string;
-}) {
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } =
-    useForm<CollectionEntryInput>({
-      resolver: zodResolver(collectionEntrySchema) as Resolver<CollectionEntryInput>,
-      defaultValues: {
-        cardId: card.id, quantity: 1, isGraded: false, condition: "near_mint",
-        gradingCompany: "none", isFoil: false, isFirstEdition: false, language: "en", isFavorite: false,
-        ...defaultValues,
-      },
-    });
-
-  const isGraded = watch("isGraded");
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      <div className="flex items-center gap-3 rounded-xl border border-white/8 bg-surface2 p-3">
-        <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md">
-          <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[#F2F2F2]">{card.name}</p>
-          <p className="truncate text-xs text-[#9A9A9A]">{card.setName ?? GAME_LABEL[card.game]}{card.cardNumber ? ` · ${card.cardNumber}` : ""}</p>
-          {card.marketPrice && <p className="text-[10px] text-[#9A9A9A]">Market: <Price usd={card.marketPrice} /></p>}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <label className="w-24 shrink-0 text-xs text-[#9A9A9A]">Quantity</label>
-        <input {...register("quantity")} type="number" min={1} max={999}
-          className="w-24 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none" />
-        {errors.quantity && <p className="text-xs text-rose-400">{errors.quantity.message}</p>}
-      </div>
-
-      <div className="flex gap-2">
-        <button type="button" onClick={() => { setValue("isGraded", false); setValue("gradingCompany", "none"); }}
-          className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition ${!isGraded ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>Raw</button>
-        <button type="button" onClick={() => setValue("isGraded", true)}
-          className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition ${isGraded ? "border-purple-400 bg-purple-400/10 text-purple-400" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>Graded</button>
-      </div>
-
-      {!isGraded && (
-        <div>
-          <p className="mb-1.5 text-xs text-[#9A9A9A]">Condition</p>
-          <div className="grid grid-cols-5 gap-1.5">
-            {CONDITIONS.map((c) => (
-              <button key={c} type="button" onClick={() => setValue("condition", c)} title={CONDITION_LABEL[c]}
-                className={`rounded-lg border py-2 text-[10px] font-bold uppercase transition ${watch("condition") === c ? `${CONDITION_COLOR[c]} ring-1` : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>
-                {CONDITION_SHORT[c]}
-              </button>
-            ))}
-          </div>
-          <p className="mt-1 text-right text-[10px] text-[#9A9A9A]">{CONDITION_LABEL[watch("condition")]}</p>
-        </div>
-      )}
-
-      {isGraded && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <label className="w-24 shrink-0 text-xs text-[#9A9A9A]">Company</label>
-            <div className="flex gap-2">
-              {(["psa", "bgs", "cgc"] as const).map((co) => (
-                <button key={co} type="button" onClick={() => setValue("gradingCompany", co)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-bold uppercase transition ${watch("gradingCompany") === co ? "border-purple-400 bg-purple-400/10 text-purple-400" : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}>
-                  {co.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="w-24 shrink-0 text-xs text-[#9A9A9A]">Grade</label>
-            <input {...register("gradeValue")} type="number" min={1} max={10} step={0.5} placeholder="e.g. 9.5"
-              className="w-24 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] focus:border-accent/50 focus:outline-none" />
-            {errors.gradeValue && <p className="text-xs text-rose-400">{errors.gradeValue.message}</p>}
-          </div>
-        </div>
-      )}
-
-      <div className="flex gap-4">
-        {([["isFoil", "Foil"], ["isFirstEdition", "1st Edition"]] as const).map(([field, label]) => (
-          <label key={field} className="flex cursor-pointer items-center gap-2 text-xs text-[#9A9A9A]">
-            <input {...register(field)} type="checkbox" className="size-4 rounded border-white/20 bg-surface2 accent-accent" />
-            {label}
-          </label>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-3">
-        <label className="w-24 shrink-0 text-xs text-[#9A9A9A]">Paid (PHP)</label>
-        <input {...register("purchasePrice")} type="number" min={0} step={0.01} placeholder="optional"
-          className="w-36 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none" />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs text-[#9A9A9A]">Notes (optional)</label>
-        <textarea {...register("notes")} rows={2} placeholder="e.g. bought at GP Manila 2024"
-          className="w-full resize-none rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none" />
-      </div>
-
-      <button type="submit" disabled={isSubmitting}
-        className="w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50">
-        {isSubmitting ? "Saving…" : submitLabel}
-      </button>
-    </form>
   );
 }
 
@@ -604,24 +428,23 @@ function AddCardDialog({ open, onClose, onAdded }: { open: boolean; onClose: () 
   const [results, setResults]     = useState<CardCatalog[]>([]);
   const [searching, setSearching] = useState(false);
   const [selected, setSelected]   = useState<CardCatalog | null>(null);
-  const debounce                  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRef               = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { if (open) { setStep("search"); setQuery(""); setResults([]); setSelected(null); } }, [open]);
+  const reset = () => { setStep("search"); setQuery(""); setResults([]); setSelected(null); };
 
-  useEffect(() => {
-    if (debounce.current) clearTimeout(debounce.current);
-    if (query.trim().length < 2) { setResults([]); return; }
-    debounce.current = setTimeout(async () => {
+  function handleSearch(q: string, g: typeof game) {
+    if (debounceRef[0]) clearTimeout(debounceRef[0]);
+    if (q.trim().length < 2) { setResults([]); return; }
+    debounceRef[1](setTimeout(async () => {
       setSearching(true);
       try {
-        const params = new URLSearchParams({ q: query });
-        if (game !== "all") params.set("game", game);
-        const res = await fetch(`/api/cards/search?${params}`);
-        setResults((await res.json()).cards ?? []);
-      } catch { setResults([]); } finally { setSearching(false); }
-    }, 500);
-    return () => { if (debounce.current) clearTimeout(debounce.current); };
-  }, [query, game]);
+        const params = new URLSearchParams({ q });
+        if (g !== "all") params.set("game", g);
+        setResults((await fetch(`/api/cards/search?${params}`).then((r) => r.json())).cards ?? []);
+      } catch { setResults([]); }
+      finally  { setSearching(false); }
+    }, 400));
+  }
 
   async function handleAdd(data: CollectionEntryInput) {
     const res = await fetch("/api/collection", {
@@ -629,30 +452,42 @@ function AddCardDialog({ open, onClose, onAdded }: { open: boolean; onClose: () 
     });
     if (!res.ok) throw new Error("Failed");
     toast.success(`${selected!.name} added to collection`);
-    onAdded(); onClose();
+    onAdded(); onClose(); reset();
   }
 
   return (
-    <Dialog open={open} onClose={onClose} className="relative z-50">
+    <Dialog open={open} onClose={() => { onClose(); reset(); }} className="relative z-50">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <DialogPanel className="w-full max-w-md rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
           <div className="mb-5 flex items-center justify-between">
-            <DialogTitle className="text-base font-bold text-[#F2F2F2]">{step === "search" ? "Add a Card" : "Card Details"}</DialogTitle>
-            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2] transition"><XMarkIcon className="size-5" /></button>
+            <DialogTitle className="text-base font-bold text-[#F2F2F2]">
+              {step === "search" ? "Add a Card" : "Card Details"}
+            </DialogTitle>
+            <button onClick={() => { onClose(); reset(); }} aria-label="Close"
+              className="text-[#9A9A9A] hover:text-[#F2F2F2] transition">
+              <XMarkIcon className="size-5" />
+            </button>
           </div>
+
           {step === "search" ? (
             <div className="space-y-4">
               <div className="flex gap-1.5 rounded-xl bg-surface2 p-1">
                 {([["all", "All"], ["pokemon", "Pokémon"], ["one_piece", "One Piece"]] as const).map(([g, label]) => (
-                  <button key={g} onClick={() => setGame(g)}
-                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${game === g ? "bg-surface text-[#F2F2F2] shadow" : "text-[#9A9A9A] hover:text-[#F2F2F2]"}`}>{label}</button>
+                  <button key={g} onClick={() => { setGame(g); handleSearch(query, g); }}
+                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${game === g ? "bg-surface text-[#F2F2F2] shadow" : "text-[#9A9A9A] hover:text-[#F2F2F2]"}`}>
+                    {label}
+                  </button>
                 ))}
               </div>
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9A9A9A]" />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search cards…" autoFocus
-                  className="w-full rounded-xl border border-white/10 bg-surface2 py-2.5 pl-9 pr-4 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none" />
+                <input
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); handleSearch(e.target.value, game); }}
+                  placeholder="Search cards…" autoFocus
+                  className="w-full rounded-xl border border-white/10 bg-surface2 py-2.5 pl-9 pr-4 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
+                />
               </div>
               <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
                 {searching && <p className="py-6 text-center text-xs text-[#9A9A9A]">Searching…</p>}
@@ -662,7 +497,7 @@ function AddCardDialog({ open, onClose, onAdded }: { open: boolean; onClose: () 
                 {results.map((card) => (
                   <button key={card.id} onClick={() => { setSelected(card); setStep("configure"); }}
                     className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left transition hover:border-white/10 hover:bg-surface2">
-                    <div className="h-12 w-9 shrink-0 overflow-hidden rounded-md">
+                    <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md">
                       <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -675,7 +510,10 @@ function AddCardDialog({ open, onClose, onAdded }: { open: boolean; onClose: () 
               </div>
             </div>
           ) : selected && (
-            <EntryForm card={selected} onSubmit={handleAdd} submitLabel="Add to Collection" />
+            <CollectionEntryForm
+              card={selected} onSubmit={handleAdd}
+              submitLabel="Add to Collection" onBack={() => setStep("search")}
+            />
           )}
         </DialogPanel>
       </div>
@@ -704,9 +542,12 @@ function EditDialog({ item, onClose, onSaved }: { item: CollectionEntry | null; 
         <DialogPanel className="w-full max-w-md rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
           <div className="mb-5 flex items-center justify-between">
             <DialogTitle className="text-base font-bold text-[#F2F2F2]">Edit Entry</DialogTitle>
-            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2] transition"><XMarkIcon className="size-5" /></button>
+            <button onClick={onClose} aria-label="Close" className="text-[#9A9A9A] hover:text-[#F2F2F2] transition">
+              <XMarkIcon className="size-5" />
+            </button>
           </div>
-          <EntryForm card={item.card} onSubmit={handleSave} submitLabel="Save Changes"
+          <CollectionEntryForm
+            card={item.card} onSubmit={handleSave} submitLabel="Save Changes"
             defaultValues={{
               cardId: e.cardId, quantity: e.quantity,
               isGraded: e.gradingCompany !== "none", condition: e.condition,
@@ -726,27 +567,30 @@ function EditDialog({ item, onClose, onSaved }: { item: CollectionEntry | null; 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function CollectionPage() {
-  const qc = useQueryClient();
-  const { format } = useCurrencyStore();
+  const qc              = useQueryClient();
+  const { format }      = useCurrencyStore();
 
-  const [addOpen, setAddOpen]       = useState(false);
-  const [editItem, setEditItem]     = useState<CollectionEntry | null>(null);
-  const [moveItem, setMoveItem]     = useState<CollectionEntry | null>(null);
+  const [addOpen, setAddOpen]           = useState(false);
+  const [editItem, setEditItem]         = useState<CollectionEntry | null>(null);
+  const [moveItem, setMoveItem]         = useState<CollectionEntry | null>(null);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [draggingId, setDraggingId]     = useState<string | null>(null);
+  const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null);
+  const [deleteFolder, setDeleteFolder] = useState<CollectionFolder | null>(null);
 
-  // Folder create/rename dialog state
-  const [folderDialog, setFolderDialog] = useState<CollectionFolder | null | "new">(null);
+  const { data: collData, isPending: collPending, isError: collError } =
+    useQuery<{ entries: CollectionEntry[] }>({
+      queryKey: ["collection"],
+      queryFn:  () => fetch("/api/collection").then((r) => r.json()),
+      staleTime: 60_000,
+    });
 
-  const { data: collData, isPending: collPending } = useQuery<{ entries: CollectionEntry[] }>({
-    queryKey: ["collection"],
-    queryFn: () => fetch("/api/collection").then((r) => r.json()),
-  });
-
-  const { data: folderData } = useQuery<{ folders: CollectionFolder[] }>({
-    queryKey: ["collection-folders"],
-    queryFn: () => fetch("/api/collection/folders").then((r) => r.json()),
-  });
+  const { data: folderData, isError: foldersError } =
+    useQuery<{ folders: CollectionFolder[] }>({
+      queryKey: ["collection-folders"],
+      queryFn:  () => fetch("/api/collection/folders").then((r) => r.json()),
+      staleTime: 60_000,
+    });
 
   const entries = collData?.entries ?? [];
   const folders = folderData?.folders ?? [];
@@ -756,20 +600,13 @@ export default function CollectionPage() {
     qc.invalidateQueries({ queryKey: ["collection-folders"] });
   };
 
-  // Filtered view
-  const visible = activeFolder === null
-    ? entries
-    : entries.filter((e) => e.entry.folderId === activeFolder);
-
+  const visible   = activeFolder === null ? entries : entries.filter((e) => e.entry.folderId === activeFolder);
   const cardCount = visible.reduce((n, { entry }) => n + entry.quantity, 0);
   const value     = totalValue(visible);
 
-  // ── DnD setup (mouse only to avoid scroll conflicts on mobile) ──────────────
+  // ── DnD — mouse sensor only; touch users use the "Move" button ──────────────
 
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
-  );
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 8 } }));
 
   function onDragStart(event: DragStartEvent) {
     setDraggingId(String(event.active.id));
@@ -781,25 +618,17 @@ export default function CollectionPage() {
     if (!over) return;
 
     const entryId  = String(active.id);
-    const targetId = String(over.id);
-    const folderId = targetId === "__all__" ? null : targetId;
-
-    const entry = entries.find((e) => e.entry.id === entryId);
-    if (!entry) return;
-    // Skip if already in target
-    if (entry.entry.folderId === folderId) return;
+    const folderId = String(over.id) === "__all__" ? null : String(over.id);
+    const entry    = entries.find((e) => e.entry.id === entryId);
+    if (!entry || entry.entry.folderId === folderId) return;
 
     try {
       const res = await fetch(`/api/collection/${entryId}/move`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ folderId }),
       });
       if (!res.ok) throw new Error("Failed");
-      const folderName = folderId
-        ? folders.find((f) => f.id === folderId)?.name ?? "folder"
-        : "All Cards";
-      toast.success(`Moved to ${folderName}`);
+      toast.success(`Moved to ${folderId ? (folders.find((f) => f.id === folderId)?.name ?? "folder") : "All Cards"}`);
       qc.invalidateQueries({ queryKey: ["collection"] });
     } catch {
       toast.error("Failed to move card");
@@ -807,41 +636,36 @@ export default function CollectionPage() {
   }
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => fetch(`/api/collection/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error(); }),
+    mutationFn: (id: string) =>
+      fetch(`/api/collection/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error(); }),
     onSuccess: () => { toast.success("Card removed"); refetchAll(); },
     onError:   () => toast.error("Failed to remove"),
   });
 
   const favoriteMutation = useMutation({
-    mutationFn: ({ id, isFavorite, e }: { id: string; isFavorite: boolean; e: CollectionEntry }) =>
-      fetch(`/api/collection/${id}`, {
+    mutationFn: ({ id, isFavorite }: { id: string; isFavorite: boolean }) =>
+      fetch(`/api/collection/${id}/favorite`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cardId: e.entry.cardId, quantity: e.entry.quantity,
-          isGraded: e.entry.gradingCompany !== "none", condition: e.entry.condition,
-          gradingCompany: e.entry.gradingCompany,
-          gradeValue: e.entry.gradeValue != null ? parseFloat(e.entry.gradeValue) : undefined,
-          isFoil: e.entry.isFoil, isFirstEdition: e.entry.isFirstEdition, language: e.entry.language,
-          purchasePrice: e.entry.purchasePrice != null ? parseFloat(e.entry.purchasePrice) : undefined,
-          notes: e.entry.notes ?? undefined, isFavorite,
-        }),
-      }),
+        body: JSON.stringify({ isFavorite }),
+      }).then((r) => { if (!r.ok) throw new Error(); }),
     onSuccess: () => refetchAll(),
+    onError:   () => toast.error("Failed to update favourite"),
   });
 
-  const deleteFolder = async (folder: CollectionFolder) => {
-    if (!confirm(`Delete folder "${folder.name}"? Cards inside will move to All Cards.`)) return;
-    const res = await fetch(`/api/collection/folders/${folder.id}`, { method: "DELETE" });
+  async function confirmDeleteFolder() {
+    if (!deleteFolder) return;
+    const res = await fetch(`/api/collection/folders/${deleteFolder.id}`, { method: "DELETE" });
     if (res.ok) {
       toast.success("Folder deleted");
-      if (activeFolder === folder.id) setActiveFolder(null);
+      if (activeFolder === deleteFolder.id) setActiveFolder(null);
       refetchAll();
+    } else {
+      toast.error("Failed to delete folder");
     }
-  };
+    setDeleteFolder(null);
+  }
 
   const draggingEntry = draggingId ? entries.find((e) => e.entry.id === draggingId) : null;
-
-  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
@@ -861,41 +685,47 @@ export default function CollectionPage() {
           </button>
         </div>
 
+        {/* Error state */}
+        {(collError || foldersError) && (
+          <div className="mb-4 rounded-xl border border-rose-400/20 bg-rose-400/5 p-4 text-sm text-rose-400">
+            Failed to load collection data. Please refresh.
+          </div>
+        )}
+
+        {/* Mobile folder tabs — outside the sidebar+grid flex row */}
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-1 sm:hidden">
+          <button onClick={() => setActiveFolder(null)}
+            className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-medium transition ${activeFolder === null ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A]"}`}>
+            All ({entries.length})
+          </button>
+          {folders.map((folder) => (
+            <button key={folder.id} onClick={() => setActiveFolder(folder.id)}
+              className={`shrink-0 flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-medium transition ${activeFolder === folder.id ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A]"}`}>
+              <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: folder.color }} />
+              {folder.name}
+            </button>
+          ))}
+          <button onClick={() => setFolderDialog({ mode: "create" })}
+            className="shrink-0 flex items-center gap-1 rounded-full border border-dashed border-white/20 px-4 py-1.5 text-xs text-[#9A9A9A]">
+            <FolderPlusIcon className="size-3.5" /> New
+          </button>
+        </div>
+
+        {/* Sidebar + grid row */}
         <div className="flex gap-6">
           {/* Folder sidebar — desktop */}
           <aside className="hidden w-52 shrink-0 sm:block">
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-[#9A9A9A]">Folders</p>
             <FolderSidebar
-              folders={folders}
-              entries={entries}
-              activeFolder={activeFolder}
-              setActiveFolder={setActiveFolder}
-              onCreateFolder={() => setFolderDialog("new")}
-              onRenameFolder={(f) => setFolderDialog(f)}
-              onDeleteFolder={deleteFolder}
+              folders={folders} entries={entries}
+              activeFolder={activeFolder} setActiveFolder={setActiveFolder}
+              onCreateFolder={() => setFolderDialog({ mode: "create" })}
+              onRenameFolder={(f) => setFolderDialog({ mode: "edit", folder: f })}
+              onDeleteFolder={(f) => setDeleteFolder(f)}
             />
           </aside>
 
-          {/* Mobile folder tabs */}
-          <div className="mb-4 flex gap-2 overflow-x-auto pb-1 sm:hidden w-full">
-            <button onClick={() => setActiveFolder(null)}
-              className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-medium transition ${activeFolder === null ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A]"}`}>
-              All ({entries.length})
-            </button>
-            {folders.map((folder) => (
-              <button key={folder.id} onClick={() => setActiveFolder(folder.id)}
-                className={`shrink-0 flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-medium transition ${activeFolder === folder.id ? "border-accent bg-accent/10 text-accent" : "border-white/10 text-[#9A9A9A]"}`}>
-                <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: folder.color }} />
-                {folder.name}
-              </button>
-            ))}
-            <button onClick={() => setFolderDialog("new")}
-              className="shrink-0 flex items-center gap-1 rounded-full border border-dashed border-white/20 px-4 py-1.5 text-xs text-[#9A9A9A]">
-              <FolderPlusIcon className="size-3.5" /> New
-            </button>
-          </div>
-
-          {/* Main grid area */}
+          {/* Main grid */}
           <div className="min-w-0 flex-1">
             {collPending && (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -905,13 +735,13 @@ export default function CollectionPage() {
               </div>
             )}
 
-            {!collPending && visible.length === 0 && (
+            {!collPending && !collError && visible.length === 0 && (
               <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-20 text-center">
-                <p className="text-[#F2F2F2] font-medium">
+                <p className="font-medium text-[#F2F2F2]">
                   {activeFolder ? "This folder is empty" : "No cards yet"}
                 </p>
                 <p className="mt-1 text-sm text-[#9A9A9A]">
-                  {activeFolder ? "Drag cards here from All Cards" : "Add your first card to start tracking"}
+                  {activeFolder ? "Drag cards here or use the Move button" : "Add your first card to start tracking"}
                 </p>
                 {!activeFolder && (
                   <button onClick={() => setAddOpen(true)}
@@ -926,13 +756,11 @@ export default function CollectionPage() {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 {visible.map(({ entry, card }) => (
                   <DraggableCard
-                    key={entry.id}
-                    entry={entry}
-                    card={card}
+                    key={entry.id} entry={entry} card={card}
                     isDragging={draggingId === entry.id}
                     onEdit={() => setEditItem({ entry, card })}
                     onDelete={() => deleteMutation.mutate(entry.id)}
-                    onFavorite={() => favoriteMutation.mutate({ id: entry.id, isFavorite: !entry.isFavorite, e: { entry, card } })}
+                    onFavorite={() => favoriteMutation.mutate({ id: entry.id, isFavorite: !entry.isFavorite })}
                     onMove={() => setMoveItem({ entry, card })}
                   />
                 ))}
@@ -942,11 +770,11 @@ export default function CollectionPage() {
         </div>
       </div>
 
-      {/* Drag overlay — ghost card while dragging */}
+      {/* Drag overlay */}
       <DragOverlay>
         {draggingEntry && (
           <div className="w-36 rounded-2xl border border-accent/40 bg-surface shadow-2xl opacity-90 overflow-hidden">
-            <div className="aspect-[3/4] overflow-hidden">
+            <div className="relative aspect-[3/4] overflow-hidden">
               <CardImage url={draggingEntry.card.imageUrl} name={draggingEntry.card.name} className="h-full w-full" />
             </div>
             <p className="truncate px-3 py-2 text-xs font-semibold text-[#F2F2F2]">{draggingEntry.card.name}</p>
@@ -957,19 +785,9 @@ export default function CollectionPage() {
       {/* Dialogs */}
       <AddCardDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={refetchAll} />
       <EditDialog item={editItem} onClose={() => setEditItem(null)} onSaved={refetchAll} />
-      <MoveFolderDialog
-        entry={moveItem}
-        folders={folders}
-        onClose={() => setMoveItem(null)}
-        onMoved={refetchAll}
-      />
-      {folderDialog !== null && (
-        <FolderDialog
-          folder={folderDialog === "new" ? null : folderDialog}
-          onClose={() => setFolderDialog(null)}
-          onSaved={refetchAll}
-        />
-      )}
+      <MoveFolderDialog entry={moveItem} folders={folders} onClose={() => setMoveItem(null)} onMoved={refetchAll} />
+      <FolderDialog state={folderDialog} onClose={() => setFolderDialog(null)} onSaved={refetchAll} />
+      <ConfirmDeleteFolderDialog folder={deleteFolder} onClose={() => setDeleteFolder(null)} onConfirm={confirmDeleteFolder} />
     </DndContext>
   );
 }

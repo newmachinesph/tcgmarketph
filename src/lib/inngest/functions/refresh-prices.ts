@@ -1,4 +1,4 @@
-import { and, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
 import { inngest } from "@/lib/inngest/client";
 import { db } from "@/lib/db";
 import { cardCatalog, userCollection, userWishlist, priceHistory } from "@/db/schema/cards";
@@ -26,7 +26,7 @@ export const refreshCardPrices = inngest.createFunction(
   {
     id:       "refresh-card-prices",
     name:     "Refresh Card Prices",
-    retries:  1,
+    retries:  3,
     triggers: [{ cron: "0 3 * * *" }],
   },
   async ({ step }) => {
@@ -109,10 +109,7 @@ export const refreshCardPrices = inngest.createFunction(
                 updatedAt:      new Date(),
                 ...(fresh.image_url ? { imageUrl: fresh.image_url } : {}),
               })
-              .where(
-                // eq import not needed — direct where using Drizzle's column reference
-                and(inArray(cardCatalog.id, [card.id]))
-              ),
+              .where(eq(cardCatalog.id, card.id)),
             db.insert(priceHistory).values({
               cardId: card.id,
               price:  priceStr,

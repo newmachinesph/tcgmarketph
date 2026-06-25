@@ -35,6 +35,9 @@ export const resetRatelimit = makeRatelimiter(5, "60 m");
 // 3 OTP sends per 10 minutes per user
 export const otpRatelimit = makeRatelimiter(3, "10 m");
 
+// 30 card searches per minute per IP — prevents scraping the search endpoint
+export const searchRatelimit = makeRatelimiter(30, "60 s");
+
 // Protects our 100 req/day TCG API quota. Fixed daily window mirrors tcgapi.dev's
 // reset schedule. Key must always be "global" (shared across all users).
 export const tcgApiRatelimit = hasRedis()

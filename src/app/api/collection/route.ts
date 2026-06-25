@@ -40,22 +40,34 @@ export async function POST(request: NextRequest) {
 
   const d = parsed.data;
 
-  const [row] = await db
-    .insert(userCollection)
-    .values({
-      userId:         session.user.id,
-      cardId:         d.cardId,
-      quantity:       d.quantity,
-      condition:      d.condition,
-      gradingCompany: d.isGraded ? d.gradingCompany as "psa" | "bgs" | "cgc" : "none",
-      gradeValue:     d.isGraded && d.gradeValue != null ? String(d.gradeValue) : null,
-      isFoil:         d.isFoil,
-      isFirstEdition: d.isFirstEdition,
-      language:       d.language,
-      purchasePrice:  d.purchasePrice != null ? String(d.purchasePrice) : null,
-      notes:          d.notes ?? null,
-    })
-    .returning();
+  try {
+    const [row] = await db
+      .insert(userCollection)
+      .values({
+        userId:         session.user.id,
+        cardId:         d.cardId,
+        quantity:       d.quantity,
+        condition:      d.condition,
+        gradingCompany: d.isGraded ? d.gradingCompany as "psa" | "bgs" | "cgc" : "none",
+        gradeValue:     d.isGraded && d.gradeValue != null ? String(d.gradeValue) : null,
+        isFoil:         d.isFoil,
+        isFirstEdition: d.isFirstEdition,
+        language:       d.language,
+        purchasePrice:  d.purchasePrice != null ? String(d.purchasePrice) : null,
+        notes:          d.notes ?? null,
+        isFavorite:     d.isFavorite,
+      })
+      .returning();
 
-  return NextResponse.json({ entry: row }, { status: 201 });
+    return NextResponse.json({ entry: row }, { status: 201 });
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err) {
+      const code = (err as { code: string }).code;
+      // FK violation — cardId doesn't exist in card_catalog
+      if (code === "23503") {
+        return NextResponse.json({ error: "Card not found in catalog" }, { status: 422 });
+      }
+    }
+    throw err;
+  }
 }

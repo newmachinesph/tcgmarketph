@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { authRatelimit, resetRatelimit } from "@/lib/rate-limit";
 
+// UI-only redirect gate — prevents unauthenticated browsers from reaching these pages.
+// This is NOT the security boundary. Every API route under /api/ enforces its own
+// session check via auth.api.getSession(). Never remove those checks on the assumption
+// that the middleware protects the API layer.
 const PROTECTED = ["/dashboard", "/profile-setup", "/profile", "/settings", "/collection", "/wishlist", "/browse"];
 const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 // HTTP (dev): better-auth.session_token

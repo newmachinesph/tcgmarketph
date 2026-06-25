@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { userCollection } from "@/db/schema/cards";
+import { userCollection, collectionFolders } from "@/db/schema/cards";
 import { z } from "zod";
 
 type Params = { params: Promise<{ id: string }> };
@@ -20,6 +20,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const body   = await request.json().catch(() => ({}));
   const parsed = moveSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Validation error" }, { status: 422 });
+
+  // If a folder is specified, verify it belongs to the requesting user.
+  // Prevents moving cards into folders owned by another account.
+  if (parsed.data.folderId !== null) {
+    const [folder] = await db
+      .select({ id: collectionFolders.id })
+      .from(collectionFolders)
+      .where(
+        and(
+          eq(collectionFolders.id, parsed.data.folderId),
+          eq(collectionFolders.userId, session.user.id)
+        )
+      );
+    if (!folder) return NextResponse.json({ error: "Folder not found" }, { status: 404 });
+  }
 
   const [row] = await db
     .update(userCollection)

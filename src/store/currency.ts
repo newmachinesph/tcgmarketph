@@ -7,6 +7,8 @@ export type Currency = "USD" | "PHP";
 export const PHP_RATE = 61.31;
 
 interface CurrencyStore {
+  _hasHydrated: boolean;
+  setHasHydrated: (v: boolean) => void;
   currency: Currency;
   setCurrency: (c: Currency) => void;
   toggle: () => void;
@@ -19,6 +21,9 @@ interface CurrencyStore {
 export const useCurrencyStore = create<CurrencyStore>()(
   persist(
     (set, get) => ({
+      _hasHydrated: false,
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
+
       currency: "PHP",
 
       setCurrency: (c) => set({ currency: c }),
@@ -40,6 +45,11 @@ export const useCurrencyStore = create<CurrencyStore>()(
         return `$${usd.toFixed(2)}`;
       },
     }),
-    { name: "tcg-currency" }
+    {
+      name: "tcg-currency",
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    }
   )
 );

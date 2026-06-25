@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm, type Resolver } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { toast } from "sonner";
 import {
@@ -15,208 +13,65 @@ import {
   CheckIcon,
 } from "@heroicons/react/24/outline";
 import {
-  wishlistEntrySchema,
   PRIORITIES,
   PRIORITY_LABEL,
   PRIORITY_COLOR,
   type WishlistEntryInput,
 } from "@/lib/validations/wishlist";
+import { type CollectionEntryInput } from "@/lib/validations/collection";
+import { GAME_LABEL } from "@/lib/constants/games";
 import type { CardCatalog, UserWishlist } from "@/db/schema/cards";
 import { CardImage } from "@/components/CardImage";
 import { Price } from "@/components/Price";
+import { WishlistEntryForm } from "@/components/WishlistEntryForm";
+import { CollectionEntryForm } from "@/components/CollectionEntryForm";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type WishlistEntry = { entry: UserWishlist; card: CardCatalog };
-type SearchCard    = CardCatalog;
 type GameFilter    = "pokemon" | "one_piece" | "all";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const GAME_LABEL: Record<string, string> = {
-  pokemon:   "Pokémon",
-  one_piece: "One Piece",
-};
-
-function fmt(n: string | null | undefined, fallback = "—") {
-  if (n == null) return fallback;
-  const v = parseFloat(n);
-  return isNaN(v) ? fallback : `$${v.toFixed(2)}`;
-}
-
-// ── Card image ────────────────────────────────────────────────────────────────
-
-// ── Wishlist entry form ───────────────────────────────────────────────────────
-
-function WishlistForm({
-  card,
-  defaultValues,
-  onSubmit,
-  onBack,
-  submitLabel,
-}: {
-  card: SearchCard;
-  defaultValues?: Partial<WishlistEntryInput>;
-  onSubmit: (data: WishlistEntryInput) => Promise<void>;
-  onBack?: () => void;
-  submitLabel: string;
-}) {
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } =
-    useForm<WishlistEntryInput>({
-      resolver: zodResolver(wishlistEntrySchema) as Resolver<WishlistEntryInput>,
-      defaultValues: {
-        cardId:      card.id,
-        priority:    "medium",
-        ...defaultValues,
-      },
-    });
-
-  const priority = watch("priority");
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      {/* Selected card preview */}
-      <div className="flex items-center gap-3 rounded-xl border border-white/8 bg-surface2 p-3">
-        <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md">
-          <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[#F2F2F2]">{card.name}</p>
-          <p className="truncate text-xs text-[#9A9A9A]">
-            {card.setName ?? GAME_LABEL[card.game]}
-            {card.cardNumber ? ` · ${card.cardNumber}` : ""}
-          </p>
-          {card.marketPrice && (
-            <p className="text-[10px] text-[#9A9A9A]">Market: <Price usd={card.marketPrice} /></p>
-          )}
-        </div>
-      </div>
-
-      {/* Priority */}
-      <div>
-        <p className="mb-1.5 text-xs text-[#9A9A9A]">Priority</p>
-        <div className="flex gap-2">
-          {PRIORITIES.map((p) => {
-            const active = priority === p;
-            return (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setValue("priority", p)}
-                className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition ${active ? `${PRIORITY_COLOR[p]} ring-1` : "border-white/10 text-[#9A9A9A] hover:border-white/20"}`}
-              >
-                {PRIORITY_LABEL[p]}
-              </button>
-            );
-          })}
-        </div>
-        {errors.priority && <p className="mt-1 text-xs text-rose-400">{errors.priority.message}</p>}
-      </div>
-
-      {/* Max buy price */}
-      <div className="flex items-center gap-3">
-        <label className="w-28 shrink-0 text-xs text-[#9A9A9A]">Max Price (PHP)</label>
-        <input
-          {...register("maxBuyPrice")}
-          type="number"
-          min={0}
-          step={0.01}
-          placeholder="optional"
-          className="w-36 rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
-        />
-      </div>
-
-      {/* Notes */}
-      <div>
-        <label className="mb-1 block text-xs text-[#9A9A9A]">Notes (optional)</label>
-        <textarea
-          {...register("notes")}
-          rows={2}
-          placeholder="e.g. looking for LP or better"
-          className="w-full resize-none rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
-        />
-        {errors.notes && <p className="mt-1 text-xs text-rose-400">{errors.notes.message}</p>}
-      </div>
-
-      <div className="flex items-center gap-2 pt-1">
-        {onBack && (
-          <button type="button" onClick={onBack}
-            className="rounded-lg border border-white/10 px-3 py-2 text-xs text-[#9A9A9A] hover:text-[#F2F2F2] transition">
-            ← Back
-          </button>
-        )}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="flex-1 rounded-lg bg-accent py-2 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
-        >
-          {isSubmitting ? "Saving…" : submitLabel}
-        </button>
-      </div>
-    </form>
-  );
-}
 
 // ── Add to Wishlist dialog ────────────────────────────────────────────────────
 
-function AddWishlistDialog({
-  open,
-  onClose,
-  onAdded,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onAdded: () => void;
+function AddWishlistDialog({ open, onClose, onAdded }: {
+  open: boolean; onClose: () => void; onAdded: () => void;
 }) {
   const [step, setStep]           = useState<"search" | "configure">("search");
   const [game, setGame]           = useState<GameFilter>("all");
   const [query, setQuery]         = useState("");
-  const [results, setResults]     = useState<SearchCard[]>([]);
+  const [results, setResults]     = useState<CardCatalog[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selected, setSelected]   = useState<SearchCard | null>(null);
-  const debounce                  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selected, setSelected]   = useState<CardCatalog | null>(null);
+  const debounceRef               = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (open) { setStep("search"); setQuery(""); setResults([]); setSelected(null); }
-  }, [open]);
+  const reset = () => { setStep("search"); setQuery(""); setResults([]); setSelected(null); };
 
-  useEffect(() => {
-    if (debounce.current) clearTimeout(debounce.current);
-    if (query.trim().length < 2) { setResults([]); return; }
-
-    debounce.current = setTimeout(async () => {
+  function handleSearch(q: string, g: GameFilter) {
+    if (debounceRef[0]) clearTimeout(debounceRef[0]);
+    if (q.trim().length < 2) { setResults([]); return; }
+    debounceRef[1](setTimeout(async () => {
       setSearching(true);
       try {
-        const params = new URLSearchParams({ q: query });
-        if (game !== "all") params.set("game", game);
-        const res  = await fetch(`/api/cards/search?${params}`);
-        const json = await res.json();
-        setResults(json.cards ?? []);
+        const params = new URLSearchParams({ q });
+        if (g !== "all") params.set("game", g);
+        setResults((await fetch(`/api/cards/search?${params}`).then((r) => r.json())).cards ?? []);
       } catch { setResults([]); }
       finally  { setSearching(false); }
-    }, 500);
-
-    return () => { if (debounce.current) clearTimeout(debounce.current); };
-  }, [query, game]);
+    }, 400));
+  }
 
   async function handleAdd(data: WishlistEntryInput) {
     const res = await fetch("/api/wishlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
     });
-    if (res.status === 409) {
-      toast.error("Already on your wishlist");
-      return;
-    }
+    if (res.status === 409) { toast.error("Already on your wishlist"); return; }
     if (!res.ok) throw new Error("Failed to add");
     toast.success(`${selected!.name} added to wishlist`);
-    onAdded();
-    onClose();
+    onAdded(); onClose(); reset();
   }
 
   return (
-    <Dialog open={open} onClose={onClose} className="relative z-50">
+    <Dialog open={open} onClose={() => { onClose(); reset(); }} className="relative z-50">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <DialogPanel className="w-full max-w-md rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
@@ -224,7 +79,7 @@ function AddWishlistDialog({
             <DialogTitle className="text-base font-bold text-[#F2F2F2]">
               {step === "search" ? "Add to Wishlist" : "Wishlist Details"}
             </DialogTitle>
-            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2] transition">
+            <button onClick={() => { onClose(); reset(); }} aria-label="Close" className="text-[#9A9A9A] hover:text-[#F2F2F2] transition">
               <XMarkIcon className="size-5" />
             </button>
           </div>
@@ -233,61 +88,47 @@ function AddWishlistDialog({
             <div className="space-y-4">
               <div className="flex gap-1.5 rounded-xl bg-surface2 p-1">
                 {([["all", "All"], ["pokemon", "Pokémon"], ["one_piece", "One Piece"]] as const).map(([g, label]) => (
-                  <button key={g} onClick={() => setGame(g)}
+                  <button key={g} onClick={() => { setGame(g); handleSearch(query, g); }}
                     className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${game === g ? "bg-surface text-[#F2F2F2] shadow" : "text-[#9A9A9A] hover:text-[#F2F2F2]"}`}>
                     {label}
                   </button>
                 ))}
               </div>
-
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9A9A9A]" />
                 <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search cards…"
-                  autoFocus
+                  value={query} onChange={(e) => { setQuery(e.target.value); handleSearch(e.target.value, game); }}
+                  placeholder="Search cards…" autoFocus
                   className="w-full rounded-xl border border-white/10 bg-surface2 py-2.5 pl-9 pr-4 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-accent/50 focus:outline-none"
                 />
               </div>
-
               <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
                 {searching && <p className="py-6 text-center text-xs text-[#9A9A9A]">Searching…</p>}
                 {!searching && query.length >= 2 && results.length === 0 && (
                   <p className="py-6 text-center text-xs text-[#9A9A9A]">No cards found.</p>
                 )}
                 {results.map((card) => (
-                  <button
-                    key={card.id}
-                    onClick={() => { setSelected(card); setStep("configure"); }}
-                    className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left transition hover:border-white/10 hover:bg-surface2"
-                  >
-                    <div className="h-12 w-9 shrink-0 overflow-hidden rounded-md">
+                  <button key={card.id} onClick={() => { setSelected(card); setStep("configure"); }}
+                    className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left transition hover:border-white/10 hover:bg-surface2">
+                    <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md">
                       <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-[#F2F2F2]">{card.name}</p>
                       <p className="truncate text-xs text-[#9A9A9A]">
-                        {card.setName ?? GAME_LABEL[card.game]}
-                        {card.cardNumber ? ` · ${card.cardNumber}` : ""}
+                        {card.setName ?? GAME_LABEL[card.game]}{card.cardNumber ? ` · ${card.cardNumber}` : ""}
                       </p>
                     </div>
-                    {card.marketPrice && (
-                      <Price usd={card.marketPrice} className="shrink-0 text-xs text-[#9A9A9A]" />
-                    )}
+                    {card.marketPrice && <Price usd={card.marketPrice} className="shrink-0 text-xs text-[#9A9A9A]" />}
                   </button>
                 ))}
               </div>
             </div>
-          ) : (
-            selected && (
-              <WishlistForm
-                card={selected}
-                onSubmit={handleAdd}
-                onBack={() => setStep("search")}
-                submitLabel="Add to Wishlist"
-              />
-            )
+          ) : selected && (
+            <WishlistEntryForm
+              card={selected} onSubmit={handleAdd}
+              submitLabel="Add to Wishlist" onBack={() => setStep("search")}
+            />
           )}
         </DialogPanel>
       </div>
@@ -297,37 +138,20 @@ function AddWishlistDialog({
 
 // ── Edit dialog ───────────────────────────────────────────────────────────────
 
-function EditDialog({
-  item,
-  onClose,
-  onSaved,
-}: {
-  item: WishlistEntry | null;
-  onClose: () => void;
-  onSaved: () => void;
+function EditDialog({ item, onClose, onSaved }: {
+  item: WishlistEntry | null; onClose: () => void; onSaved: () => void;
 }) {
   if (!item) return null;
 
   async function handleSave(data: WishlistEntryInput) {
     const res = await fetch(`/api/wishlist/${item!.entry.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to save");
-    toast.success("Wishlist entry updated");
-    onSaved();
-    onClose();
+    toast.success("Wishlist entry updated"); onSaved(); onClose();
   }
 
   const e = item.entry;
-  const defaults: Partial<WishlistEntryInput> = {
-    cardId:      e.cardId,
-    priority:    e.priority,
-    maxBuyPrice: e.maxBuyPrice != null ? parseFloat(e.maxBuyPrice) : undefined,
-    notes:       e.notes ?? undefined,
-  };
-
   return (
     <Dialog open onClose={onClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
@@ -335,15 +159,64 @@ function EditDialog({
         <DialogPanel className="w-full max-w-md rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
           <div className="mb-5 flex items-center justify-between">
             <DialogTitle className="text-base font-bold text-[#F2F2F2]">Edit Wishlist Entry</DialogTitle>
-            <button onClick={onClose} className="text-[#9A9A9A] hover:text-[#F2F2F2] transition">
+            <button onClick={onClose} aria-label="Close" className="text-[#9A9A9A] hover:text-[#F2F2F2] transition">
               <XMarkIcon className="size-5" />
             </button>
           </div>
-          <WishlistForm
+          <WishlistEntryForm
+            card={item.card} onSubmit={handleSave} submitLabel="Save Changes"
+            defaultValues={{
+              cardId:      e.cardId,
+              priority:    e.priority,
+              maxBuyPrice: e.maxBuyPrice != null ? parseFloat(e.maxBuyPrice) : undefined,
+              notes:       e.notes ?? undefined,
+            }}
+          />
+        </DialogPanel>
+      </div>
+    </Dialog>
+  );
+}
+
+// ── Acquire dialog — add to collection and remove from wishlist ───────────────
+
+function AcquireDialog({ item, onClose, onAcquired }: {
+  item: WishlistEntry; onClose: () => void; onAcquired: () => void;
+}) {
+  async function handleAcquire(data: CollectionEntryInput) {
+    // Add to collection first
+    const addRes = await fetch("/api/collection", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+    });
+    if (!addRes.ok) throw new Error("Failed to add to collection");
+
+    // Then remove from wishlist
+    await fetch(`/api/wishlist/${item.entry.id}`, { method: "DELETE" });
+
+    toast.success(`${item.card.name} moved to collection!`);
+    onAcquired();
+    onClose();
+  }
+
+  return (
+    <Dialog open onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel className="w-full max-w-md rounded-2xl border border-white/10 bg-surface p-6 shadow-2xl">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-base font-bold text-[#F2F2F2]">Mark as Acquired</DialogTitle>
+              <p className="mt-0.5 text-xs text-[#9A9A9A]">This will add it to your collection and remove it from your wishlist.</p>
+            </div>
+            <button onClick={onClose} aria-label="Close" className="text-[#9A9A9A] hover:text-[#F2F2F2] transition">
+              <XMarkIcon className="size-5" />
+            </button>
+          </div>
+          <CollectionEntryForm
             card={item.card}
-            defaultValues={defaults}
-            onSubmit={handleSave}
-            submitLabel="Save Changes"
+            onSubmit={handleAcquire}
+            submitLabel="Add to Collection"
+            defaultValues={{ cardId: item.card.id }}
           />
         </DialogPanel>
       </div>
@@ -354,17 +227,10 @@ function EditDialog({
 // ── Wishlist row ──────────────────────────────────────────────────────────────
 
 function WishlistRow({
-  entry,
-  card,
-  onEdit,
-  onDelete,
-  onMoveToCollection,
+  entry, card, onEdit, onDelete, onAcquire,
 }: {
-  entry: UserWishlist;
-  card: CardCatalog;
-  onEdit: () => void;
-  onDelete: () => void;
-  onMoveToCollection: () => void;
+  entry: UserWishlist; card: CardCatalog;
+  onEdit: () => void; onDelete: () => void; onAcquire: () => void;
 }) {
   const marketPrice = card.marketPrice ? parseFloat(card.marketPrice) : null;
   const maxBuy      = entry.maxBuyPrice ? parseFloat(entry.maxBuyPrice) : null;
@@ -372,12 +238,10 @@ function WishlistRow({
 
   return (
     <div className="flex items-center gap-4 rounded-2xl border border-white/8 bg-surface px-4 py-3 transition hover:border-white/14">
-      {/* Image */}
-      <div className="h-16 w-12 shrink-0 overflow-hidden rounded-lg">
+      <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-lg">
         <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
       </div>
 
-      {/* Info */}
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           <p className="truncate text-sm font-semibold text-[#F2F2F2]">{card.name}</p>
@@ -386,8 +250,7 @@ function WishlistRow({
           </span>
         </div>
         <p className="mt-0.5 truncate text-xs text-[#9A9A9A]">
-          {card.setName ?? GAME_LABEL[card.game]}
-          {card.cardNumber ? ` · ${card.cardNumber}` : ""}
+          {card.setName ?? GAME_LABEL[card.game]}{card.cardNumber ? ` · ${card.cardNumber}` : ""}
         </p>
         <div className="mt-1 flex items-center gap-3 text-xs text-[#9A9A9A]">
           {marketPrice != null && (
@@ -395,9 +258,8 @@ function WishlistRow({
           )}
           {maxBuy != null && (
             <span>
-              Budget: <span className={underBudget ? "text-emerald-400 font-semibold" : "text-[#F2F2F2]"}>
-                ₱{maxBuy.toFixed(2)}
-                {underBudget && " ✓"}
+              Budget: <span className={underBudget ? "font-semibold text-emerald-400" : "text-[#F2F2F2]"}>
+                ₱{maxBuy.toFixed(2)}{underBudget && " ✓"}
               </span>
             </span>
           )}
@@ -407,20 +269,16 @@ function WishlistRow({
         )}
       </div>
 
-      {/* Actions */}
       <div className="flex shrink-0 items-center gap-1.5">
-        <button
-          onClick={onMoveToCollection}
-          title="Mark as acquired — move to collection"
-          className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400 transition hover:bg-emerald-500/20"
-        >
+        <button onClick={onAcquire} aria-label="Mark as acquired — move to collection"
+          className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400 transition hover:bg-emerald-500/20">
           <CheckIcon className="size-4" />
         </button>
-        <button onClick={onEdit}
+        <button onClick={onEdit} aria-label="Edit wishlist entry"
           className="rounded-lg border border-white/10 p-2 text-[#9A9A9A] transition hover:text-[#F2F2F2]">
           <PencilSquareIcon className="size-4" />
         </button>
-        <button onClick={onDelete}
+        <button onClick={onDelete} aria-label="Remove from wishlist"
           className="rounded-lg bg-rose-500/10 p-2 text-rose-400 transition hover:bg-rose-500/20">
           <TrashIcon className="size-4" />
         </button>
@@ -435,42 +293,30 @@ const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 export default function WishlistPage() {
   const qc = useQueryClient();
-  const [addOpen, setAddOpen]   = useState(false);
-  const [editItem, setEditItem] = useState<WishlistEntry | null>(null);
+  const [addOpen, setAddOpen]         = useState(false);
+  const [editItem, setEditItem]       = useState<WishlistEntry | null>(null);
+  const [acquireItem, setAcquireItem] = useState<WishlistEntry | null>(null);
 
   const { data, isPending, isError } = useQuery<{ entries: WishlistEntry[] }>({
     queryKey: ["wishlist"],
-    queryFn: () => fetch("/api/wishlist").then((r) => r.json()),
+    queryFn:  () => fetch("/api/wishlist").then((r) => r.json()),
+    staleTime: 60_000,
   });
 
   const entries = (data?.entries ?? []).slice().sort(
     (a, b) => PRIORITY_ORDER[a.entry.priority] - PRIORITY_ORDER[b.entry.priority]
   );
 
-  const refetch = () => qc.invalidateQueries({ queryKey: ["wishlist"] });
+  const refetch = () => {
+    qc.invalidateQueries({ queryKey: ["wishlist"] });
+    qc.invalidateQueries({ queryKey: ["collection"] });
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/wishlist/${id}`, { method: "DELETE" }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-      }),
-    onSuccess: () => { toast.success("Removed from wishlist"); refetch(); },
+      fetch(`/api/wishlist/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error("Failed"); }),
+    onSuccess: () => { toast.success("Removed from wishlist"); qc.invalidateQueries({ queryKey: ["wishlist"] }); },
     onError:   () => toast.error("Failed to remove"),
-  });
-
-  // "Acquired" — remove from wishlist, then open collection add dialog pre-filled
-  // For simplicity: just removes from wishlist and toasts; user adds to collection manually.
-  // Phase 5+ can wire direct transfer.
-  const acquireMutation = useMutation({
-    mutationFn: (id: string) =>
-      fetch(`/api/wishlist/${id}`, { method: "DELETE" }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-      }),
-    onSuccess: (_d, _id, ctx) => {
-      toast.success("Removed from wishlist — add it to your collection!");
-      refetch();
-    },
-    onError: () => toast.error("Failed"),
   });
 
   const highCount   = entries.filter((e) => e.entry.priority === "high").length;
@@ -483,7 +329,6 @@ export default function WishlistPage() {
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-10 lg:px-10">
 
-      {/* Header */}
       <div className="mb-6 flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#F2F2F2]">Wishlist</h1>
@@ -497,16 +342,12 @@ export default function WishlistPage() {
             )}
           </p>
         </div>
-        <button
-          onClick={() => setAddOpen(true)}
-          className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90"
-        >
-          <PlusIcon className="size-4" />
-          Add to Wishlist
+        <button onClick={() => setAddOpen(true)}
+          className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90">
+          <PlusIcon className="size-4" /> Add to Wishlist
         </button>
       </div>
 
-      {/* Loading skeletons */}
       {isPending && (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -521,50 +362,33 @@ export default function WishlistPage() {
         </div>
       )}
 
-      {/* Empty state */}
       {!isPending && !isError && entries.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-20 text-center">
-          <p className="text-[#F2F2F2] font-medium">Your wishlist is empty</p>
-          <p className="mt-1 text-sm text-[#9A9A9A]">
-            Track cards you want to acquire.
-          </p>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="mt-5 flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90 transition"
-          >
-            <PlusIcon className="size-4" />
-            Add to Wishlist
+          <p className="font-medium text-[#F2F2F2]">Your wishlist is empty</p>
+          <p className="mt-1 text-sm text-[#9A9A9A]">Track cards you want to acquire.</p>
+          <button onClick={() => setAddOpen(true)}
+            className="mt-5 flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90 transition">
+            <PlusIcon className="size-4" /> Add to Wishlist
           </button>
         </div>
       )}
 
-      {/* List — sorted by priority */}
       {!isPending && entries.length > 0 && (
         <div className="space-y-3">
           {entries.map(({ entry, card }) => (
             <WishlistRow
-              key={entry.id}
-              entry={entry}
-              card={card}
+              key={entry.id} entry={entry} card={card}
               onEdit={() => setEditItem({ entry, card })}
               onDelete={() => deleteMutation.mutate(entry.id)}
-              onMoveToCollection={() => acquireMutation.mutate(entry.id)}
+              onAcquire={() => setAcquireItem({ entry, card })}
             />
           ))}
         </div>
       )}
 
-      {/* Dialogs */}
-      <AddWishlistDialog
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onAdded={refetch}
-      />
-      <EditDialog
-        item={editItem}
-        onClose={() => setEditItem(null)}
-        onSaved={refetch}
-      />
+      <AddWishlistDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={refetch} />
+      <EditDialog item={editItem} onClose={() => setEditItem(null)} onSaved={refetch} />
+      {acquireItem && <AcquireDialog item={acquireItem} onClose={() => setAcquireItem(null)} onAcquired={refetch} />}
     </div>
   );
 }

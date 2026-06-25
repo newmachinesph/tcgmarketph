@@ -20,33 +20,21 @@ import {
 } from "@heroicons/react/24/outline";
 import { ChevronUpIcon } from "@heroicons/react/20/solid";
 import { CardImage } from "@/components/CardImage";
+import { GAME_LABEL } from "@/lib/constants/games";
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
 
-  const u = session.user as typeof session.user & {
-    displayName?: string | null;
-    phone?: string | null;
-    phoneVerified?: boolean;
-    kycStatus?: string;
-    sellerEnabled?: boolean;
-    subscriptionTier?: string;
-    reputationScore?: number;
-    isAdmin?: boolean;
-    city?: string | null;
-    bio?: string | null;
-    games?: string | null;
-    createdAt?: string | Date;
-  };
+  const u = session.user;
 
   if (!u.city) redirect("/profile-setup");
 
   // Fetch everything in parallel
-  const [caps, collectionStats, wishlistStats, recentCards] = await Promise.all([
+  const [caps, collectionStats, wishlistStats, recentCards, collectionValue] = await Promise.all([
     getUserCapabilities(u.id),
 
-    // Collection: total quantity + estimated USD value
+    // Collection: total quantity
     db
       .select({
         totalCards: sum(userCollection.quantity).mapWith(Number),
@@ -74,17 +62,15 @@ export default async function DashboardPage() {
       .where(eq(userCollection.userId, u.id))
       .orderBy(desc(userCollection.createdAt))
       .limit(4),
-  ]);
 
-  // Estimated collection value
-  const collectionValue = recentCards.length > 0
-    ? await db
-        .select({ value: sql<number>`sum(${userCollection.quantity} * ${cardCatalog.marketPrice}::numeric)`.mapWith(Number) })
-        .from(userCollection)
-        .innerJoin(cardCatalog, eq(userCollection.cardId, cardCatalog.id))
-        .where(eq(userCollection.userId, u.id))
-        .then((r) => r[0]?.value ?? 0)
-    : 0;
+    // Estimated collection value (USD, from market prices)
+    db
+      .select({ value: sql<number>`sum(${userCollection.quantity} * ${cardCatalog.marketPrice}::numeric)`.mapWith(Number) })
+      .from(userCollection)
+      .innerJoin(cardCatalog, eq(userCollection.cardId, cardCatalog.id))
+      .where(eq(userCollection.userId, u.id))
+      .then((r) => r[0]?.value ?? 0),
+  ]);
 
   const displayName = u.name;
   const memberSince = u.createdAt
@@ -118,7 +104,7 @@ export default async function DashboardPage() {
             {u.city && <span>· {u.city}</span>}
             {games.map((g) => (
               <span key={g} className="rounded-full border border-white/10 bg-surface px-2 py-0.5 text-[10px] font-semibold text-[#9A9A9A]">
-                {g === "pokemon" ? "Pokémon" : g === "one_piece" ? "One Piece" : g}
+                {GAME_LABEL[g] ?? g}
               </span>
             ))}
             {caps.isAdmin && (
@@ -218,7 +204,7 @@ export default async function DashboardPage() {
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-[#F2F2F2]">{card.name}</p>
                   <p className="truncate text-[10px] text-[#9A9A9A]">
-                    {card.setName ?? (card.game === "pokemon" ? "Pokémon" : "One Piece")}
+                    {card.setName ?? GAME_LABEL[card.game] ?? card.game}
                   </p>
                   <p className="text-[10px] text-[#9A9A9A]">×{entry.quantity}</p>
                 </div>

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 interface Props {
   url:       string | null;
   name:      string;
+  /** Applied to the wrapper div — use sizing classes like h-full w-full */
   className?: string;
 }
 
@@ -13,19 +15,24 @@ export function CardImage({ url, name, className = "" }: Props) {
 
   if (url && !errored) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={url}
-        alt={name}
-        className={`object-cover ${className}`}
-        onError={() => setErrored(true)}
-      />
+      <div className={`relative overflow-hidden ${className}`}>
+        <Image
+          src={url}
+          alt={name}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          className="object-cover"
+          onError={() => setErrored(true)}
+        />
+      </div>
     );
   }
 
-  // Placeholder — shown when url is null OR the image fails to load
   return (
-    <div className={`flex flex-col items-center justify-center gap-1.5 bg-surface2 ${className}`}>
+    <div
+      className={`flex flex-col items-center justify-center gap-1.5 bg-surface2 ${className}`}
+      aria-hidden="true"
+    >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
@@ -35,6 +42,7 @@ export function CardImage({ url, name, className = "" }: Props) {
         strokeLinecap="round"
         strokeLinejoin="round"
         className="size-8 text-white/20"
+        aria-hidden="true"
       >
         <rect x="2" y="3" width="20" height="18" rx="2" />
         <circle cx="8.5" cy="8.5" r="1.5" />
