@@ -27,6 +27,7 @@ import {
   type WishlistEntryInput,
 } from "@/lib/validations/wishlist";
 import type { CardCatalog } from "@/db/schema/cards";
+import { CardImage } from "@/components/CardImage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -78,15 +79,6 @@ function fmt(n: string | null | undefined) {
 }
 
 // ── Card image ────────────────────────────────────────────────────────────────
-
-function CardImage({ url, name, className = "" }: { url: string | null; name: string; className?: string }) {
-  if (url) return <img src={url} alt={name} className={`object-cover ${className}`} />;
-  return (
-    <div className={`flex items-center justify-center bg-surface2 text-[#9A9A9A] text-xs font-medium ${className}`}>
-      {name.slice(0, 2).toUpperCase()}
-    </div>
-  );
-}
 
 // ── Collection dialog ─────────────────────────────────────────────────────────
 

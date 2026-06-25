@@ -23,6 +23,7 @@ import {
   type CollectionEntryInput,
 } from "@/lib/validations/collection";
 import type { CardCatalog, UserCollection } from "@/db/schema/cards";
+import { CardImage } from "@/components/CardImage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,20 +62,6 @@ function totalValue(entries: CollectionEntry[]) {
 }
 
 // ── Card image ────────────────────────────────────────────────────────────────
-
-function CardImage({ url, name, className = "" }: { url: string | null; name: string; className?: string }) {
-  if (url) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={url} alt={name} className={`object-cover ${className}`} />
-    );
-  }
-  return (
-    <div className={`flex items-center justify-center bg-surface2 text-[#9A9A9A] text-xs font-medium ${className}`}>
-      {name.slice(0, 2).toUpperCase()}
-    </div>
-  );
-}
 
 // ── Entry card in the grid ────────────────────────────────────────────────────
 
