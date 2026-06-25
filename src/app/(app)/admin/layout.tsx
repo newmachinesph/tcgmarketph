@@ -6,12 +6,14 @@ import {
   Squares2X2Icon,
   FlagIcon,
   UsersIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 const NAV = [
-  { label: "Dashboard", href: "/admin",         icon: Squares2X2Icon },
-  { label: "Reports",   href: "/admin/reports",  icon: FlagIcon       },
-  { label: "Users",     href: "/admin/users",    icon: UsersIcon      },
+  { label: "Dashboard", href: "/admin",           icon: Squares2X2Icon         },
+  { label: "Reports",   href: "/admin/reports",    icon: FlagIcon               },
+  { label: "Disputes",  href: "/admin/disputes",   icon: ExclamationTriangleIcon },
+  { label: "Users",     href: "/admin/users",      icon: UsersIcon              },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

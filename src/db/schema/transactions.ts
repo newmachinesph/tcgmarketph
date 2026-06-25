@@ -68,6 +68,11 @@ export const transactions = pgTable(
     buyerNote:    text("buyer_note"),
     cancelReason: text("cancel_reason"),
 
+    // Dispute resolution (set by admin)
+    resolvedBy:   text("resolved_by").references(() => user.id),
+    resolvedAt:   timestamp("resolved_at"),
+    adminNote:    text("admin_note"),
+
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()
