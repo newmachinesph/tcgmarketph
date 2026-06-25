@@ -26,7 +26,8 @@ const NAV = [
   { label: "Collection",   href: "/collection"   },
   { label: "Wishlist",     href: "/wishlist"     },
   { label: "Listings",     href: "/listings"     },
-  { label: "Transactions", href: "/transactions" },
+  { label: "Offers",        href: "/offers"        },
+  { label: "Transactions",  href: "/transactions"  },
 ];
 
 export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {

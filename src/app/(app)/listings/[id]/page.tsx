@@ -7,6 +7,7 @@ import { GAME_LABEL } from "@/lib/constants/games";
 import { Price } from "@/components/Price";
 import { ListingGallery } from "./ListingGallery";
 import { BuyNowButton } from "./BuyNowButton";
+import { MakeOfferButton } from "./MakeOfferButton";
 import {
   MapPinIcon,
   StarIcon,
@@ -138,10 +139,11 @@ export default async function ListingDetailPage({ params }: Params) {
                 price={listing.price}
                 cardName={listing.card.name}
               />
-              <button disabled
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-sm font-medium text-[#9A9A9A]/50 cursor-not-allowed">
-                Make Offer — Coming in Phase 4
-              </button>
+              <MakeOfferButton
+                listingId={listing.id}
+                listingPrice={listing.price}
+                cardName={listing.card.name}
+              />
             </div>
           ) : (
             <p className="text-center text-sm text-[#9A9A9A]">This listing is no longer available.</p>

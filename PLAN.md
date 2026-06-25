@@ -108,7 +108,7 @@ TCG marketplace for the Philippines — Pokémon and One Piece cards.
 
 ---
 
-### Phase 4 — Offers (negotiate price) `[ ]`
+### Phase 4 — Offers (negotiate price) `[x]`
 
 **Goal:** Buyer can offer a different price on a fixed-price listing.
 
