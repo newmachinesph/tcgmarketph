@@ -172,7 +172,7 @@ function ListingCard({ listing }: { listing: MarketListing }) {
 
         {/* Price */}
         <p className="mt-1 text-base font-bold text-[#F2F2F2]">
-          ₱{parseFloat(listing.price).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+          ₱{parseFloat(listing.price).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
         </p>
 
         {/* Seller */}
@@ -190,7 +190,7 @@ function ListingCard({ listing }: { listing: MarketListing }) {
           )}
           <span
             className="min-w-0 truncate text-[11px] text-[#9A9A9A] hover:text-accent hover:underline cursor-pointer"
-            onClick={(e) => { e.preventDefault(); window.location.href = `/sellers/${listing.seller.id}`; }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `/sellers/${listing.seller.id}`; }}
           >{sellerName}</span>
           <span className="ml-auto flex shrink-0 items-center gap-0.5 text-[10px] text-[#9A9A9A]">
             <StarIcon className="size-3" />
@@ -408,7 +408,7 @@ export default function MarketplacePage() {
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#F2F2F2]">Marketplace</h1>
-          <p className="mt-0.5 text-sm text-[#9A9A9A]">Browse cards for sale — cash on meetup</p>
+          <p className="mt-0.5 text-sm text-[#9A9A9A]">Browse cards for sale · pay online or meet up</p>
         </div>
         <Link
           href="/listings/new"
@@ -431,15 +431,21 @@ export default function MarketplacePage() {
           />
         </div>
 
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as Sort)}
-          className="rounded-xl border border-white/10 bg-surface py-2 pl-3 pr-8 text-sm text-[#F2F2F2] focus:border-white/20 focus:outline-none"
-        >
+        <div className="flex overflow-hidden rounded-xl border border-white/10 bg-surface">
           {SORT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <button
+              key={o.value}
+              onClick={() => setSort(o.value as Sort)}
+              className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition ${
+                sort === o.value
+                  ? "bg-surface2 text-[#F2F2F2]"
+                  : "text-[#9A9A9A] hover:text-[#F2F2F2]"
+              }`}
+            >
+              {o.label}
+            </button>
           ))}
-        </select>
+        </div>
 
         <button
           onClick={() => setShowFilters((v) => !v)}
@@ -474,26 +480,6 @@ export default function MarketplacePage() {
       {showFilters && (
         <div className="mb-6 rounded-2xl border border-white/10 bg-surface p-4">
           <div className="flex flex-wrap gap-6">
-
-            {/* Game */}
-            <div className="flex flex-col gap-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#9A9A9A]">Game</p>
-              <div className="flex gap-1">
-                {GAME_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    onClick={() => setGame(o.value)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      game === o.value
-                        ? "bg-accent text-white"
-                        : "bg-surface2 text-[#9A9A9A] hover:text-[#F2F2F2]"
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Condition */}
             <div className="flex flex-col gap-1.5">

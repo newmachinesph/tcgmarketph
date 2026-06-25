@@ -10,7 +10,7 @@ import {
   BookmarkIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
-import { CONDITION_COLOR, type CollectionEntryInput } from "@/lib/validations/collection";
+import { type CollectionEntryInput } from "@/lib/validations/collection";
 import { type WishlistEntryInput } from "@/lib/validations/wishlist";
 import { GAME_LABEL } from "@/lib/constants/games";
 import type { CardCatalog } from "@/db/schema/cards";
@@ -116,10 +116,10 @@ function CardTile({ card, onAddCollection, onAddWishlist }: {
   card: CardCatalog; onAddCollection: () => void; onAddWishlist: () => void;
 }) {
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-surface transition hover:border-white/16">
+    <div className="group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface transition hover:border-white/20">
+      {/* Image */}
       <div className="relative aspect-[3/4] overflow-hidden bg-surface2">
-        <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
-
+        <CardImage url={card.imageUrl} name={card.name} className="h-full w-full transition group-hover:scale-105" />
         {card.rarity && (
           <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-bold ${rarityColor(card.rarity)}`}>
             {card.rarity}
@@ -128,22 +128,10 @@ function CardTile({ card, onAddCollection, onAddWishlist }: {
         <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-medium text-white/80">
           {GAME_LABEL[card.game] ?? card.game}
         </span>
-
-        {/* Condition color dot if card has rarity that maps to CONDITION_COLOR — not used here */}
-
-        <div className="absolute inset-x-0 bottom-0 flex gap-1.5 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <button onClick={onAddCollection} aria-label={`Add ${card.name} to collection`}
-            className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-accent/90 py-1.5 text-[10px] font-semibold text-white transition hover:bg-accent">
-            <PlusCircleIcon className="size-3.5" /> Collection
-          </button>
-          <button onClick={onAddWishlist} aria-label={`Add ${card.name} to wishlist`}
-            className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-white/10 py-1.5 text-[10px] font-semibold text-white transition hover:bg-white/20">
-            <BookmarkIcon className="size-3.5" /> Wishlist
-          </button>
-        </div>
       </div>
 
-      <div className="flex flex-col gap-1 p-3">
+      {/* Info */}
+      <div className="flex flex-col gap-0.5 px-3 pt-2.5 pb-1">
         <p className="truncate text-sm font-semibold text-[#F2F2F2]">{card.name}</p>
         <p className="truncate text-xs text-[#9A9A9A]">
           {card.setName ?? GAME_LABEL[card.game]}{card.cardNumber ? ` · ${card.cardNumber}` : ""}
@@ -153,6 +141,24 @@ function CardTile({ card, onAddCollection, onAddWishlist }: {
             ? <Price usd={card.marketPrice} />
             : <span className="font-normal text-[#9A9A9A]">No price</span>}
         </p>
+      </div>
+
+      {/* Always-visible action buttons */}
+      <div className="flex gap-1.5 border-t border-white/5 p-2 mt-auto">
+        <button
+          onClick={onAddCollection}
+          aria-label={`Add ${card.name} to collection`}
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-accent/10 py-1.5 text-[10px] font-semibold text-accent transition hover:bg-accent/20"
+        >
+          <PlusCircleIcon className="size-3.5" /> Collection
+        </button>
+        <button
+          onClick={onAddWishlist}
+          aria-label={`Add ${card.name} to wishlist`}
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-white/5 py-1.5 text-[10px] font-semibold text-[#9A9A9A] transition hover:bg-white/10 hover:text-[#F2F2F2]"
+        >
+          <BookmarkIcon className="size-3.5" /> Wishlist
+        </button>
       </div>
     </div>
   );

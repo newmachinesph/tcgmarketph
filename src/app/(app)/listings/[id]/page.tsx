@@ -16,7 +16,6 @@ import {
   MapPinIcon,
   StarIcon,
   ShieldCheckIcon,
-  TagIcon,
   PencilSquareIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
@@ -45,13 +44,25 @@ export default async function ListingDetailPage({ params }: Params) {
   const isOwner = session?.user.id === listing.sellerId;
   const isActive = listing.status === "active";
 
-  const daysLeft = Math.max(
-    0,
-    Math.ceil((new Date(listing.expiresAt).getTime() - Date.now()) / 86_400_000)
-  );
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const daysLeft = Math.max(0, Math.ceil((new Date(listing.expiresAt).getTime() - now) / 86_400_000));
+  const daysAgo  = Math.floor((now - new Date(listing.createdAt).getTime()) / 86_400_000);
+  const postedLabel = daysAgo === 0 ? "Posted today" : daysAgo === 1 ? "Posted yesterday" : `Posted ${daysAgo} days ago`;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10">
+      {/* Back navigation */}
+      <Link
+        href="/marketplace"
+        className="mb-6 inline-flex items-center gap-1.5 text-xs font-medium text-[#9A9A9A] transition hover:text-[#F2F2F2]"
+      >
+        <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+        Marketplace
+      </Link>
+
       <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
 
         {/* Left — photos + description */}
@@ -104,6 +115,10 @@ export default async function ListingDetailPage({ params }: Params) {
               )}
             </div>
             <p className="mt-0.5 text-sm text-[#9A9A9A]">{listing.card.setName}</p>
+            <p className="mt-1 flex items-center gap-1 text-xs text-[#9A9A9A]">
+              <ClockIcon className="size-3.5" />
+              {postedLabel}
+            </p>
           </div>
 
           {/* Price */}
@@ -179,6 +194,7 @@ export default async function ListingDetailPage({ params }: Params) {
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#9A9A9A]">Seller</p>
             <div className="flex items-center gap-3">
               {listing.seller.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={listing.seller.image} alt={listing.seller.name}
                   className="size-10 rounded-full object-cover" />
               ) : (
