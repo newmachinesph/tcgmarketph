@@ -13,6 +13,7 @@ import {
   PencilSquareIcon,
   EyeIcon,
   TagIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import Image from "next/image";
 
@@ -63,18 +64,26 @@ export default async function MyListingsPage() {
             {activeCount} active · limit {limits.maxActiveListings} ({tier === "power_seller" ? "Power Seller" : "Free"})
           </p>
         </div>
-        {canCreate ? (
+        <div className="flex items-center gap-2">
           <Link
-            href="/listings/new"
-            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90"
+            href="/listings/analytics"
+            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
           >
-            <PlusIcon className="size-4" /> New Listing
+            <ChartBarIcon className="size-4" /> Analytics
           </Link>
-        ) : (
-          <div className="rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-2.5 text-xs text-yellow-400">
-            Verify your phone to start selling
-          </div>
-        )}
+          {canCreate ? (
+            <Link
+              href="/listings/new"
+              className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90"
+            >
+              <PlusIcon className="size-4" /> New Listing
+            </Link>
+          ) : (
+            <div className="rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-2.5 text-xs text-yellow-400">
+              Verify your phone to start selling
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Empty state */}

@@ -205,6 +205,10 @@ export default function TransactionDetailPage() {
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason]     = useState("");
 
+  // Dispute form
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeReason, setDisputeReason]     = useState("");
+
   // Rating
   const [myRating, setMyRating]           = useState<number | null>(null);
   const [ratingScore, setRatingScore]     = useState(0);
@@ -444,8 +448,18 @@ export default function TransactionDetailPage() {
             </button>
           )}
 
+          {/* Dispute */}
+          {["agreed", "pending"].includes(txn.status) && !showDisputeForm && (
+            <button
+              onClick={() => { setShowDisputeForm(true); setShowCancelForm(false); }}
+              className="rounded-xl border border-red-500/20 px-4 py-2.5 text-sm font-medium text-red-400 transition hover:border-red-500/40 hover:bg-red-500/5"
+            >
+              File a dispute
+            </button>
+          )}
+
           {/* Cancel */}
-          {!showCancelForm && (
+          {!showCancelForm && !showDisputeForm && (
             <button
               onClick={() => setShowCancelForm(true)}
               className="ml-auto rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-[#9A9A9A] transition hover:text-[#F2F2F2]"
@@ -453,6 +467,40 @@ export default function TransactionDetailPage() {
               Cancel transaction
             </button>
           )}
+        </div>
+      )}
+
+      {/* Dispute form */}
+      {showDisputeForm && (
+        <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/5 p-4 space-y-3">
+          <p className="text-sm font-semibold text-red-400">File a dispute</p>
+          <p className="text-[11px] text-[#9A9A9A]">
+            Describe the issue in detail. An admin will review and reach out to both parties within 24–48 hours.
+            Misuse of disputes may result in account action.
+          </p>
+          <textarea
+            placeholder="What went wrong? (min 10 characters)"
+            value={disputeReason}
+            onChange={(e) => setDisputeReason(e.target.value)}
+            rows={3}
+            maxLength={1000}
+            className="w-full rounded-xl border border-white/10 bg-surface2 px-3 py-2 text-sm text-[#F2F2F2] placeholder:text-[#9A9A9A] focus:border-white/20 focus:outline-none"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => action({ action: "dispute", disputeReason })}
+              disabled={working || disputeReason.trim().length < 10}
+              className="rounded-xl bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/30 disabled:opacity-50 transition"
+            >
+              {working ? "Submitting…" : "Submit dispute"}
+            </button>
+            <button
+              onClick={() => { setShowDisputeForm(false); setDisputeReason(""); }}
+              className="text-sm text-[#9A9A9A] hover:text-[#F2F2F2]"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 

@@ -17,8 +17,9 @@ import { createNotification } from "@/lib/notify";
 type Params = { params: Promise<{ id: string }> };
 
 const actionSchema = z.object({
-  action:       z.enum(["confirm", "cancel", "complete", "no_show"]),
-  cancelReason: z.string().max(500).optional(),
+  action:        z.enum(["confirm", "cancel", "complete", "no_show", "dispute"]),
+  cancelReason:  z.string().max(500).optional(),
+  disputeReason: z.string().min(10).max(1000).optional(),
 });
 
 // GET /api/transactions/[id] — full detail
@@ -83,7 +84,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const parsed = actionSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { action, cancelReason } = parsed.data;
+  const { action, cancelReason, disputeReason } = parsed.data;
   const uid = session.user.id;
 
   const [row] = await db
@@ -119,6 +120,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Transaction not yet agreed" }, { status: 409 });
     }
   }
+  if (action === "dispute") {
+    if (!["agreed", "pending"].includes(txn.status)) {
+      return NextResponse.json({ error: "Can only dispute an active transaction" }, { status: 409 });
+    }
+    if (!disputeReason?.trim()) {
+      return NextResponse.json({ error: "Please describe the issue (at least 10 characters)" }, { status: 400 });
+    }
+  }
 
   // ── Apply state machine ─────────────────────────────────────────────────
   const nextStatus = {
@@ -126,11 +135,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     cancel:   "cancelled",
     complete: "completed",
     no_show:  "no_show",
+    dispute:  "disputed",
   }[action] as typeof txn.status;
 
   await db
     .update(transactions)
-    .set({ status: nextStatus, cancelReason: cancelReason ?? null })
+    .set({
+      status:        nextStatus,
+      cancelReason:  cancelReason  ?? null,
+      adminNote:     action === "dispute" ? `Filed by ${isBuyer ? "buyer" : "seller"}: ${disputeReason}` : undefined,
+    })
     .where(eq(transactions.id, id));
 
   // When seller confirms: decrement listing quantity, mark sold if 0
@@ -193,6 +207,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       .update(userTable)
       .set({ noShowCount: sql`${userTable.noShowCount} + 1` })
       .where(eq(userTable.id, absentId));
+  }
+
+  // When disputed: notify the other party
+  if (action === "dispute") {
+    const otherId = isBuyer ? txn.sellerId : txn.buyerId;
+    createNotification(
+      otherId,
+      "system",
+      `Dispute filed — ${row.card.name}`,
+      `The ${isBuyer ? "buyer" : "seller"} has filed a dispute. An admin will review shortly.`,
+      `/transactions/${id}`,
+    ).catch(console.error);
   }
 
   // When cancelled: if it was "agreed", restore listing quantity
