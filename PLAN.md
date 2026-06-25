@@ -88,7 +88,7 @@ TCG marketplace for the Philippines — Pokémon and One Piece cards.
 
 ---
 
-### Phase 3 — Buy intent & meetup coordination `[ ]`
+### Phase 3 — Buy intent & meetup coordination `[x]`
 
 **Goal:** Buyer commits to a fixed-price listing; parties arrange a cash meetup.
 

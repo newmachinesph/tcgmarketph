@@ -20,12 +20,13 @@ interface AppHeaderProps {
 }
 
 const NAV = [
-  { label: "Dashboard",   href: "/dashboard"   },
-  { label: "Browse",      href: "/browse"      },
-  { label: "Marketplace", href: "/marketplace" },
-  { label: "Collection",  href: "/collection"  },
-  { label: "Wishlist",    href: "/wishlist"    },
-  { label: "Listings",    href: "/listings"    },
+  { label: "Dashboard",    href: "/dashboard"    },
+  { label: "Browse",       href: "/browse"       },
+  { label: "Marketplace",  href: "/marketplace"  },
+  { label: "Collection",   href: "/collection"   },
+  { label: "Wishlist",     href: "/wishlist"     },
+  { label: "Listings",     href: "/listings"     },
+  { label: "Transactions", href: "/transactions" },
 ];
 
 export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {

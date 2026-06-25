@@ -6,6 +6,7 @@ import { CONDITION_LABEL } from "@/lib/validations/listing";
 import { GAME_LABEL } from "@/lib/constants/games";
 import { Price } from "@/components/Price";
 import { ListingGallery } from "./ListingGallery";
+import { BuyNowButton } from "./BuyNowButton";
 import {
   MapPinIcon,
   StarIcon,
@@ -129,17 +130,21 @@ export default async function ListingDetailPage({ params }: Params) {
                 <PencilSquareIcon className="size-4" /> Edit Listing
               </Link>
             </div>
-          ) : (
+          ) : isActive ? (
             <div className="space-y-2">
-              <button disabled
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent/40 py-3 text-sm font-semibold text-white/50 cursor-not-allowed">
-                <TagIcon className="size-4" /> Buy Now — Coming soon
-              </button>
+              <BuyNowButton
+                listingId={listing.id}
+                maxQty={listing.quantity}
+                price={listing.price}
+                cardName={listing.card.name}
+              />
               <button disabled
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-sm font-medium text-[#9A9A9A]/50 cursor-not-allowed">
-                Make Offer — Coming soon
+                Make Offer — Coming in Phase 4
               </button>
             </div>
+          ) : (
+            <p className="text-center text-sm text-[#9A9A9A]">This listing is no longer available.</p>
           )}
 
           {/* Seller card */}
