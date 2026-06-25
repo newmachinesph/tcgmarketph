@@ -20,7 +20,7 @@ This roadmap closes the remaining operational gaps: admin visibility, dispute re
 
 ## Phases
 
-### Phase 14 — Admin dashboard & user list `[ ]`
+### Phase 14 — Admin dashboard & user list `[x]`
 
 **Goal:** Admins can see platform health at a glance and search/manage all users — the two missing pieces from the existing admin panel.
 
@@ -47,7 +47,7 @@ This roadmap closes the remaining operational gaps: admin visibility, dispute re
 
 ---
 
-### Phase 15 — Dispute resolution flow `[ ]`
+### Phase 15 — Dispute resolution flow `[x]`
 
 **Goal:** When a no-show or dispute is reported on a transaction, admins can review and take action — currently no-show/disputed status exists but there's no resolution path.
 
@@ -74,7 +74,7 @@ This roadmap closes the remaining operational gaps: admin visibility, dispute re
 
 ---
 
-### Phase 16 — Notification preferences `[ ]`
+### Phase 16 — Notification preferences `[x]`
 
 **Goal:** Users control which emails they receive. Required for CAN-SPAM / legal compliance and to reduce unsubscribe friction.
 
