@@ -90,7 +90,9 @@ export default async function DashboardPage({
     { label: "Account created", done: true },
     { label: "Profile set up",  done: !!(u.city && u.bio) },
     { label: "Phone verified",  done: !!u.phoneVerified, href: "/profile" },
-    { label: "KYC verified",    done: u.kycStatus === "verified", href: "#", disabled: true },
+    { label: "Identity verified", done: u.kycStatus === "verified", href: "/profile#kyc",
+      subLabel: u.kycStatus === "pending" ? "Verification in progress…" :
+                u.kycStatus === "rejected" ? "Declined — retry in Profile" : "Verify your identity" },
     { label: "Seller enabled",  done: !!u.phoneVerified, href: "/profile" },
   ];
   const completedSteps = steps.filter((s) => s.done).length;
@@ -264,15 +266,20 @@ export default async function DashboardPage({
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
             {steps.map((step) => (
               <div key={step.label}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
+                className={`flex flex-col gap-1 rounded-lg px-3 py-2 text-xs font-medium ${
                   step.done ? "bg-bid/10 text-bid" : "border border-white/10 bg-surface2 text-[#9A9A9A]"
                 }`}>
-                {step.done ? <CheckCircleIcon className="size-3.5 shrink-0" /> : <ClockIcon className="size-3.5 shrink-0" />}
-                {step.label}
-                {!step.done && !step.disabled && step.href && (
-                  <a href={step.href} className="ml-auto text-accent hover:underline">
-                    <ArrowRightIcon className="size-3" />
-                  </a>
+                <div className="flex items-center gap-2">
+                  {step.done ? <CheckCircleIcon className="size-3.5 shrink-0" /> : <ClockIcon className="size-3.5 shrink-0" />}
+                  <span>{step.label}</span>
+                  {!step.done && step.href && (
+                    <a href={step.href} className="ml-auto text-accent hover:underline">
+                      <ArrowRightIcon className="size-3" />
+                    </a>
+                  )}
+                </div>
+                {step.subLabel && !step.done && (
+                  <p className="pl-5 text-[10px] leading-tight opacity-70">{step.subLabel}</p>
                 )}
               </div>
             ))}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { CheckCircleIcon, ShieldCheckIcon, StarIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, ShieldCheckIcon, StarIcon, ClockIcon, IdentificationIcon } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
 import { settingsProfileSchema, type SettingsProfileInput } from "@/lib/validations/auth";
 import { Button, Field } from "@/components/ui";
@@ -20,6 +20,83 @@ interface RatingEntry {
   rater: { id: string; name: string; displayName: string | null; image: string | null };
 }
 
+// ─── KYC Verification section ─────────────────────────────────────────────────
+
+function KycSection({ initialStatus }: { initialStatus: string }) {
+  const [status, setStatus]   = useState(initialStatus);
+  const [loading, setLoading] = useState(false);
+
+  async function startVerification() {
+    setLoading(true);
+    const res  = await fetch("/api/kyc/start", { method: "POST" });
+    const data = await res.json();
+    setLoading(false);
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to start verification");
+      return;
+    }
+    window.location.href = data.verificationUrl;
+  }
+
+  if (status === "verified") {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-bid/20 bg-bid/10 px-4 py-3.5">
+        <ShieldCheckIcon className="size-5 shrink-0 text-bid" />
+        <div>
+          <p className="text-sm font-semibold text-bid">Identity Verified</p>
+          <p className="text-xs text-[#9A9A9A]">Your identity has been confirmed through Didit.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "pending") {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3.5">
+        <ClockIcon className="size-5 shrink-0 text-yellow-400" />
+        <div>
+          <p className="text-sm font-semibold text-yellow-400">Verification in Progress</p>
+          <p className="text-xs text-[#9A9A9A]">Your documents are being reviewed — usually a few minutes. We&apos;ll notify you when done.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-surface p-5 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface2">
+          <IdentificationIcon className="size-4 text-[#9A9A9A]" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-[#F2F2F2]">Identity Verification</p>
+          <p className="mt-0.5 text-xs text-[#9A9A9A]">
+            Verify your identity to earn a Verified badge and build buyer trust. Takes 1-2 minutes.
+          </p>
+        </div>
+      </div>
+
+      {status === "rejected" && (
+        <p className="rounded-xl bg-accent/10 px-3 py-2 text-xs text-accent">
+          Your previous verification was declined. You may try again below.
+        </p>
+      )}
+
+      <button
+        onClick={startVerification}
+        disabled={loading}
+        className="w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+      >
+        {loading ? "Starting…" : "Start Verification"}
+      </button>
+      <p className="text-center text-[10px] text-[#9A9A9A]">
+        Powered by{" "}
+        <span className="font-semibold">Didit</span> · Your data is processed securely
+      </p>
+    </div>
+  );
+}
+
 export default function EditProfilePage() {
   const { data: session, isPending } = authClient.useSession();
 
@@ -32,6 +109,7 @@ export default function EditProfilePage() {
     image?: string | null;
     reputationScore?: number;
     noShowCount?: number;
+    kycStatus?: "none" | "pending" | "verified" | "rejected";
   };
   const user = session?.user as ExtendedUser | undefined;
 
@@ -262,6 +340,18 @@ export default function EditProfilePage() {
         </div>
 
       </form>
+
+      {/* ── KYC Verification ─────────────────────────────────────── */}
+      <div className="mt-6 space-y-3">
+        {typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("kyc") === "done" && (
+          <div className="flex items-center gap-3 rounded-xl border border-bid/20 bg-bid/10 px-4 py-3 text-sm text-bid">
+            <CheckCircleIcon className="size-4 shrink-0" />
+            Verification submitted — we&apos;ll notify you once it&apos;s reviewed.
+          </div>
+        )}
+        <KycSection initialStatus={user?.kycStatus ?? "none"} />
+      </div>
 
       {/* ── Reputation ─────────────────────────────────────────────── */}
       <div className="mt-10 space-y-4">
