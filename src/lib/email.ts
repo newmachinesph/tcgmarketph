@@ -1,30 +1,39 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const transporter = nodemailer.createTransport({
+  host:   process.env.SMTP_HOST,
+  port:   parseInt(process.env.SMTP_PORT ?? "587", 10),
+  secure: process.env.SMTP_PORT === "465",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
-const FROM = process.env.EMAIL_FROM ?? "TCGMarket PH <noreply@tcgmarket.ph>";
+const FROM    = process.env.SMTP_FROM ?? process.env.EMAIL_FROM ?? "TCGMarket PH <noreply@tcgmarket.ph>";
 const BASE_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 async function send(to: string, subject: string, html: string) {
-  if (!resend) {
-    console.log(`[email] RESEND_API_KEY not set — would have sent to ${to}: ${subject}`);
+  if (!process.env.SMTP_HOST) {
+    console.log(`[email] SMTP not configured — would send to ${to}: ${subject}`);
     return;
   }
-  const { error } = await resend.emails.send({ from: FROM, to, subject, html });
-  if (error) console.error("[email] send error:", error);
+  try {
+    await transporter.sendMail({ from: FROM, to, subject, html });
+  } catch (err) {
+    console.error("[email] send error:", err);
+  }
 }
 
 // ── Transaction emails ────────────────────────────────────────────────────────
 
 export async function emailTransactionCreated(opts: {
   sellerEmail: string;
-  sellerName: string;
-  buyerName: string;
-  cardName: string;
-  price: string;
-  txnId: string;
+  sellerName:  string;
+  buyerName:   string;
+  cardName:    string;
+  price:       string;
+  txnId:       string;
 }) {
   const link = `${BASE_URL}/transactions/${opts.txnId}`;
   await send(
@@ -39,12 +48,12 @@ export async function emailTransactionCreated(opts: {
 }
 
 export async function emailTransactionAgreed(opts: {
-  buyerEmail: string;
-  buyerName: string;
-  sellerName: string;
-  cardName: string;
-  price: string;
-  txnId: string;
+  buyerEmail:  string;
+  buyerName:   string;
+  sellerName:  string;
+  cardName:    string;
+  price:       string;
+  txnId:       string;
 }) {
   const link = `${BASE_URL}/transactions/${opts.txnId}`;
   await send(
@@ -60,11 +69,11 @@ export async function emailTransactionAgreed(opts: {
 
 export async function emailTransactionCancelled(opts: {
   recipientEmail: string;
-  recipientName: string;
-  cardName: string;
-  cancelledBy: string;
-  reason?: string | null;
-  txnId: string;
+  recipientName:  string;
+  cardName:       string;
+  cancelledBy:    string;
+  reason?:        string | null;
+  txnId:          string;
 }) {
   const link = `${BASE_URL}/transactions/${opts.txnId}`;
   await send(
@@ -79,18 +88,18 @@ export async function emailTransactionCancelled(opts: {
 
 export async function emailMeetupProposed(opts: {
   recipientEmail: string;
-  recipientName: string;
-  proposerName: string;
-  cardName: string;
-  location: string;
-  proposedAt: Date;
-  txnId: string;
+  recipientName:  string;
+  proposerName:   string;
+  cardName:       string;
+  location:       string;
+  proposedAt:     Date;
+  txnId:          string;
 }) {
   const link = `${BASE_URL}/transactions/${opts.txnId}`;
   const when  = opts.proposedAt.toLocaleString("en-PH", {
     dateStyle: "full",
     timeStyle: "short",
-    timeZone: "Asia/Manila",
+    timeZone:  "Asia/Manila",
   });
   await send(
     opts.recipientEmail,
