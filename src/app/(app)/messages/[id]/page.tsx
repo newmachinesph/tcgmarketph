@@ -6,6 +6,7 @@ import Link from "next/link";
 import Ably from "ably";
 import { PaperAirplaneIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
+import { ReportButton } from "@/components/ReportButton";
 
 interface MsgEntry {
   id:          string;
@@ -159,7 +160,7 @@ export default function ChatPage() {
             {otherName.charAt(0).toUpperCase()}
           </div>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-[#F2F2F2] truncate">{otherName}</p>
           {conv?.listingId && (
             <Link href={`/listings/${conv.listingId}`} className="text-[10px] text-accent hover:underline truncate block">
@@ -167,6 +168,11 @@ export default function ChatPage() {
             </Link>
           )}
         </div>
+        {conv?.other && (
+          <div className="shrink-0">
+            <ReportButton targetType="user" targetId={conv.other.id} label="Report user" />
+          </div>
+        )}
       </div>
 
       {/* Messages */}

@@ -6,7 +6,7 @@ import { authRatelimit, resetRatelimit } from "@/lib/rate-limit";
 // This is NOT the security boundary. Every API route under /api/ enforces its own
 // session check via auth.api.getSession(). Never remove those checks on the assumption
 // that the middleware protects the API layer.
-const PROTECTED = ["/dashboard", "/profile-setup", "/profile", "/settings", "/collection", "/wishlist", "/browse", "/listings", "/marketplace", "/transactions", "/offers", "/bids", "/messages"];
+const PROTECTED = ["/dashboard", "/profile-setup", "/profile", "/settings", "/collection", "/wishlist", "/browse", "/listings", "/marketplace", "/transactions", "/offers", "/bids", "/messages", "/admin"];
 const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 // HTTP (dev): better-auth.session_token
 // HTTPS (prod): __Secure-better-auth.session_token

@@ -6,6 +6,7 @@ import {
   ArrowRightStartOnRectangleIcon,
   UserCircleIcon,
   ShieldCheckIcon,
+  FlagIcon,
 } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
 
@@ -101,6 +102,16 @@ export function UserMenu({ name, displayName, email, image, isAdmin }: UserMenuP
               <Cog6ToothIcon className="size-4 shrink-0" />
               Settings
             </a>
+            {isAdmin && (
+              <a
+                href="/admin/reports"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-accent transition hover:bg-accent/10"
+              >
+                <FlagIcon className="size-4 shrink-0" />
+                Admin Panel
+              </a>
+            )}
           </div>
 
           <div className="border-t border-white/10 p-1">

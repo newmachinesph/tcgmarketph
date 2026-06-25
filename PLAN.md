@@ -169,7 +169,7 @@ TCG marketplace for the Philippines — Pokémon and One Piece cards.
 
 ---
 
-### Phase 7 — In-app chat `[ ]`
+### Phase 7 — In-app chat `[x]`
 
 **Goal:** Buyer and seller coordinate the meetup via messages.
 
@@ -187,7 +187,7 @@ TCG marketplace for the Philippines — Pokémon and One Piece cards.
 
 ---
 
-### Phase 8 — Reporting, moderation & admin `[ ]`
+### Phase 8 — Reporting, moderation & admin `[x]`
 
 **Goal:** Bad actors and bad listings can be handled.
 

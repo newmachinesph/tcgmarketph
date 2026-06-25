@@ -10,6 +10,7 @@ import { BuyNowButton } from "./BuyNowButton";
 import { MakeOfferButton } from "./MakeOfferButton";
 import { MessageSellerButton } from "./MessageSellerButton";
 import { AuctionPanel } from "./AuctionPanel";
+import { ReportButton } from "@/components/ReportButton";
 import {
   MapPinIcon,
   StarIcon,
@@ -203,6 +204,11 @@ export default async function ListingDetailPage({ params }: Params) {
             <p className="mt-3 rounded-lg bg-surface2 px-3 py-2 text-[10px] text-[#9A9A9A]">
               💡 Cash on meetup — meet in a public place, daytime, bring exact change.
             </p>
+            {!isOwner && (
+              <div className="mt-3 flex justify-end">
+                <ReportButton targetType="listing" targetId={listing.id} />
+              </div>
+            )}
           </div>
 
         </div>

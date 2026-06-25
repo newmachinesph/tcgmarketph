@@ -7,6 +7,7 @@ import * as transactionsSchema from "@/db/schema/transactions";
 import * as offersSchema from "@/db/schema/offers";
 import * as ratingsSchema from "@/db/schema/ratings";
 import * as messagesSchema from "@/db/schema/messages";
+import * as reportsSchema from "@/db/schema/reports";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set — check your environment variables");
@@ -22,5 +23,6 @@ export const db = drizzle(sql, {
     ...offersSchema,
     ...ratingsSchema,
     ...messagesSchema,
+    ...reportsSchema,
   },
 });
