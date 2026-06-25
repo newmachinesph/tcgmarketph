@@ -202,6 +202,27 @@ export async function emailOfferCountered(opts: {
   );
 }
 
+// ── Wishlist match emails ─────────────────────────────────────────────────────
+
+export async function emailWishlistMatch(opts: {
+  wisherEmail: string;
+  wisherName:  string;
+  cardName:    string;
+  price:       string;
+  listingId:   string;
+}) {
+  const link = `${BASE_URL}/listings/${opts.listingId}`;
+  await send(
+    opts.wisherEmail,
+    `A card on your wishlist is now listed — ${opts.cardName}`,
+    `<p>Hi ${opts.wisherName},</p>
+     <p>A card on your wishlist just got listed on TCGMarket PH.</p>
+     <p><strong>${opts.cardName}</strong> is now available for <strong>${phpFmt(opts.price)}</strong>.</p>
+     <p><a href="${link}">View listing →</a></p>
+     <hr/><p style="color:#888;font-size:12px">You received this because you added this card to your wishlist. Remove it any time from your <a href="${BASE_URL}/wishlist">Wishlist</a>.</p>`
+  );
+}
+
 export async function emailCounterDeclined(opts: {
   sellerEmail: string;
   sellerName:  string;

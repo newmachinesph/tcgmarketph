@@ -18,6 +18,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "transaction_agreed",
   "transaction_completed",
   "message_received",
+  "wishlist_match",
   "system",
 ]);
 

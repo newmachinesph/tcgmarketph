@@ -11,6 +11,7 @@ type NotificationType =
   | "transaction_agreed"
   | "transaction_completed"
   | "message_received"
+  | "wishlist_match"
   | "system";
 
 export async function createNotification(

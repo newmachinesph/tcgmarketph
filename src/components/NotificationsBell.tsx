@@ -10,7 +10,7 @@ type NotifType =
   | "offer_received" | "offer_accepted" | "offer_declined" | "offer_countered"
   | "auction_won" | "auction_outbid"
   | "transaction_agreed" | "transaction_completed"
-  | "message_received" | "system";
+  | "message_received" | "wishlist_match" | "system";
 
 interface NotifEntry {
   id:        string;
@@ -32,6 +32,7 @@ const TYPE_ICON: Record<NotifType, string> = {
   transaction_agreed:   "🤝",
   transaction_completed:"⭐",
   message_received:     "💬",
+  wishlist_match:       "🎯",
   system:               "📢",
 };
 

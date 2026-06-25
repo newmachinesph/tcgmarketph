@@ -7,6 +7,7 @@ import { listings, listingPhotos } from "@/db/schema/listings";
 import { cardCatalog } from "@/db/schema/cards";
 import { createListingSchema } from "@/lib/validations/listing";
 import { getTierLimits } from "@/lib/constants/tiers";
+import { inngest } from "@/lib/inngest/client";
 
 const LISTING_TTL_DAYS = 30;
 
@@ -134,6 +135,17 @@ export async function POST(request: NextRequest) {
       d.photoUrls.map((url, order) => ({ listingId: listing.id, url, order }))
     );
   }
+
+  // Trigger wishlist-match alerts asynchronously (fire-and-forget)
+  inngest.send({
+    name: "listings/wishlist.match",
+    data: {
+      listingId: listing.id,
+      cardId:    listing.cardId,
+      sellerId:  listing.sellerId,
+      price:     listing.price,
+    },
+  }).catch(console.error);
 
   return NextResponse.json({ listing }, { status: 201 });
 }
