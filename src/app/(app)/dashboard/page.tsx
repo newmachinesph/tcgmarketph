@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { eq, desc, count, sum, sql } from "drizzle-orm";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { userCollection, userWishlist, cardCatalog } from "@/db/schema/cards";
 import { getUserCapabilities } from "@/lib/capabilities";
 import {
   ShieldCheckIcon,
@@ -10,8 +14,12 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
   ClockIcon,
+  RectangleStackIcon,
+  BookmarkIcon,
+  MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronUpIcon } from "@heroicons/react/20/solid";
+import { CardImage } from "@/components/CardImage";
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -32,19 +40,59 @@ export default async function DashboardPage() {
     createdAt?: string | Date;
   };
 
-  // Redirect to profile setup if city not set (first-time login)
   if (!u.city) redirect("/profile-setup");
 
-  const caps = await getUserCapabilities(u.id);
+  // Fetch everything in parallel
+  const [caps, collectionStats, wishlistStats, recentCards] = await Promise.all([
+    getUserCapabilities(u.id),
+
+    // Collection: total quantity + estimated USD value
+    db
+      .select({
+        totalCards: sum(userCollection.quantity).mapWith(Number),
+        totalEntries: count(userCollection.id),
+      })
+      .from(userCollection)
+      .where(eq(userCollection.userId, u.id))
+      .then((r) => r[0] ?? { totalCards: 0, totalEntries: 0 }),
+
+    // Wishlist: total + high priority count
+    db
+      .select({
+        total: count(userWishlist.id),
+        highPriority: sql<number>`count(*) filter (where ${userWishlist.priority} = 'high')`.mapWith(Number),
+      })
+      .from(userWishlist)
+      .where(eq(userWishlist.userId, u.id))
+      .then((r) => r[0] ?? { total: 0, highPriority: 0 }),
+
+    // 4 most recently added collection entries + card info
+    db
+      .select({ entry: userCollection, card: cardCatalog })
+      .from(userCollection)
+      .innerJoin(cardCatalog, eq(userCollection.cardId, cardCatalog.id))
+      .where(eq(userCollection.userId, u.id))
+      .orderBy(desc(userCollection.createdAt))
+      .limit(4),
+  ]);
+
+  // Estimated collection value
+  const collectionValue = recentCards.length > 0
+    ? await db
+        .select({ value: sql<number>`sum(${userCollection.quantity} * ${cardCatalog.marketPrice}::numeric)`.mapWith(Number) })
+        .from(userCollection)
+        .innerJoin(cardCatalog, eq(userCollection.cardId, cardCatalog.id))
+        .where(eq(userCollection.userId, u.id))
+        .then((r) => r[0]?.value ?? 0)
+    : 0;
 
   const displayName = u.name;
   const memberSince = u.createdAt
     ? new Date(u.createdAt).toLocaleDateString("en-PH", { month: "long", year: "numeric" })
     : "—";
-  const reputationScore = u.reputationScore ?? 0;
   const games = u.games ? u.games.split(",").filter(Boolean) : [];
 
-  // Profile completion steps
+  // Profile completion
   const steps = [
     { label: "Account created", done: true },
     { label: "Profile set up",  done: !!(u.city && u.bio) },
@@ -53,24 +101,24 @@ export default async function DashboardPage() {
     { label: "Seller enabled",  done: !!u.sellerEnabled, href: "#", disabled: true },
   ];
   const completedSteps = steps.filter((s) => s.done).length;
-  const progressPct = Math.round((completedSteps / steps.length) * 100);
-  const isComplete = completedSteps === steps.length;
+  const progressPct    = Math.round((completedSteps / steps.length) * 100);
+  const isComplete     = completedSteps === steps.length;
 
   return (
-    <div className="mx-auto w-full max-w-screen-xl px-6 py-8 lg:px-10">
+    <div className="mx-auto w-full max-w-screen-xl px-6 py-8 lg:px-10 space-y-6">
 
-      {/* ── Welcome header ───────────────────────────────────────── */}
+      {/* ── Welcome header ───────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#F2F2F2]">
-            Welcome back, {displayName} 👋
+            Welcome back, {displayName}
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#9A9A9A]">
             <span>Member since {memberSince}</span>
-            {u.city && <span>· 📍 {u.city}</span>}
+            {u.city && <span>· {u.city}</span>}
             {games.map((g) => (
               <span key={g} className="rounded-full border border-white/10 bg-surface px-2 py-0.5 text-[10px] font-semibold text-[#9A9A9A]">
-                {g === "pokemon" ? "⚡ Pokémon" : g === "one_piece" ? "☠️ One Piece" : g}
+                {g === "pokemon" ? "Pokémon" : g === "one_piece" ? "One Piece" : g}
               </span>
             ))}
             {caps.isAdmin && (
@@ -80,50 +128,126 @@ export default async function DashboardPage() {
             )}
           </p>
         </div>
-        <a
-          href="/profile"
-          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-surface px-4 py-2 text-sm font-medium text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
-        >
+        <Link href="/profile"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-surface px-4 py-2 text-sm font-medium text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
           Edit Profile
-        </a>
+        </Link>
       </div>
 
-      {/* ── Profile completion banner (hide once complete) ────────── */}
+      {/* ── TCG collection stats ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* Collection */}
+        <Link href="/collection"
+          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-surface p-5 transition hover:border-accent/30">
+          <div className="absolute -right-6 -top-6 size-24 rounded-full bg-accent/5 blur-2xl transition group-hover:bg-accent/10" />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-widest text-[#9A9A9A]">Collection</p>
+              <p className="mt-2 text-3xl font-bold tracking-tight text-[#F2F2F2]">
+                {(collectionStats.totalCards ?? 0).toLocaleString()}
+              </p>
+              <p className="mt-0.5 text-xs text-[#9A9A9A]">
+                {collectionStats.totalEntries} {collectionStats.totalEntries === 1 ? "entry" : "entries"}
+                {collectionValue > 0 && ` · $${collectionValue.toFixed(2)} USD est.`}
+              </p>
+            </div>
+            <RectangleStackIcon className="size-6 text-accent/60" />
+          </div>
+          <p className="mt-4 flex items-center gap-1 text-xs font-semibold text-accent opacity-0 transition group-hover:opacity-100">
+            View collection <ChevronUpIcon className="size-3 rotate-90" />
+          </p>
+        </Link>
+
+        {/* Wishlist */}
+        <Link href="/wishlist"
+          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-surface p-5 transition hover:border-sky-400/30">
+          <div className="absolute -right-6 -top-6 size-24 rounded-full bg-sky-400/5 blur-2xl transition group-hover:bg-sky-400/10" />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-widest text-[#9A9A9A]">Wishlist</p>
+              <p className="mt-2 text-3xl font-bold tracking-tight text-[#F2F2F2]">
+                {(wishlistStats.total ?? 0).toLocaleString()}
+              </p>
+              <p className="mt-0.5 text-xs text-[#9A9A9A]">
+                {wishlistStats.highPriority > 0
+                  ? `${wishlistStats.highPriority} high priority`
+                  : "cards wanted"}
+              </p>
+            </div>
+            <BookmarkIcon className="size-6 text-sky-400/60" />
+          </div>
+          <p className="mt-4 flex items-center gap-1 text-xs font-semibold text-sky-400 opacity-0 transition group-hover:opacity-100">
+            View wishlist <ChevronUpIcon className="size-3 rotate-90" />
+          </p>
+        </Link>
+
+        {/* Browse */}
+        <Link href="/browse"
+          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-surface p-5 transition hover:border-purple-400/30">
+          <div className="absolute -right-6 -top-6 size-24 rounded-full bg-purple-400/5 blur-2xl transition group-hover:bg-purple-400/10" />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-widest text-[#9A9A9A]">Browse</p>
+              <p className="mt-2 text-3xl font-bold tracking-tight text-[#F2F2F2]">Cards</p>
+              <p className="mt-0.5 text-xs text-[#9A9A9A]">Pokémon · One Piece</p>
+            </div>
+            <MagnifyingGlassIcon className="size-6 text-purple-400/60" />
+          </div>
+          <p className="mt-4 flex items-center gap-1 text-xs font-semibold text-purple-400 opacity-0 transition group-hover:opacity-100">
+            Search cards <ChevronUpIcon className="size-3 rotate-90" />
+          </p>
+        </Link>
+      </div>
+
+      {/* ── Recently added to collection ─────────────────────────────────── */}
+      {recentCards.length > 0 && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[#F2F2F2]">Recently Added</h2>
+            <Link href="/collection" className="text-xs text-accent hover:underline">
+              View all
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {recentCards.map(({ entry, card }) => (
+              <Link key={entry.id} href="/collection"
+                className="group flex items-center gap-3 rounded-xl border border-white/8 bg-surface p-3 transition hover:border-white/16">
+                <div className="h-12 w-9 shrink-0 overflow-hidden rounded-md">
+                  <CardImage url={card.imageUrl} name={card.name} className="h-full w-full" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-[#F2F2F2]">{card.name}</p>
+                  <p className="truncate text-[10px] text-[#9A9A9A]">
+                    {card.setName ?? (card.game === "pokemon" ? "Pokémon" : "One Piece")}
+                  </p>
+                  <p className="text-[10px] text-[#9A9A9A]">×{entry.quantity}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Profile completion banner ─────────────────────────────────────── */}
       {!isComplete && (
-        <div className="mt-6 rounded-2xl border border-white/10 bg-surface p-6">
+        <div className="rounded-2xl border border-white/10 bg-surface p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-[#F2F2F2]">Complete your profile</p>
-              <p className="mt-0.5 text-xs text-[#9A9A9A]">
-                {completedSteps} of {steps.length} steps done
-              </p>
+              <p className="mt-0.5 text-xs text-[#9A9A9A]">{completedSteps} of {steps.length} steps done</p>
             </div>
             <span className="text-sm font-bold text-accent">{progressPct}%</span>
           </div>
-          {/* Progress bar */}
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface2">
-            <div
-              className="h-full rounded-full bg-accent transition-all"
-              style={{ width: `${progressPct}%` }}
-            />
+            <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${progressPct}%` }} />
           </div>
-          {/* Steps */}
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
             {steps.map((step) => (
-              <div
-                key={step.label}
-                className={[
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium",
-                  step.done
-                    ? "bg-bid/10 text-bid"
-                    : "border border-white/10 bg-surface2 text-[#9A9A9A]",
-                ].join(" ")}
-              >
-                {step.done ? (
-                  <CheckCircleIcon className="size-3.5 shrink-0" />
-                ) : (
-                  <ClockIcon className="size-3.5 shrink-0" />
-                )}
+              <div key={step.label}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
+                  step.done ? "bg-bid/10 text-bid" : "border border-white/10 bg-surface2 text-[#9A9A9A]"
+                }`}>
+                {step.done ? <CheckCircleIcon className="size-3.5 shrink-0" /> : <ClockIcon className="size-3.5 shrink-0" />}
                 {step.label}
                 {!step.done && !step.disabled && step.href && (
                   <a href={step.href} className="ml-auto text-accent hover:underline">
@@ -136,132 +260,30 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* ── Stats row ────────────────────────────────────────────── */}
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* ── Account stats ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          {
-            label: "Reputation",
-            value: reputationScore.toString(),
-            sub: "points",
-            icon: StarIcon,
-            color: "text-yellow-400",
-          },
-          {
-            label: "Phone",
-            value: caps.canList ? "Verified" : "Not verified",
-            sub: caps.canList ? "Can list cards" : "Verify to list",
-            icon: PhoneIcon,
-            color: caps.canList ? "text-bid" : "text-[#9A9A9A]",
-          },
-          {
-            label: "KYC",
-            value:
-              u.kycStatus === "verified"
-                ? "Verified"
-                : u.kycStatus === "pending"
-                ? "Pending"
-                : "Not started",
-            sub: "Identity check",
-            icon: ShieldCheckIcon,
-            color:
-              u.kycStatus === "verified"
-                ? "text-bid"
-                : u.kycStatus === "pending"
-                ? "text-yellow-400"
-                : "text-[#9A9A9A]",
-          },
-          {
-            label: "Seller",
-            value: caps.canSell
-              ? u.subscriptionTier === "power_seller"
-                ? "Power Seller"
-                : "Enabled"
-              : "Not enabled",
-            sub: caps.canSell ? "Active seller" : "Coming soon",
-            icon: TagIcon,
-            color: caps.canSell ? "text-bid" : "text-[#9A9A9A]",
-          },
+          { label: "Reputation", value: (u.reputationScore ?? 0).toString(), sub: "points", icon: StarIcon, color: "text-yellow-400" },
+          { label: "Phone", value: caps.canList ? "Verified" : "Not verified", sub: caps.canList ? "Can list cards" : "Verify to list", icon: PhoneIcon, color: caps.canList ? "text-bid" : "text-[#9A9A9A]" },
+          { label: "KYC", value: u.kycStatus === "verified" ? "Verified" : u.kycStatus === "pending" ? "Pending" : "Not started", sub: "Identity check", icon: ShieldCheckIcon, color: u.kycStatus === "verified" ? "text-bid" : u.kycStatus === "pending" ? "text-yellow-400" : "text-[#9A9A9A]" },
+          { label: "Seller", value: caps.canSell ? (u.subscriptionTier === "power_seller" ? "Power Seller" : "Enabled") : "Not enabled", sub: caps.canSell ? "Active seller" : "Coming soon", icon: TagIcon, color: caps.canSell ? "text-bid" : "text-[#9A9A9A]" },
         ].map((stat) => {
           const Icon = stat.icon;
           return (
-            <div
-              key={stat.label}
-              className="group relative overflow-hidden rounded-xl border border-white/10 bg-surface p-5 transition-all hover:border-white/20"
-            >
-              <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-accent/5 blur-2xl transition-all group-hover:bg-accent/10" />
+            <div key={stat.label}
+              className="group relative overflow-hidden rounded-xl border border-white/10 bg-surface p-5 transition hover:border-white/20">
+              <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-accent/5 blur-2xl transition group-hover:bg-accent/10" />
               <div className="relative">
                 <div className="flex items-center gap-2">
                   <Icon className={`size-4 ${stat.color}`} />
-                  <p className="text-xs font-medium uppercase tracking-widest text-[#9A9A9A]">
-                    {stat.label}
-                  </p>
+                  <p className="text-xs font-medium uppercase tracking-widest text-[#9A9A9A]">{stat.label}</p>
                 </div>
-                <p className="mt-2 text-xl font-bold tracking-tight text-[#F2F2F2]">
-                  {stat.value}
-                </p>
+                <p className="mt-2 text-xl font-bold tracking-tight text-[#F2F2F2]">{stat.value}</p>
                 <p className="mt-0.5 text-xs text-[#9A9A9A]">{stat.sub}</p>
               </div>
             </div>
           );
         })}
-      </div>
-
-      {/* ── Quick actions ─────────────────────────────────────────── */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[
-          {
-            title: "Browse Marketplace",
-            desc: "Explore Pokémon, One Piece, MTG, and more.",
-            href: "#",
-            disabled: true,
-            badge: "Coming soon",
-          },
-          {
-            title: "Verify Phone",
-            desc: "Add your mobile number to unlock listing features.",
-            href: "/profile",
-            disabled: caps.canList,
-            badge: caps.canList ? "Done" : undefined,
-          },
-          {
-            title: "Become a Seller",
-            desc: "Complete KYC to start selling your cards.",
-            href: "#",
-            disabled: true,
-            badge: "Coming soon",
-          },
-        ].map((action) => (
-          <a
-            key={action.title}
-            href={action.disabled ? "#" : action.href}
-            className={[
-              "group relative flex flex-col rounded-2xl border bg-surface p-5 transition-all",
-              action.disabled
-                ? "cursor-not-allowed border-white/5 opacity-60"
-                : "border-white/10 hover:border-accent/30 hover:shadow-lg hover:shadow-black/30",
-            ].join(" ")}
-          >
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-[#F2F2F2]">{action.title}</p>
-              {action.badge && (
-                <span className={[
-                  "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
-                  action.badge === "Done"
-                    ? "bg-bid/10 text-bid"
-                    : "bg-surface2 text-[#9A9A9A]",
-                ].join(" ")}>
-                  {action.badge}
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-sm text-[#9A9A9A]">{action.desc}</p>
-            {!action.disabled && (
-              <div className="mt-3 flex items-center gap-1 text-xs font-semibold text-accent opacity-0 transition-opacity group-hover:opacity-100">
-                Get started <ChevronUpIcon className="size-3 rotate-90" />
-              </div>
-            )}
-          </a>
-        ))}
       </div>
 
     </div>
