@@ -147,3 +147,50 @@ export const userCollection = pgTable(
 
 export type UserCollection    = typeof userCollection.$inferSelect;
 export type NewUserCollection = typeof userCollection.$inferInsert;
+
+// ── user_wishlist ─────────────────────────────────────────────────────────────
+
+export const wishlistPriorityEnum = pgEnum("wishlist_priority", [
+  "low",
+  "medium",
+  "high",
+]);
+
+/**
+ * user_wishlist — cards the user wants to acquire.
+ *
+ * One entry per card per user (unique constraint). A card moves off the
+ * wishlist when the user adds it to their collection (UI action, not automatic).
+ */
+export const userWishlist = pgTable(
+  "user_wishlist",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+
+    cardId: text("card_id")
+      .notNull()
+      .references(() => cardCatalog.id, { onDelete: "cascade" }),
+
+    priority: wishlistPriorityEnum("priority").default("medium").notNull(),
+
+    // Maximum price the user is willing to pay (PHP)
+    maxBuyPrice: numeric("max_buy_price", { precision: 10, scale: 2 }),
+    notes: text("notes"),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("wishlist_user_card_idx").on(table.userId, table.cardId),
+    index("wishlist_user_idx").on(table.userId),
+  ]
+);
+
+export type UserWishlist    = typeof userWishlist.$inferSelect;
+export type NewUserWishlist = typeof userWishlist.$inferInsert;
