@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
@@ -134,6 +134,14 @@ function KycCard({ kycStatus }: { kycStatus: string }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function VerifyPage() {
+  return (
+    <Suspense>
+      <VerifyContent />
+    </Suspense>
+  );
+}
+
+function VerifyContent() {
   const { data: session, isPending, refetch } = authClient.useSession();
   const searchParams = useSearchParams();
 
