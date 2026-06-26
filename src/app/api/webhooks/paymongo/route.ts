@@ -9,7 +9,7 @@ import { emailTransactionAgreed } from "@/lib/email";
 import { verifyPayMongoSignature } from "@/lib/paymongo";
 
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text();
+  const rawBody   = await request.text();
   const sigHeader = request.headers.get("paymongo-signature") ?? "";
   const secret    = process.env.PAYMONGO_WEBHOOK_SECRET ?? "";
 
@@ -30,33 +30,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const eventData = (payload["data"] as Record<string, unknown> | undefined);
-  const attrs     = (eventData?.["attributes"] as Record<string, unknown> | undefined);
-  const eventType = attrs?.["type"] as string | undefined;
+  const eventData   = payload["data"]             as Record<string, unknown> | undefined;
+  const attrs       = eventData?.["attributes"]   as Record<string, unknown> | undefined;
+  const eventType   = attrs?.["type"]             as string | undefined;
+  const paymentData = attrs?.["data"]             as Record<string, unknown> | undefined;
+  const paymentAttrs = paymentData?.["attributes"] as Record<string, unknown> | undefined;
 
-  // Only handle payment.paid
-  if (eventType !== "payment.paid") {
+  let linkId:           string | undefined;
+  let txnIdFromRemarks: string | undefined;
+
+  if (eventType === "link.payment.paid") {
+    // paymentData IS the payment-link object; its id is the link id
+    linkId = paymentData?.["id"] as string | undefined;
+  } else if (eventType === "payment.paid") {
+    // paymentData is the payment object; source.id is the originating link id
+    const source = paymentAttrs?.["source"] as Record<string, unknown> | undefined;
+    linkId = source?.["id"] as string | undefined;
+    // Fallback: parse txn id from remarks ("txn:<id>")
+    const remarks = paymentAttrs?.["remarks"] as string | undefined ?? "";
+    const m = remarks.match(/txn:([a-z0-9]+)/i);
+    txnIdFromRemarks = m?.[1];
+  } else {
+    // Acknowledge but ignore other event types
     return NextResponse.json({ ok: true });
   }
 
-  const paymentData  = (attrs?.["data"] as Record<string, unknown> | undefined);
-  const paymentAttrs = (paymentData?.["attributes"] as Record<string, unknown> | undefined);
-
-  if (!paymentAttrs) {
-    console.warn("[webhook/paymongo] Malformed payment.paid payload");
-    return NextResponse.json({ error: "Malformed payload" }, { status: 400 });
-  }
-
-  // Extract payment link ID from source
-  const source       = paymentAttrs["source"] as Record<string, unknown> | undefined;
-  const linkId       = source?.["id"] as string | undefined;
-
-  // Fallback: parse txn ID from remarks (e.g. "txn:abc123")
-  const remarks      = paymentAttrs["description"] as string | undefined ?? "";
-  const remarksMatch = remarks.match(/txn:([a-z0-9]+)/i);
-  const txnIdFromRemarks = remarksMatch?.[1];
-
-  // Look up the transaction
+  // ── Look up the unpaid transaction ──────────────────────────────────────────
   let txnRecord: typeof transactions.$inferSelect | undefined;
 
   if (linkId) {
@@ -68,7 +67,6 @@ export async function POST(request: NextRequest) {
     txnRecord = found;
   }
 
-  // Fallback to remarks-embedded ID
   if (!txnRecord && txnIdFromRemarks) {
     const [found] = await db
       .select()
@@ -79,16 +77,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (!txnRecord) {
-    console.warn("[webhook/paymongo] No unpaid transaction found for link:", linkId);
-    return NextResponse.json({ ok: true }); // acknowledge to prevent retries
+    console.warn("[webhook/paymongo] No unpaid transaction for link:", linkId, "event:", eventType);
+    return NextResponse.json({ ok: true }); // acknowledge to stop retries
   }
 
   if (txnRecord.status !== "pending") {
-    console.log("[webhook/paymongo] Transaction already processed:", txnRecord.id);
+    console.log("[webhook/paymongo] Already processed:", txnRecord.id);
     return NextResponse.json({ ok: true });
   }
 
-  // Move transaction to agreed + record paidAt
+  // ── Mark agreed + record payment timestamp ──────────────────────────────────
   await db
     .update(transactions)
     .set({ status: "agreed", paidAt: new Date() })
@@ -96,7 +94,7 @@ export async function POST(request: NextRequest) {
 
   // Decrement listing quantity / mark sold
   const [listing] = await db
-    .select({ quantity: listings.quantity, id: listings.id })
+    .select({ id: listings.id, quantity: listings.quantity })
     .from(listings)
     .where(eq(listings.id, txnRecord.listingId));
 
@@ -108,7 +106,7 @@ export async function POST(request: NextRequest) {
       .where(eq(listings.id, listing.id));
   }
 
-  // Fetch buyer + seller for notifications
+  // ── Notifications ────────────────────────────────────────────────────────────
   const [buyer, seller] = await Promise.all([
     db.select({ email: userTable.email, name: userTable.name, displayName: userTable.displayName })
       .from(userTable).where(eq(userTable.id, txnRecord.buyerId)).then((r) => r[0]),
@@ -116,14 +114,6 @@ export async function POST(request: NextRequest) {
       .from(userTable).where(eq(userTable.id, txnRecord.sellerId)).then((r) => r[0]),
   ]);
 
-  // Fetch card name for email
-  const [txnFull] = await db
-    .select({ card: { name: listings.id } })
-    .from(transactions)
-    .where(eq(transactions.id, txnRecord.id))
-    .limit(1);
-
-  // Notifications (fire-and-forget)
   createNotification(
     txnRecord.buyerId,
     "transaction_agreed",
@@ -140,7 +130,6 @@ export async function POST(request: NextRequest) {
     `/transactions/${txnRecord.id}`,
   ).catch(console.error);
 
-  // Email the buyer (agreed email) and seller
   if (buyer && seller) {
     emailTransactionAgreed({
       buyerEmail:  buyer.email,
