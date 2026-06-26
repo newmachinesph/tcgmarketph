@@ -67,7 +67,11 @@ export default async function ListingDetailPage({ params }: Params) {
 
         {/* Left — photos + description */}
         <div className="space-y-6">
-          <ListingGallery photos={listing.photos} cardName={listing.card.name} />
+          <ListingGallery
+            photos={listing.photos}
+            cardName={listing.card.name}
+            fallbackImageUrl={listing.card.imageUrl}
+          />
 
           {listing.description && (
             <div className="rounded-2xl border border-white/10 bg-surface p-5">

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   StarIcon,
@@ -10,6 +10,8 @@ import {
   ChatBubbleLeftEllipsisIcon,
   TagIcon,
   CalendarDaysIcon,
+  XMarkIcon,
+  PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import { ReportButton } from "@/components/ReportButton";
@@ -37,7 +39,7 @@ interface ListingCard {
   condition:  string;
   isGraded:   boolean;
   coverPhoto: string | null;
-  card: { name: string; setName: string | null; game: string };
+  card: { name: string; setName: string | null; game: string; imageUrl: string | null };
 }
 
 interface RatingEntry {
@@ -70,7 +72,8 @@ function timeAgo(iso: string) {
 }
 
 export default function SellerProfilePage() {
-  const { id } = useParams<{ id: string }>();
+  const { id }  = useParams<{ id: string }>();
+  const router  = useRouter();
 
   const [seller, setSeller]     = useState<SellerProfile | null>(null);
   const [listings, setListings] = useState<ListingCard[]>([]);
@@ -79,6 +82,12 @@ export default function SellerProfilePage() {
   const [hasMore, setHasMore]   = useState(false);
   const [page, setPage]         = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // Inline message compose panel
+  const [msgOpen, setMsgOpen]     = useState(false);
+  const [msgText, setMsgText]     = useState("");
+  const [msgSending, setMsgSending] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async (pg: number, append: boolean) => {
     if (!append) setLoading(true);
@@ -97,16 +106,37 @@ export default function SellerProfilePage() {
     setLoadingMore(false);
   }, [id]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(1, false); }, [load]);
 
-  async function openConversation() {
-    const res  = await fetch("/api/conversations", {
+  function openMsgPanel() {
+    setMsgOpen(true);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }
+
+  async function sendMessage() {
+    if (!msgText.trim() || msgSending) return;
+    setMsgSending(true);
+
+    // Get or create conversation
+    const convRes  = await fetch("/api/conversations", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ recipientId: id }),
     });
-    const data = await res.json();
-    if (res.ok) window.location.href = `/messages/${data.conversation.id}`;
+    const convData = await convRes.json();
+    if (!convRes.ok) { setMsgSending(false); return; }
+
+    const convId = convData.conversation.id;
+
+    // Send the message
+    await fetch(`/api/conversations/${convId}/messages`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ body: msgText.trim() }),
+    });
+
+    router.push(`/messages/${convId}`);
   }
 
   if (loading) {
@@ -133,11 +163,60 @@ export default function SellerProfilePage() {
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-10 lg:px-10 space-y-8">
 
+      {/* Back */}
+      <Link
+        href="/sellers"
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-[#9A9A9A] transition hover:text-[#F2F2F2]"
+      >
+        <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+        Sellers
+      </Link>
+
+      {/* Inline message compose panel */}
+      {msgOpen && (
+        <div className="rounded-2xl border border-accent/30 bg-surface p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-[#F2F2F2]">
+              Message {seller?.displayName ?? seller?.name}
+            </p>
+            <button
+              onClick={() => { setMsgOpen(false); setMsgText(""); }}
+              className="text-[#9A9A9A] hover:text-[#F2F2F2] transition"
+            >
+              <XMarkIcon className="size-4" />
+            </button>
+          </div>
+          <textarea
+            ref={textareaRef}
+            value={msgText}
+            onChange={(e) => setMsgText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendMessage(); }}
+            rows={3}
+            placeholder="Hi, is this still available?"
+            className="w-full resize-none rounded-xl border border-white/10 bg-surface2 px-3 py-2.5 text-sm text-[#F2F2F2] placeholder-white/30 outline-none focus:border-accent/50"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] text-[#9A9A9A]">⌘ Enter to send</p>
+            <button
+              onClick={sendMessage}
+              disabled={!msgText.trim() || msgSending}
+              className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent/80 disabled:opacity-40"
+            >
+              <PaperAirplaneIcon className="size-4" />
+              {msgSending ? "Sending…" : "Send & open chat"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Profile header */}
       <div className="rounded-2xl border border-white/10 bg-surface p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
           {/* Avatar */}
           {seller.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={seller.image} alt={displayName} className="size-20 rounded-full object-cover shrink-0" />
           ) : (
             <div className="flex size-20 shrink-0 items-center justify-center rounded-full bg-surface2 text-2xl font-bold text-[#9A9A9A]">
@@ -200,8 +279,10 @@ export default function SellerProfilePage() {
           {/* Actions */}
           <div className="flex flex-col gap-2 shrink-0">
             <button
-              onClick={openConversation}
-              className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent/80"
+              onClick={openMsgPanel}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition ${
+                msgOpen ? "bg-accent/70 ring-1 ring-accent" : "bg-accent hover:bg-accent/80"
+              }`}
             >
               <ChatBubbleLeftEllipsisIcon className="size-4" />
               Message
@@ -234,17 +315,21 @@ export default function SellerProfilePage() {
                   className="group rounded-2xl border border-white/10 bg-surface overflow-hidden transition hover:border-white/20"
                 >
                   <div className="aspect-[3/4] bg-surface2 overflow-hidden">
-                    {l.coverPhoto ? (
-                      <img
-                        src={l.coverPhoto}
-                        alt={l.card.name}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <TagIcon className="size-8 text-white/10" />
-                      </div>
-                    )}
+                    {(() => {
+                      const imgSrc = l.coverPhoto ?? l.card.imageUrl;
+                      return imgSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={imgSrc}
+                          alt={l.card.name}
+                          className="h-full w-full object-cover transition group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <TagIcon className="size-8 text-white/10" />
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="p-3">
                     <p className="truncate text-xs font-semibold text-[#F2F2F2]">{l.card.name}</p>
@@ -291,6 +376,7 @@ export default function SellerProfilePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       {r.rater.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={r.rater.image} alt={raterName} className="size-8 rounded-full object-cover" />
                       ) : (
                         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface2 text-xs font-bold text-[#9A9A9A]">

@@ -6,10 +6,34 @@ import { ChevronLeftIcon, ChevronRightIcon, TagIcon } from "@heroicons/react/24/
 
 interface Photo { id: string; url: string; order: number; }
 
-export function ListingGallery({ photos, cardName }: { photos: Photo[]; cardName: string }) {
+export function ListingGallery({
+  photos,
+  cardName,
+  fallbackImageUrl,
+}: {
+  photos: Photo[];
+  cardName: string;
+  fallbackImageUrl?: string | null;
+}) {
   const [idx, setIdx] = useState(0);
 
   if (photos.length === 0) {
+    if (fallbackImageUrl) {
+      return (
+        <div className="relative aspect-[3/4] max-h-[480px] overflow-hidden rounded-2xl bg-surface2">
+          <Image
+            src={fallbackImageUrl}
+            alt={cardName}
+            fill
+            sizes="(max-width: 1024px) 100vw, 60vw"
+            className="object-contain"
+          />
+          <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white/70">
+            Card art (no seller photo)
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="flex aspect-[4/3] items-center justify-center rounded-2xl border border-white/10 bg-surface2">
         <div className="flex flex-col items-center gap-2 text-white/20">
