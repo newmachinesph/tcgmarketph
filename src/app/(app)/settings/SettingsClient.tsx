@@ -28,8 +28,8 @@ import {
 } from "@/lib/validations/auth";
 import { Field } from "@/components/ui";
 import { useCurrencyStore, type Currency } from "@/store/currency";
-import type { EmailPrefs, PrefCategory } from "@/lib/email-prefs";
-import { DEFAULT_PREFS, PREF_LABELS } from "@/lib/email-prefs";
+import type { EmailPrefs, PrefCategory } from "@/lib/email-prefs-shared";
+import { DEFAULT_PREFS, PREF_LABELS } from "@/lib/email-prefs-shared";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
