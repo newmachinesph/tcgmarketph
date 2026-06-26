@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-primary">
       <AppHeader user={session.user} preferredCurrency={(session.user.preferredCurrency as "USD" | "PHP") ?? "PHP"} />
       <main className="pb-16 lg:pb-0">{children}</main>
-      <MobileBottomNav />
+      <MobileBottomNav isAuthenticated={true} />
     </div>
   );
 }

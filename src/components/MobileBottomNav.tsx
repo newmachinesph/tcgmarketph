@@ -46,16 +46,21 @@ function isActive(pathname: string, href: string) {
   return pathname.startsWith(href);
 }
 
-export function MobileBottomNav() {
-  const { data: session, isPending } = authClient.useSession();
+interface Props {
+  /** Pass true from server layouts that already verified auth, so nav renders immediately without client-side session pending flash */
+  isAuthenticated?: boolean;
+}
+
+export function MobileBottomNav({ isAuthenticated }: Props) {
+  const { data: session } = authClient.useSession();
   const pathname = usePathname();
 
-  if (isPending) return null;
-
-  const nav = session ? APP_NAV : PUBLIC_NAV;
+  // Use server-side hint if available, fall back to client session result
+  const authed = isAuthenticated ?? !!session;
+  const nav = authed ? APP_NAV : PUBLIC_NAV;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-primary/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#111111] pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
       <div className="flex items-stretch">
         {nav.map(({ href, label, Icon, ActiveIcon, cta }) => {
           const active = isActive(pathname, href);
