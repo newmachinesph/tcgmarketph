@@ -20,12 +20,10 @@ import {
   UserGroupIcon as SellersSolid,
 } from "@heroicons/react/24/solid";
 
-// ── Nav configs ────────────────────────────────────────────────────────────────
-
 const APP_NAV = [
   { href: "/dashboard",    label: "Home",     Icon: HomeIcon,                ActiveIcon: HomeSolid  },
   { href: "/marketplace",  label: "Market",   Icon: ShoppingBagIcon,         ActiveIcon: ShopSolid  },
-  { href: "/listings/new", label: "List",     Icon: PlusIcon,                ActiveIcon: PlusIcon, cta: true },
+  { href: "/listings/new", label: "List",     Icon: PlusIcon,                ActiveIcon: PlusIcon,   cta: true },
   { href: "/messages",     label: "Messages", Icon: ChatBubbleLeftRightIcon, ActiveIcon: ChatSolid  },
   { href: "/profile",      label: "Profile",  Icon: UserCircleIcon,          ActiveIcon: UserSolid  },
 ];
@@ -35,15 +33,13 @@ const PUBLIC_NAV = [
   { href: "/marketplace", label: "Market",  Icon: ShoppingBagIcon,     ActiveIcon: ShopSolid    },
   { href: "/sellers",     label: "Sellers", Icon: UserGroupIcon,       ActiveIcon: SellersSolid },
   { href: "/browse",      label: "Browse",  Icon: MagnifyingGlassIcon, ActiveIcon: SearchSolid  },
-  { href: "/login",       label: "Sign In", Icon: UserCircleIcon,      ActiveIcon: UserSolid, cta: true },
+  { href: "/login",       label: "Sign In", Icon: UserCircleIcon,      ActiveIcon: UserSolid,   cta: true },
 ];
 
 function isActive(pathname: string, href: string) {
   if (href === "/" || href === "/dashboard") return pathname === href;
   return pathname.startsWith(href);
 }
-
-// ── Component ──────────────────────────────────────────────────────────────────
 
 interface Props {
   isAuthenticated?: boolean;
@@ -54,11 +50,12 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
   const nav = isAuthenticated ? APP_NAV : PUBLIC_NAV;
 
   return (
-    <nav
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-      className="fixed inset-x-0 bottom-0 z-[9999] border-t border-white/[0.08] bg-[#0A0A0A] lg:hidden"
+    <div
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 12px)" }}
+      className="fixed inset-x-0 bottom-0 z-[9999] flex justify-center pb-3 lg:hidden"
     >
-      <div className="flex h-[58px] items-center">
+      {/* Floating pill */}
+      <nav className="flex items-center gap-1 rounded-full bg-[#1C1C1E] px-3 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
         {nav.map(({ href, label, Icon, ActiveIcon, cta }) => {
           const active = isActive(pathname, href);
           const I      = active ? ActiveIcon : Icon;
@@ -68,11 +65,10 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
               <Link
                 key={href}
                 href={href}
-                className="flex flex-1 flex-col items-center justify-center gap-1"
+                aria-label={label}
+                className="flex size-12 items-center justify-center rounded-full bg-accent shadow-[0_0_16px_rgba(226,75,74,0.5)] transition-transform active:scale-95"
               >
-                <span className="flex size-11 items-center justify-center rounded-full bg-accent shadow-[0_0_16px_rgba(226,75,74,0.45)]">
-                  <I className="size-[22px] text-white" />
-                </span>
+                <I className="size-5 text-white" />
               </Link>
             );
           }
@@ -81,24 +77,21 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
             <Link
               key={href}
               href={href}
-              className="group flex flex-1 flex-col items-center justify-center gap-1 py-1"
+              aria-label={label}
+              className="flex size-12 items-center justify-center rounded-full transition-transform active:scale-95"
             >
-              <div className={`flex size-10 items-center justify-center rounded-xl transition-colors duration-150 ${
-                active ? "bg-white/[0.08]" : "group-active:bg-white/5"
+              {/* Active ring */}
+              <span className={`flex size-10 items-center justify-center rounded-full transition-colors duration-200 ${
+                active ? "bg-white/10" : ""
               }`}>
-                <I className={`size-[22px] transition-colors duration-150 ${
-                  active ? "text-[#F2F2F2]" : "text-[#666666]"
+                <I className={`size-[22px] transition-colors duration-200 ${
+                  active ? "text-white" : "text-[#555555]"
                 }`} />
-              </div>
-              <span className={`text-[10px] font-medium leading-none transition-colors duration-150 ${
-                active ? "text-[#F2F2F2]" : "text-[#666666]"
-              }`}>
-                {label}
               </span>
             </Link>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }

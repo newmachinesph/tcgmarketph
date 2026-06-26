@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-primary">
       <AppHeader user={session.user} preferredCurrency={(session.user.preferredCurrency as "USD" | "PHP") ?? "PHP"} />
-      <main className="pb-16 lg:pb-0">{children}</main>
+      <main className="pb-28 lg:pb-0">{children}</main>
       <MobileBottomNav isAuthenticated={true} />
     </div>
   );
