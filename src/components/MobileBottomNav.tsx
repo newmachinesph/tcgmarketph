@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -48,122 +46,107 @@ interface Props {
 }
 
 export function MobileBottomNav({ isAuthenticated = false }: Props) {
-  const pathname          = usePathname();
-  const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
+  const nav      = isAuthenticated ? APP_NAV : PUBLIC_NAV;
 
-  useEffect(() => { setMounted(true); }, []);
+  return (
+    <>
+      {/* Hide on desktop — inline style beats any Tailwind conflict */}
+      <style>{`@media(min-width:1024px){#mbn{display:none!important}}`}</style>
 
-  // Only show on narrow screens — matches Tailwind lg (1024px)
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    setIsDesktop(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  if (!mounted || isDesktop) return null;
-
-  const nav = isAuthenticated ? APP_NAV : PUBLIC_NAV;
-
-  return createPortal(
-    <div
-      style={{
-        position:       "fixed",
-        bottom:         0,
-        left:           0,
-        right:          0,
-        zIndex:         99999,
-        display:        "flex",
-        justifyContent: "center",
-        alignItems:     "flex-end",
-        padding:        "0 20px",
-        paddingBottom:  "max(env(safe-area-inset-bottom, 0px), 12px)",
-        pointerEvents:  "none",
-      }}
-    >
-      <nav
+      <div
+        id="mbn"
         style={{
-          display:         "flex",
-          alignItems:      "center",
-          gap:             "4px",
-          background:      "#1C1C1E",
-          borderRadius:    "9999px",
-          padding:         "8px",
-          boxShadow:       "0 8px 32px rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.5)",
-          pointerEvents:   "auto",
-          marginBottom:    "8px",
+          position:       "fixed",
+          bottom:         0,
+          left:           0,
+          right:          0,
+          zIndex:         99999,
+          display:        "flex",
+          justifyContent: "center",
+          paddingLeft:    "20px",
+          paddingRight:   "20px",
+          paddingBottom:  "max(env(safe-area-inset-bottom, 0px), 16px)",
         }}
       >
-        {nav.map(({ href, label, Icon, ActiveIcon, cta }) => {
-          const active = isActive(pathname, href);
-          const I      = active ? ActiveIcon : Icon;
+        <nav
+          style={{
+            display:      "flex",
+            alignItems:   "center",
+            gap:          "2px",
+            background:   "#252525",
+            borderRadius: "9999px",
+            padding:      "6px",
+            border:       "1px solid rgba(255,255,255,0.10)",
+            boxShadow:    "0 4px 24px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)",
+          }}
+        >
+          {nav.map(({ href, label, Icon, ActiveIcon, cta }) => {
+            const active = isActive(pathname, href);
+            const I      = active ? ActiveIcon : Icon;
 
-          if (cta) {
+            if (cta) {
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-label={label}
+                  style={{
+                    display:         "flex",
+                    width:           "48px",
+                    height:          "48px",
+                    alignItems:      "center",
+                    justifyContent:  "center",
+                    borderRadius:    "9999px",
+                    background:      "#E24B4A",
+                    flexShrink:      0,
+                    boxShadow:       "0 0 16px rgba(226,75,74,0.45)",
+                  }}
+                >
+                  <I style={{ width: "20px", height: "20px", color: "#fff" }} />
+                </Link>
+              );
+            }
+
             return (
               <Link
                 key={href}
                 href={href}
                 aria-label={label}
                 style={{
-                  display:         "flex",
-                  width:           "48px",
-                  height:          "48px",
-                  alignItems:      "center",
-                  justifyContent:  "center",
-                  borderRadius:    "9999px",
-                  background:      "#E24B4A",
-                  boxShadow:       "0 0 20px rgba(226,75,74,0.5)",
-                  flexShrink:      0,
+                  display:        "flex",
+                  width:          "48px",
+                  height:         "48px",
+                  alignItems:     "center",
+                  justifyContent: "center",
+                  borderRadius:   "9999px",
+                  flexShrink:     0,
                 }}
               >
-                <I style={{ width: "22px", height: "22px", color: "#ffffff" }} />
+                <span
+                  style={{
+                    display:        "flex",
+                    width:          "40px",
+                    height:         "40px",
+                    alignItems:     "center",
+                    justifyContent: "center",
+                    borderRadius:   "9999px",
+                    background:     active ? "rgba(255,255,255,0.12)" : "transparent",
+                  }}
+                >
+                  <I
+                    style={{
+                      width:  "22px",
+                      height: "22px",
+                      color:  active ? "#FFFFFF" : "#777777",
+                    }}
+                  />
+                </span>
               </Link>
             );
-          }
-
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-label={label}
-              style={{
-                display:        "flex",
-                width:          "48px",
-                height:         "48px",
-                alignItems:     "center",
-                justifyContent: "center",
-                borderRadius:   "9999px",
-                flexShrink:     0,
-              }}
-            >
-              <span
-                style={{
-                  display:         "flex",
-                  width:           "40px",
-                  height:          "40px",
-                  alignItems:      "center",
-                  justifyContent:  "center",
-                  borderRadius:    "9999px",
-                  background:      active ? "rgba(255,255,255,0.1)" : "transparent",
-                  transition:      "background 0.15s",
-                }}
-              >
-                <I
-                  style={{
-                    width:  "22px",
-                    height: "22px",
-                    color:  active ? "#FFFFFF" : "#666666",
-                    transition: "color 0.15s",
-                  }}
-                />
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
-    </div>,
-    document.body
+          })}
+        </nav>
+      </div>
+    </>
   );
 }
