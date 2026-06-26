@@ -19,26 +19,23 @@ import {
   MagnifyingGlassIcon as SearchSolid,
   UserGroupIcon as SellersSolid,
 } from "@heroicons/react/24/solid";
-import { authClient } from "@/lib/auth-client";
 
-// ── Authenticated nav ──────────────────────────────────────────────────────────
+// ── Nav definitions ────────────────────────────────────────────────────────────
 
 const APP_NAV = [
-  { href: "/dashboard",    label: "Home",     Icon: HomeIcon,                  ActiveIcon: HomeSolid   },
-  { href: "/marketplace",  label: "Market",   Icon: ShoppingBagIcon,           ActiveIcon: ShopSolid   },
-  { href: "/listings/new", label: "List",     Icon: PlusCircleIcon,            ActiveIcon: PlusCircleIcon, cta: true },
-  { href: "/messages",     label: "Messages", Icon: ChatBubbleLeftRightIcon,   ActiveIcon: ChatSolid   },
-  { href: "/profile",      label: "Profile",  Icon: UserCircleIcon,            ActiveIcon: UserSolid   },
+  { href: "/dashboard",    label: "Home",     Icon: HomeIcon,               ActiveIcon: HomeSolid  },
+  { href: "/marketplace",  label: "Market",   Icon: ShoppingBagIcon,        ActiveIcon: ShopSolid  },
+  { href: "/listings/new", label: "List",     Icon: PlusCircleIcon,         ActiveIcon: PlusCircleIcon, cta: true },
+  { href: "/messages",     label: "Messages", Icon: ChatBubbleLeftRightIcon, ActiveIcon: ChatSolid  },
+  { href: "/profile",      label: "Profile",  Icon: UserCircleIcon,         ActiveIcon: UserSolid  },
 ];
 
-// ── Public nav ────────────────────────────────────────────────────────────────
-
 const PUBLIC_NAV = [
-  { href: "/",            label: "Home",    Icon: HomeIcon,               ActiveIcon: HomeSolid     },
-  { href: "/marketplace", label: "Market",  Icon: ShoppingBagIcon,        ActiveIcon: ShopSolid     },
-  { href: "/sellers",     label: "Sellers", Icon: UserGroupIcon,          ActiveIcon: SellersSolid  },
-  { href: "/browse",      label: "Browse",  Icon: MagnifyingGlassIcon,    ActiveIcon: SearchSolid   },
-  { href: "/login",       label: "Sign In", Icon: UserCircleIcon,         ActiveIcon: UserSolid, cta: true },
+  { href: "/",            label: "Home",    Icon: HomeIcon,            ActiveIcon: HomeSolid    },
+  { href: "/marketplace", label: "Market",  Icon: ShoppingBagIcon,     ActiveIcon: ShopSolid    },
+  { href: "/sellers",     label: "Sellers", Icon: UserGroupIcon,       ActiveIcon: SellersSolid },
+  { href: "/browse",      label: "Browse",  Icon: MagnifyingGlassIcon, ActiveIcon: SearchSolid  },
+  { href: "/login",       label: "Sign In", Icon: UserCircleIcon,      ActiveIcon: UserSolid, cta: true },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -46,22 +43,22 @@ function isActive(pathname: string, href: string) {
   return pathname.startsWith(href);
 }
 
+// ── Component ──────────────────────────────────────────────────────────────────
+
 interface Props {
-  /** Pass true from server layouts that already verified auth, so nav renders immediately without client-side session pending flash */
   isAuthenticated?: boolean;
 }
 
-export function MobileBottomNav({ isAuthenticated }: Props) {
-  const { data: session } = authClient.useSession();
+export function MobileBottomNav({ isAuthenticated = false }: Props) {
   const pathname = usePathname();
-
-  // Use server-side hint if available, fall back to client session result
-  const authed = isAuthenticated ?? !!session;
-  const nav = authed ? APP_NAV : PUBLIC_NAV;
+  const nav = isAuthenticated ? APP_NAV : PUBLIC_NAV;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#111111] pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
-      <div className="flex items-stretch">
+    <nav
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      className="fixed inset-x-0 bottom-0 z-[9999] border-t border-white/10 bg-[#111111] lg:hidden"
+    >
+      <div className="flex h-16 items-stretch">
         {nav.map(({ href, label, Icon, ActiveIcon, cta }) => {
           const active = isActive(pathname, href);
           const I = active ? ActiveIcon : Icon;
@@ -71,7 +68,7 @@ export function MobileBottomNav({ isAuthenticated }: Props) {
               <Link
                 key={href}
                 href={href}
-                className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2"
+                className="flex flex-1 flex-col items-center justify-center gap-0.5"
               >
                 <span className="flex size-10 items-center justify-center rounded-full bg-accent shadow-lg shadow-accent/30">
                   <I className="size-5 text-white" />
@@ -85,9 +82,9 @@ export function MobileBottomNav({ isAuthenticated }: Props) {
             <Link
               key={href}
               href={href}
-              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2"
+              className="flex flex-1 flex-col items-center justify-center gap-0.5"
             >
-              <I className={`size-6 transition ${active ? "text-accent" : "text-[#9A9A9A]"}`} />
+              <I className={`size-6 ${active ? "text-accent" : "text-[#9A9A9A]"}`} />
               <span className={`text-[9px] font-medium ${active ? "text-accent" : "text-[#9A9A9A]"}`}>
                 {label}
               </span>
