@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const game     = sp.get("game") ?? "";
   const condition = sp.get("condition") ?? "";
   const isGraded = sp.get("isGraded");
+  const city     = sp.get("city")?.trim() ?? "";
   const minPrice = sp.get("minPrice") ?? "";
   const maxPrice = sp.get("maxPrice") ?? "";
   const sort     = sp.get("sort") ?? "newest";
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
   }
   if (isGraded === "true")  conditions.push(eq(listings.isGraded, true));
   if (isGraded === "false") conditions.push(eq(listings.isGraded, false));
+  if (city) conditions.push(sql`lower(${userTable.city}) = lower(${city})`);
 
   const minNum = parseFloat(minPrice);
   const maxNum = parseFloat(maxPrice);

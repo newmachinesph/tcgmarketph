@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, DM_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/Providers";
+import Script from "next/script";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -20,6 +21,25 @@ export const metadata: Metadata = {
   title: "TCGMarket PH — Buy & Sell TCG Cards in the Philippines",
   description:
     "The Philippines' premier marketplace for Pokémon, One Piece, Yu-Gi-Oh!, and Magic: The Gathering cards.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TCGMarket PH",
+  },
+  other: { "mobile-web-app-capable": "yes" },
+  icons: {
+    icon:  [{ url: "/icons/icon-192", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/icon-192", sizes: "192x192", type: "image/png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#111111",
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -34,16 +54,29 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: "#1E1E1E",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "#F2F2F2",
-              },
-            }}
-          />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: "#1E1E1E",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "#F2F2F2",
+            },
+          }}
+        />
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').catch(function() {});
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

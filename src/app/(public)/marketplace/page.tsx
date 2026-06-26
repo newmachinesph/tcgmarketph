@@ -21,6 +21,7 @@ import { CONDITION_LABEL } from "@/lib/validations/listing";
 type Game = "pokemon" | "one_piece" | "";
 type Sort = "newest" | "price_asc" | "price_desc";
 type GradedFilter = "" | "true" | "false";
+type City = string;
 
 interface MarketListing {
   id:            string;
@@ -325,11 +326,21 @@ export default function MarketplacePage() {
   const [game, setGame]         = useState<Game>("");
   const [condition, setCondition] = useState("");
   const [isGraded, setIsGraded] = useState<GradedFilter>("");
+  const [city, setCity]         = useState<City>("");
+  const [cities, setCities]     = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort]         = useState<Sort>("newest");
 
   const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch distinct cities once
+  useEffect(() => {
+    fetch("/api/marketplace/cities")
+      .then((r) => r.json())
+      .then((d) => setCities(d.cities ?? []))
+      .catch(() => {});
+  }, []);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
 
@@ -340,13 +351,14 @@ export default function MarketplacePage() {
       if (game)     p.set("game", game);
       if (condition) p.set("condition", condition);
       if (isGraded) p.set("isGraded", isGraded);
+      if (city)     p.set("city", city);
       if (minPrice) p.set("minPrice", minPrice);
       if (maxPrice) p.set("maxPrice", maxPrice);
       p.set("sort", sort);
       p.set("page", String(pg));
       return p.toString();
     },
-    [q, game, condition, isGraded, minPrice, maxPrice, sort]
+    [q, game, condition, isGraded, city, minPrice, maxPrice, sort]
   );
 
   const fetchListings = useCallback(
@@ -380,7 +392,7 @@ export default function MarketplacePage() {
     return () => {
       if (searchRef.current) clearTimeout(searchRef.current);
     };
-  }, [q, game, condition, isGraded, minPrice, maxPrice, sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, game, condition, isGraded, city, minPrice, maxPrice, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadMore() {
     fetchListings(page + 1, true);
@@ -391,12 +403,13 @@ export default function MarketplacePage() {
     setGame("");
     setCondition("");
     setIsGraded("");
+    setCity("");
     setMinPrice("");
     setMaxPrice("");
     setSort("newest");
   }
 
-  const hasActiveFilters = q || game || condition || isGraded || minPrice || maxPrice || sort !== "newest";
+  const hasActiveFilters = q || game || condition || isGraded || city || minPrice || maxPrice || sort !== "newest";
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -538,7 +551,39 @@ export default function MarketplacePage() {
               </div>
             </div>
 
+            {/* City / region */}
+            {cities.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#9A9A9A]">
+                  <MapPinIcon className="inline size-3 mb-0.5" /> Region / City
+                </p>
+                <select
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="rounded-lg border border-white/10 bg-surface2 py-1.5 pl-2.5 pr-7 text-xs text-[#F2F2F2] focus:border-white/20 focus:outline-none"
+                >
+                  <option value="">All cities</option>
+                  {cities.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
           </div>
+        </div>
+      )}
+
+      {/* Active city chip */}
+      {city && (
+        <div className="mb-3 flex items-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-full border border-bid/30 bg-bid/10 px-3 py-1 text-xs font-medium text-bid">
+            <MapPinIcon className="size-3" />
+            {city}
+            <button onClick={() => setCity("")} className="ml-0.5 hover:text-white">
+              <XMarkIcon className="size-3" />
+            </button>
+          </span>
         </div>
       )}
 
