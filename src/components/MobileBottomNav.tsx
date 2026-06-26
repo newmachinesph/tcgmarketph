@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -21,11 +23,11 @@ import {
 } from "@heroicons/react/24/solid";
 
 const APP_NAV = [
-  { href: "/dashboard",    label: "Home",     Icon: HomeIcon,                ActiveIcon: HomeSolid  },
-  { href: "/marketplace",  label: "Market",   Icon: ShoppingBagIcon,         ActiveIcon: ShopSolid  },
-  { href: "/listings/new", label: "List",     Icon: PlusIcon,                ActiveIcon: PlusIcon,   cta: true },
-  { href: "/messages",     label: "Messages", Icon: ChatBubbleLeftRightIcon, ActiveIcon: ChatSolid  },
-  { href: "/profile",      label: "Profile",  Icon: UserCircleIcon,          ActiveIcon: UserSolid  },
+  { href: "/dashboard",    label: "Home",     Icon: HomeIcon,                ActiveIcon: HomeSolid },
+  { href: "/marketplace",  label: "Market",   Icon: ShoppingBagIcon,         ActiveIcon: ShopSolid },
+  { href: "/listings/new", label: "List",     Icon: PlusIcon,                ActiveIcon: PlusIcon,  cta: true },
+  { href: "/messages",     label: "Messages", Icon: ChatBubbleLeftRightIcon, ActiveIcon: ChatSolid },
+  { href: "/profile",      label: "Profile",  Icon: UserCircleIcon,          ActiveIcon: UserSolid },
 ];
 
 const PUBLIC_NAV = [
@@ -46,16 +48,54 @@ interface Props {
 }
 
 export function MobileBottomNav({ isAuthenticated = false }: Props) {
-  const pathname = usePathname();
+  const pathname          = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  // Only show on narrow screens — matches Tailwind lg (1024px)
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  if (!mounted || isDesktop) return null;
+
   const nav = isAuthenticated ? APP_NAV : PUBLIC_NAV;
 
-  return (
+  return createPortal(
     <div
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 12px)" }}
-      className="fixed inset-x-0 bottom-0 z-[9999] flex justify-center pb-3 lg:hidden"
+      style={{
+        position:       "fixed",
+        bottom:         0,
+        left:           0,
+        right:          0,
+        zIndex:         99999,
+        display:        "flex",
+        justifyContent: "center",
+        alignItems:     "flex-end",
+        padding:        "0 20px",
+        paddingBottom:  "max(env(safe-area-inset-bottom, 0px), 12px)",
+        pointerEvents:  "none",
+      }}
     >
-      {/* Floating pill */}
-      <nav className="flex items-center gap-1 rounded-full bg-[#1C1C1E] px-3 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
+      <nav
+        style={{
+          display:         "flex",
+          alignItems:      "center",
+          gap:             "4px",
+          background:      "#1C1C1E",
+          borderRadius:    "9999px",
+          padding:         "8px",
+          boxShadow:       "0 8px 32px rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.5)",
+          pointerEvents:   "auto",
+          marginBottom:    "8px",
+        }}
+      >
         {nav.map(({ href, label, Icon, ActiveIcon, cta }) => {
           const active = isActive(pathname, href);
           const I      = active ? ActiveIcon : Icon;
@@ -66,9 +106,19 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
                 key={href}
                 href={href}
                 aria-label={label}
-                className="flex size-12 items-center justify-center rounded-full bg-accent shadow-[0_0_16px_rgba(226,75,74,0.5)] transition-transform active:scale-95"
+                style={{
+                  display:         "flex",
+                  width:           "48px",
+                  height:          "48px",
+                  alignItems:      "center",
+                  justifyContent:  "center",
+                  borderRadius:    "9999px",
+                  background:      "#E24B4A",
+                  boxShadow:       "0 0 20px rgba(226,75,74,0.5)",
+                  flexShrink:      0,
+                }}
               >
-                <I className="size-5 text-white" />
+                <I style={{ width: "22px", height: "22px", color: "#ffffff" }} />
               </Link>
             );
           }
@@ -78,20 +128,42 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
               key={href}
               href={href}
               aria-label={label}
-              className="flex size-12 items-center justify-center rounded-full transition-transform active:scale-95"
+              style={{
+                display:        "flex",
+                width:          "48px",
+                height:         "48px",
+                alignItems:     "center",
+                justifyContent: "center",
+                borderRadius:   "9999px",
+                flexShrink:     0,
+              }}
             >
-              {/* Active ring */}
-              <span className={`flex size-10 items-center justify-center rounded-full transition-colors duration-200 ${
-                active ? "bg-white/10" : ""
-              }`}>
-                <I className={`size-[22px] transition-colors duration-200 ${
-                  active ? "text-white" : "text-[#555555]"
-                }`} />
+              <span
+                style={{
+                  display:         "flex",
+                  width:           "40px",
+                  height:          "40px",
+                  alignItems:      "center",
+                  justifyContent:  "center",
+                  borderRadius:    "9999px",
+                  background:      active ? "rgba(255,255,255,0.1)" : "transparent",
+                  transition:      "background 0.15s",
+                }}
+              >
+                <I
+                  style={{
+                    width:  "22px",
+                    height: "22px",
+                    color:  active ? "#FFFFFF" : "#666666",
+                    transition: "color 0.15s",
+                  }}
+                />
               </span>
             </Link>
           );
         })}
       </nav>
-    </div>
+    </div>,
+    document.body
   );
 }
