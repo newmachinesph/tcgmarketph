@@ -33,9 +33,10 @@ export async function createPaymentLink(opts: {
     body: JSON.stringify({
       data: {
         attributes: {
-          amount:      centavos,
-          description: opts.description,
-          remarks:     `txn:${opts.txnId}`,
+          amount:               centavos,
+          description:          opts.description,
+          remarks:              `txn:${opts.txnId}`,
+          payment_method_types: ["qrph"],
         },
       },
     }),

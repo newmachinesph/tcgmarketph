@@ -124,7 +124,7 @@ export function BuyNowButton({ listingId, maxQty, price, cardName }: Props) {
                   }`}
                 >
                   <CreditCardIcon className="size-5" />
-                  GCash / Card
+                  QR Ph
                 </button>
               </div>
             </div>
@@ -136,7 +136,7 @@ export function BuyNowButton({ listingId, maxQty, price, cardName }: Props) {
               </div>
               <p className="mt-1.5 text-[10px] text-[#9A9A9A]">
                 {method === "online"
-                  ? "💳 You'll be redirected to PayMongo to pay via GCash, Maya, or card. The card is still exchanged at meetup."
+                  ? "📱 Scan the QR code via GCash, Maya, or any QR Ph-compatible app. The card is still exchanged at meetup."
                   : "💵 Cash on meetup — the seller will confirm and you'll arrange a safe meetup location."}
               </p>
             </div>
@@ -151,8 +151,8 @@ export function BuyNowButton({ listingId, maxQty, price, cardName }: Props) {
               className="w-full rounded-xl bg-accent py-3 text-sm font-semibold text-white transition hover:bg-accent/80 disabled:opacity-50"
             >
               {loading
-                ? method === "online" ? "Creating payment…" : "Confirming…"
-                : method === "online" ? "Pay with GCash / Card →" : "Confirm purchase request"}
+                ? method === "online" ? "Generating QR…" : "Confirming…"
+                : method === "online" ? "Pay via QR Ph →" : "Confirm purchase request"}
             </button>
           </div>
         </div>
