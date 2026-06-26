@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { eq, and, gte, lte, desc, asc, sql, inArray } from "drizzle-orm";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listings, listingPhotos } from "@/db/schema/listings";
 import { cardCatalog } from "@/db/schema/cards";
@@ -11,8 +9,6 @@ const PAGE_SIZE = 24;
 
 // GET /api/marketplace — browse active listings with search, filter, sort, pagination
 export async function GET(request: NextRequest) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const sp       = request.nextUrl.searchParams;
   const q        = sp.get("q")?.trim() ?? "";
