@@ -69,27 +69,9 @@ const POKEMON_CARDS = [
 ];
 
 const OP_CARDS = [
-  {
-    // Monkey D. Luffy — OP01 Leader
-    img:      "https://en.onepiece-cardgame.com/images/cardlist/card/OP01-001.png",
-    name:     "Monkey D. Luffy",
-    price:    "₱4,500",
-    featured: false,
-  },
-  {
-    // Shanks — OP01-120 Secret Rare
-    img:      "https://en.onepiece-cardgame.com/images/cardlist/card/OP01-120.png",
-    name:     "Shanks (Secret)",
-    price:    "₱18,000",
-    featured: true,
-  },
-  {
-    // Trafalgar D. Water Law — OP02 Leader
-    img:      "https://en.onepiece-cardgame.com/images/cardlist/card/OP02-001.png",
-    name:     "Trafalgar Law",
-    price:    "₱3,200",
-    featured: false,
-  },
+  { name: "Monkey D. Luffy",  set: "OP01-001 Leader",  price: "₱4,500",  featured: false, color: "from-red-900 to-red-950"      },
+  { name: "Shanks",           set: "OP01-120 Secret",  price: "₱18,000", featured: true,  color: "from-yellow-900 to-yellow-950" },
+  { name: "Trafalgar Law",    set: "OP02-001 Leader",  price: "₱3,200",  featured: false, color: "from-blue-900 to-blue-950"    },
 ];
 
 const FEATURES = [
@@ -263,7 +245,21 @@ export default function LandingPage() {
               </div>
               <div className="flex items-end gap-3">
                 {OP_CARDS.map((c) => (
-                  <GameCardTile key={c.name} card={c} accentColor="text-red-400" />
+                  <div
+                    key={c.name}
+                    className={`relative flex flex-col justify-between overflow-hidden rounded-xl ring-1 ring-white/10 shadow-xl shadow-black/50 transition hover:-translate-y-1 ${c.featured ? "h-36 w-28 -translate-y-3" : "h-32 w-24"}`}
+                  >
+                    {/* Styled card face */}
+                    <div className={`absolute inset-0 bg-gradient-to-b ${c.color}`} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-2">
+                      <span className="text-2xl">☠️</span>
+                      <p className="text-center text-[8px] font-bold leading-tight text-white">{c.name}</p>
+                      <p className="text-center text-[7px] text-white/50">{c.set}</p>
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                      <p className="text-[9px] font-bold text-red-400">{c.price}</p>
+                    </div>
+                  </div>
                 ))}
                 <Link href="/marketplace" className="ml-auto flex flex-col items-center justify-center self-center rounded-xl border border-white/10 bg-surface/60 px-4 py-3 text-center text-xs font-semibold text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
                   <span className="text-xl">→</span>Browse all
