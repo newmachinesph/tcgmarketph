@@ -11,16 +11,12 @@ import {
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
 
-// ── Stat strip ────────────────────────────────────────────────────────────────
-
 const STATS = [
   { value: "₱0",   label: "Listing fee" },
   { value: "2",    label: "Games supported" },
   { value: "100%", label: "Cash on meetup" },
   { value: "PH",   label: "Philippines only" },
 ];
-
-// ── Feature cards ─────────────────────────────────────────────────────────────
 
 const FEATURES = [
   {
@@ -67,8 +63,6 @@ const FEATURES = [
   },
 ];
 
-// ── How it works ──────────────────────────────────────────────────────────────
-
 const STEPS = [
   {
     step: "01",
@@ -87,53 +81,22 @@ const STEPS = [
   },
 ];
 
-// ── Games ─────────────────────────────────────────────────────────────────────
-
 const GAMES = [
   { name: "Pokémon TCG",  emoji: "⚡", desc: "Base set to Scarlet & Violet", color: "border-yellow-400/30 hover:border-yellow-400/60" },
   { name: "One Piece TCG", emoji: "⚓", desc: "All OP sets, EN & JP",         color: "border-red-400/30 hover:border-red-400/60" },
 ];
 
-// ── Trust signals ─────────────────────────────────────────────────────────────
-
 const TRUST = [
-  { icon: MapPinIcon,    title: "Public Meetup Only",    body: "All trades happen face-to-face in public places. No shipping, no scams." },
-  { icon: UserGroupIcon, title: "Community Moderated",   body: "Reports reviewed by admins. Bad actors are banned from the platform." },
-  { icon: CheckCircleIcon, title: "Transparent Ratings", body: "Every completed deal adds to your public reputation score visible to all buyers." },
+  { icon: MapPinIcon,     title: "Public Meetup Only",    body: "All trades happen face-to-face in public places. No shipping, no scams." },
+  { icon: UserGroupIcon,  title: "Community Moderated",   body: "Reports reviewed by admins. Bad actors are banned from the platform." },
+  { icon: CheckCircleIcon, title: "Transparent Ratings",  body: "Every completed deal adds to your public reputation score visible to all buyers." },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-primary text-[#F2F2F2]">
-
-      {/* ── Nav ─────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-white/8 bg-primary/90 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-screen-xl items-center justify-between px-6 lg:px-10">
-          <Link href="/" className="text-xl font-extrabold tracking-tight text-accent font-display">
-            TCGMarket<span className="text-[#F2F2F2]">PH</span>
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm font-medium text-[#9A9A9A] md:flex">
-            <Link href="/marketplace" className="transition hover:text-[#F2F2F2]">Marketplace</Link>
-            <Link href="/sellers" className="transition hover:text-[#F2F2F2]">Sellers</Link>
-            <a href="#features" className="transition hover:text-[#F2F2F2]">Features</a>
-            <Link href="/about" className="transition hover:text-[#F2F2F2]">About</Link>
-          </nav>
-          <div className="flex items-center gap-2">
-            <Link href="/login"
-              className="hidden rounded-lg px-4 py-2 text-sm font-medium text-[#9A9A9A] transition hover:text-[#F2F2F2] sm:block">
-              Sign in
-            </Link>
-            <Link href="/signup"
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90">
-              Get Started Free
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Hero ────────────────────────────────────────────────────────── */}
+    <>
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden px-6 pb-24 pt-20 text-center lg:px-10 lg:pt-28">
-        {/* Background glow */}
         <div className="pointer-events-none absolute inset-0 flex items-start justify-center">
           <div className="mt-8 h-[400px] w-[700px] rounded-full bg-accent/10 blur-[120px]" />
         </div>
@@ -166,9 +129,9 @@ export default function LandingPage() {
         <div className="relative mx-auto mt-16 max-w-4xl">
           <div className="flex items-end justify-center gap-3">
             {[
-              { label: "Charizard ex", price: "₱12,500", badge: "PSA 10", bClass: "bg-yellow-400/20 text-yellow-400" },
-              { label: "Monkey D. Luffy", price: "₱3,200", badge: "Near Mint", bClass: "bg-bid/20 text-bid", tall: true },
-              { label: "Pikachu VMAX", price: "₱2,800", badge: "Auction", bClass: "bg-accent/20 text-accent" },
+              { label: "Charizard ex",    price: "₱12,500", badge: "PSA 10",    bClass: "bg-yellow-400/20 text-yellow-400" },
+              { label: "Monkey D. Luffy", price: "₱3,200",  badge: "Near Mint", bClass: "bg-bid/20 text-bid", tall: true },
+              { label: "Pikachu VMAX",    price: "₱2,800",  badge: "Auction",   bClass: "bg-accent/20 text-accent" },
             ].map((card) => (
               <div key={card.label}
                 className={`w-36 rounded-2xl border border-white/10 bg-surface p-3 shadow-2xl shadow-black/40 transition hover:-translate-y-1 ${card.tall ? "mb-4" : ""}`}>
@@ -185,7 +148,6 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          {/* Fade bottom */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-primary to-transparent" />
         </div>
       </section>
@@ -335,49 +297,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <footer className="border-t border-white/8 px-6 py-12 lg:px-10">
-        <div className="mx-auto max-w-screen-xl">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Brand */}
-            <div className="lg:col-span-2">
-              <Link href="/" className="font-display text-xl font-extrabold text-accent tracking-tight">
-                TCGMarket<span className="text-[#F2F2F2]">PH</span>
-              </Link>
-              <p className="mt-3 max-w-xs text-sm text-[#9A9A9A]">
-                The Philippines' premier cash-on-meetup marketplace for trading card games.
-              </p>
-              <p className="mt-4 text-xs text-white/30">
-                © {new Date().getFullYear()} TCGMarket PH. All rights reserved.
-              </p>
-            </div>
-
-            {/* Marketplace */}
-            <div>
-              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#9A9A9A]">Marketplace</p>
-              <ul className="space-y-2 text-sm text-[#9A9A9A]">
-                <li><Link href="/marketplace" className="transition hover:text-[#F2F2F2]">Browse Cards</Link></li>
-                <li><Link href="/sellers"     className="transition hover:text-[#F2F2F2]">Find Sellers</Link></li>
-                <li><Link href="/signup"      className="transition hover:text-[#F2F2F2]">Sell a Card</Link></li>
-                <li><Link href="/safety"      className="transition hover:text-[#F2F2F2]">Safety Guide</Link></li>
-              </ul>
-            </div>
-
-            {/* Company */}
-            <div>
-              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#9A9A9A]">Company</p>
-              <ul className="space-y-2 text-sm text-[#9A9A9A]">
-                <li><Link href="/about"  className="transition hover:text-[#F2F2F2]">About</Link></li>
-                <li><Link href="/faq"    className="transition hover:text-[#F2F2F2]">FAQ</Link></li>
-                <li><Link href="/signup" className="transition hover:text-[#F2F2F2]">Sign Up Free</Link></li>
-                <li><Link href="/login"  className="transition hover:text-[#F2F2F2]">Sign In</Link></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </footer>
-
-    </div>
+    </>
   );
 }
