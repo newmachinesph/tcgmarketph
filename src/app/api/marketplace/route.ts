@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
         city:            userTable.city,
         phoneVerified:   userTable.phoneVerified,
         reputationScore: userTable.reputationScore,
+        // name is fetched only for displayName fallback; not exposed in response
       },
     })
     .from(listings)
@@ -104,9 +105,28 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     listings: rows.map((r) => ({
-      ...r.listing,
-      card:       r.card,
-      seller:     r.seller,
+      id:             r.listing.id,
+      price:          r.listing.price,
+      type:           r.listing.type,
+      condition:      r.listing.condition,
+      isGraded:       r.listing.isGraded,
+      gradingCompany: r.listing.gradingCompany,
+      gradeValue:     r.listing.gradeValue,
+      isFoil:         r.listing.isFoil,
+      isFirstEdition: r.listing.isFirstEdition,
+      quantity:       r.listing.quantity,
+      status:         r.listing.status,
+      expiresAt:      r.listing.expiresAt,
+      createdAt:      r.listing.createdAt,
+      card:           r.card,
+      seller: {
+        id:              r.seller.id,
+        displayName:     r.seller.displayName ?? r.seller.name,
+        image:           r.seller.image,
+        city:            r.seller.city,
+        phoneVerified:   r.seller.phoneVerified,
+        reputationScore: r.seller.reputationScore,
+      },
       coverPhoto: coverByListing[r.listing.id] ?? null,
     })),
     page,

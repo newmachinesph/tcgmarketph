@@ -44,8 +44,7 @@ interface MarketListing {
   };
   seller: {
     id:              string;
-    name:            string;
-    displayName:     string | null;
+    displayName:     string;
     image:           string | null;
     city:            string | null;
     phoneVerified:   boolean;
@@ -95,7 +94,7 @@ const GAME_LABEL: Record<string, string> = {
 // ── Listing card ─────────────────────────────────────────────────────────────
 
 function ListingCard({ listing }: { listing: MarketListing }) {
-  const sellerName = listing.seller.displayName ?? listing.seller.name;
+  const sellerName = listing.seller.displayName;
   const conditionLabel = listing.isGraded
     ? `${listing.gradingCompany.toUpperCase()} ${listing.gradeValue}`
     : (CONDITION_LABEL[listing.condition] ?? listing.condition);

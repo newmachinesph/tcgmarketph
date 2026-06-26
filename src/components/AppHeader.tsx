@@ -80,7 +80,7 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
 
           {/* Logo */}
           <Link href="/dashboard" className="shrink-0 text-xl font-extrabold tracking-tight text-accent">
-            TCGMarket
+            TCGMarket<span className="text-[#F2F2F2]">PH</span>
           </Link>
 
           {/* Desktop nav */}

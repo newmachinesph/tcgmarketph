@@ -106,7 +106,6 @@ export default function SellerProfilePage() {
     setLoadingMore(false);
   }, [id]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(1, false); }, [load]);
 
   function openMsgPanel() {
@@ -130,11 +129,12 @@ export default function SellerProfilePage() {
     const convId = convData.conversation.id;
 
     // Send the message
-    await fetch(`/api/conversations/${convId}/messages`, {
+    const msgRes = await fetch(`/api/conversations/${convId}/messages`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ body: msgText.trim() }),
     });
+    if (!msgRes.ok) { setMsgSending(false); return; }
 
     router.push(`/messages/${convId}`);
   }

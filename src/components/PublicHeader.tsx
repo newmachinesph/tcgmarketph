@@ -10,6 +10,8 @@ const NAV = [
   { label: "Marketplace", href: "/marketplace" },
   { label: "Sellers",     href: "/sellers"     },
   { label: "About",       href: "/about"       },
+  { label: "Safety",      href: "/safety"      },
+  { label: "FAQ",         href: "/faq"         },
 ];
 
 export async function PublicHeader() {

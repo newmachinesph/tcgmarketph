@@ -44,7 +44,6 @@ export default async function ListingDetailPage({ params }: Params) {
   const isOwner = session?.user.id === listing.sellerId;
   const isActive = listing.status === "active";
 
-  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const daysLeft = Math.max(0, Math.ceil((new Date(listing.expiresAt).getTime() - now) / 86_400_000));
   const daysAgo  = Math.floor((now - new Date(listing.createdAt).getTime()) / 86_400_000);
@@ -195,12 +194,10 @@ export default async function ListingDetailPage({ params }: Params) {
                 sellerId={listing.sellerId}
                 listingId={listing.id}
               />
-              {session && (
-                <PriceAlertButton
-                  listingId={listing.id}
-                  currentPrice={listing.price}
-                />
-              )}
+              <PriceAlertButton
+                listingId={listing.id}
+                currentPrice={listing.price}
+              />
             </div>
           ) : (
             <p className="text-center text-sm text-[#9A9A9A]">This listing is no longer available.</p>

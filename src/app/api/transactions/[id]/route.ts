@@ -142,8 +142,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .update(transactions)
     .set({
       status:        nextStatus,
-      cancelReason:  cancelReason  ?? null,
-      adminNote:     action === "dispute" ? `Filed by ${isBuyer ? "buyer" : "seller"}: ${disputeReason}` : undefined,
+      cancelReason:  action === "cancel" ? (cancelReason ?? null) : undefined,
+      adminNote:     action === "dispute"
+        ? `Filed by ${isBuyer ? "buyer" : "seller"}: ${disputeReason!.replace(/<[^>]*>/g, "").trim()}`
+        : undefined,
     })
     .where(eq(transactions.id, id));
 

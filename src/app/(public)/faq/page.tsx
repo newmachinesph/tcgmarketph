@@ -83,9 +83,13 @@ const SECTIONS = [...new Set(FAQS.map((f) => f.section))];
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
       onClick={() => setOpen((v) => !v)}
-      className="w-full rounded-2xl border border-white/10 bg-surface p-5 text-left transition hover:border-white/20"
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); } }}
+      className="w-full cursor-pointer rounded-2xl border border-white/10 bg-surface p-5 text-left transition hover:border-white/20"
     >
       <div className="flex items-start justify-between gap-4">
         <p className="text-sm font-semibold text-[#F2F2F2]">{q}</p>
@@ -94,7 +98,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
       {open && (
         <p className="mt-3 text-sm leading-relaxed text-[#9A9A9A]">{a}</p>
       )}
-    </button>
+    </div>
   );
 }
 
