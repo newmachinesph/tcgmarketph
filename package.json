@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "db:extensions": "node scripts/enable-pg-extensions.mjs",
-    "db:seed": "npx tsx scripts/seed-cards.ts"
+    "db:seed": "npx tsx scripts/seed-cards.ts",
+    "db:sim": "node --env-file=.env.local -e \"require('tsx/cjs'); require('./scripts/seed-sim.ts')\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
