@@ -5,14 +5,8 @@ import { UserMenu } from "./UserMenu";
 import { NotificationsBell } from "./NotificationsBell";
 import { MessagesNavItem } from "./MessagesUnread";
 import { PublicMobileMenu } from "./PublicMobileMenu";
+import { PublicNav } from "./PublicNav";
 
-const NAV = [
-  { label: "Marketplace", href: "/marketplace" },
-  { label: "Sellers",     href: "/sellers"     },
-  { label: "About",       href: "/about"       },
-  { label: "Safety",      href: "/safety"      },
-  { label: "FAQ",         href: "/faq"         },
-];
 
 export async function PublicHeader() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -27,18 +21,7 @@ export async function PublicHeader() {
           TCGMarket<span className="text-[#F2F2F2]">PH</span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-0.5 lg:flex">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-[#9A9A9A] transition hover:bg-surface hover:text-[#F2F2F2]"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <PublicNav />
 
         {/* Right */}
         <div className="ml-auto flex items-center gap-2">

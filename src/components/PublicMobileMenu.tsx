@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon, ArrowRightStartOnRectangleIcon } from "@heroicons/react/24/outline";
+import { authClient } from "@/lib/auth-client";
 
 const NAV = [
   { label: "Marketplace", href: "/marketplace" },
@@ -14,6 +16,22 @@ const NAV = [
 
 export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [open, setOpen] = useState(false);
+  const pathname        = usePathname();
+
+  function navClass(href: string) {
+    const active = pathname === href || pathname.startsWith(href + "/");
+    return `rounded-lg px-3 py-2.5 text-sm font-medium transition block ${
+      active
+        ? "bg-surface text-[#F2F2F2]"
+        : "text-[#9A9A9A] hover:bg-surface hover:text-[#F2F2F2]"
+    }`;
+  }
+
+  async function handleSignOut() {
+    setOpen(false);
+    await authClient.signOut();
+    window.location.href = "/login";
+  }
 
   return (
     <>
@@ -33,20 +51,30 @@ export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-sm font-medium text-[#9A9A9A] transition hover:bg-surface hover:text-[#F2F2F2]"
+                className={navClass(item.href)}
               >
                 {item.label}
               </Link>
             ))}
-            <div className="mt-2 border-t border-white/10 pt-2">
+
+            <div className="mt-2 flex flex-col gap-1 border-t border-white/10 pt-2">
               {isLoggedIn ? (
-                <Link
-                  href="/dashboard"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 text-sm font-medium text-[#9A9A9A] transition hover:bg-surface hover:text-[#F2F2F2]"
-                >
-                  Dashboard
-                </Link>
+                <>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setOpen(false)}
+                    className={navClass("/dashboard")}
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-[#9A9A9A] transition hover:bg-surface hover:text-[#F2F2F2]"
+                  >
+                    <ArrowRightStartOnRectangleIcon className="size-4" />
+                    Sign out
+                  </button>
+                </>
               ) : (
                 <>
                   <Link href="/login" onClick={() => setOpen(false)}
@@ -54,7 +82,7 @@ export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
                     Sign in
                   </Link>
                   <Link href="/signup" onClick={() => setOpen(false)}
-                    className="mt-1 block rounded-lg bg-accent px-3 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-accent/90">
+                    className="block rounded-lg bg-accent px-3 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-accent/90">
                     Get started free
                   </Link>
                 </>

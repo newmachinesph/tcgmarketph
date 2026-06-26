@@ -2,13 +2,14 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Bars3Icon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon, ChevronDownIcon, PlusIcon, ArrowRightStartOnRectangleIcon } from "@heroicons/react/24/outline";
 import { useState, useRef, useEffect } from "react";
 import { UserMenu } from "./UserMenu";
 import { useCurrencyStore, type Currency } from "@/store/currency";
 import { CurrencySync } from "./CurrencySync";
 import { MessagesNavItem } from "./MessagesUnread";
 import { NotificationsBell } from "./NotificationsBell";
+import { authClient } from "@/lib/auth-client";
 
 interface AppHeaderProps {
   user: {
@@ -60,6 +61,12 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  async function handleSignOut() {
+    setOpen(false);
+    await authClient.signOut();
+    window.location.href = "/login";
+  }
 
   function handleCurrencyToggle() {
     const next: Currency = currency === "PHP" ? "USD" : "PHP";
@@ -134,6 +141,15 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
             </div>
 
             <MessagesNavItem />
+
+            {/* List a Card CTA */}
+            <Link
+              href="/listings/new"
+              className="ml-1 flex items-center gap-1.5 rounded-lg bg-bid/15 px-3.5 py-1.5 text-sm font-semibold text-bid ring-1 ring-bid/30 transition hover:bg-bid/25"
+            >
+              <PlusIcon className="size-3.5" />
+              List a Card
+            </Link>
           </nav>
 
           {/* Right */}
@@ -208,7 +224,26 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
               </div>
 
               <MessagesNavItem mobile onClick={() => setOpen(false)} />
+              <Link
+                href="/listings/new"
+                onClick={() => setOpen(false)}
+                className="mt-1 flex items-center gap-2 rounded-lg bg-bid/15 px-3 py-2.5 text-sm font-semibold text-bid ring-1 ring-bid/30"
+              >
+                <PlusIcon className="size-4" />
+                List a Card
+              </Link>
             </nav>
+
+            {/* Mobile sign-out */}
+            <div className="mt-2 border-t border-white/5 pt-2">
+              <button
+                onClick={handleSignOut}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-[#9A9A9A] transition hover:bg-surface hover:text-[#F2F2F2]"
+              >
+                <ArrowRightStartOnRectangleIcon className="size-4" />
+                Sign out
+              </button>
+            </div>
           </div>
         )}
       </header>
