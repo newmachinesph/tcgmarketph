@@ -113,9 +113,10 @@ export default function LandingPage() {
             TCGMarket<span className="text-[#F2F2F2]">PH</span>
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-medium text-[#9A9A9A] md:flex">
+            <Link href="/marketplace" className="transition hover:text-[#F2F2F2]">Marketplace</Link>
+            <Link href="/sellers" className="transition hover:text-[#F2F2F2]">Sellers</Link>
             <a href="#features" className="transition hover:text-[#F2F2F2]">Features</a>
-            <a href="#how-it-works" className="transition hover:text-[#F2F2F2]">How it works</a>
-            <a href="#games" className="transition hover:text-[#F2F2F2]">Games</a>
+            <Link href="/about" className="transition hover:text-[#F2F2F2]">About</Link>
           </nav>
           <div className="flex items-center gap-2">
             <Link href="/login"
@@ -154,7 +155,7 @@ export default function LandingPage() {
               className="rounded-xl bg-accent px-6 py-3 text-base font-bold text-white shadow-lg shadow-accent/25 transition hover:bg-accent/90">
               Start Selling Free →
             </Link>
-            <Link href="/login"
+            <Link href="/marketplace"
               className="rounded-xl border border-white/10 bg-surface px-6 py-3 text-base font-semibold text-[#F2F2F2] transition hover:border-white/20">
               Browse Marketplace
             </Link>
@@ -325,9 +326,9 @@ export default function LandingPage() {
                   className="rounded-xl bg-white px-6 py-3 text-base font-bold text-accent transition hover:bg-white/90">
                   Create Free Account
                 </Link>
-                <Link href="/login"
+                <Link href="/marketplace"
                   className="rounded-xl border border-white/30 px-6 py-3 text-base font-semibold text-white transition hover:border-white/60">
-                  Sign In
+                  Browse first
                 </Link>
               </div>
             </div>
@@ -356,20 +357,21 @@ export default function LandingPage() {
             <div>
               <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#9A9A9A]">Marketplace</p>
               <ul className="space-y-2 text-sm text-[#9A9A9A]">
-                <li><Link href="/login" className="transition hover:text-[#F2F2F2]">Browse Cards</Link></li>
-                <li><Link href="/login" className="transition hover:text-[#F2F2F2]">Sell a Card</Link></li>
-                <li><Link href="/login" className="transition hover:text-[#F2F2F2]">Live Auctions</Link></li>
-                <li><Link href="/login" className="transition hover:text-[#F2F2F2]">My Wishlist</Link></li>
+                <li><Link href="/marketplace" className="transition hover:text-[#F2F2F2]">Browse Cards</Link></li>
+                <li><Link href="/sellers"     className="transition hover:text-[#F2F2F2]">Find Sellers</Link></li>
+                <li><Link href="/signup"      className="transition hover:text-[#F2F2F2]">Sell a Card</Link></li>
+                <li><Link href="/safety"      className="transition hover:text-[#F2F2F2]">Safety Guide</Link></li>
               </ul>
             </div>
 
-            {/* Account */}
+            {/* Company */}
             <div>
-              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#9A9A9A]">Account</p>
+              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#9A9A9A]">Company</p>
               <ul className="space-y-2 text-sm text-[#9A9A9A]">
+                <li><Link href="/about"  className="transition hover:text-[#F2F2F2]">About</Link></li>
+                <li><Link href="/faq"    className="transition hover:text-[#F2F2F2]">FAQ</Link></li>
                 <li><Link href="/signup" className="transition hover:text-[#F2F2F2]">Sign Up Free</Link></li>
                 <li><Link href="/login"  className="transition hover:text-[#F2F2F2]">Sign In</Link></li>
-                <li><Link href="/login"  className="transition hover:text-[#F2F2F2]">Dashboard</Link></li>
               </ul>
             </div>
           </div>

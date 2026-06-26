@@ -147,7 +147,20 @@ export default async function ListingDetailPage({ params }: Params) {
           )}
 
           {/* Action buttons */}
-          {isOwner ? (
+          {!session ? (
+            <div className="space-y-2">
+              <Link
+                href={`/login?redirect=/listings/${listing.id}`}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+              >
+                Sign in to buy or make an offer
+              </Link>
+              <p className="text-center text-xs text-[#9A9A9A]">
+                Free account — no listing fees, no commission.{" "}
+                <Link href="/signup" className="text-accent hover:underline">Create one →</Link>
+              </p>
+            </div>
+          ) : isOwner ? (
             <div className="flex gap-2">
               <Link href={`/listings/${listing.id}/edit`}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-sm font-medium text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
