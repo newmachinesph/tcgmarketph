@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   HomeIcon,
   ShoppingBagIcon,
-  PlusCircleIcon,
+  PlusIcon,
   ChatBubbleLeftRightIcon,
   UserCircleIcon,
   MagnifyingGlassIcon,
@@ -20,14 +20,14 @@ import {
   UserGroupIcon as SellersSolid,
 } from "@heroicons/react/24/solid";
 
-// ── Nav definitions ────────────────────────────────────────────────────────────
+// ── Nav configs ────────────────────────────────────────────────────────────────
 
 const APP_NAV = [
-  { href: "/dashboard",    label: "Home",     Icon: HomeIcon,               ActiveIcon: HomeSolid  },
-  { href: "/marketplace",  label: "Market",   Icon: ShoppingBagIcon,        ActiveIcon: ShopSolid  },
-  { href: "/listings/new", label: "List",     Icon: PlusCircleIcon,         ActiveIcon: PlusCircleIcon, cta: true },
+  { href: "/dashboard",    label: "Home",     Icon: HomeIcon,                ActiveIcon: HomeSolid  },
+  { href: "/marketplace",  label: "Market",   Icon: ShoppingBagIcon,         ActiveIcon: ShopSolid  },
+  { href: "/listings/new", label: "List",     Icon: PlusIcon,                ActiveIcon: PlusIcon, cta: true },
   { href: "/messages",     label: "Messages", Icon: ChatBubbleLeftRightIcon, ActiveIcon: ChatSolid  },
-  { href: "/profile",      label: "Profile",  Icon: UserCircleIcon,         ActiveIcon: UserSolid  },
+  { href: "/profile",      label: "Profile",  Icon: UserCircleIcon,          ActiveIcon: UserSolid  },
 ];
 
 const PUBLIC_NAV = [
@@ -56,24 +56,23 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
   return (
     <nav
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-      className="fixed inset-x-0 bottom-0 z-[9999] border-t border-white/10 bg-[#111111] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-[9999] border-t border-white/[0.08] bg-[#0A0A0A] lg:hidden"
     >
-      <div className="flex h-16 items-stretch">
+      <div className="flex h-[58px] items-center">
         {nav.map(({ href, label, Icon, ActiveIcon, cta }) => {
           const active = isActive(pathname, href);
-          const I = active ? ActiveIcon : Icon;
+          const I      = active ? ActiveIcon : Icon;
 
           if (cta) {
             return (
               <Link
                 key={href}
                 href={href}
-                className="flex flex-1 flex-col items-center justify-center gap-0.5"
+                className="flex flex-1 flex-col items-center justify-center gap-1"
               >
-                <span className="flex size-10 items-center justify-center rounded-full bg-accent shadow-lg shadow-accent/30">
-                  <I className="size-5 text-white" />
+                <span className="flex size-11 items-center justify-center rounded-full bg-accent shadow-[0_0_16px_rgba(226,75,74,0.45)]">
+                  <I className="size-[22px] text-white" />
                 </span>
-                <span className="text-[9px] font-semibold text-accent">{label}</span>
               </Link>
             );
           }
@@ -82,10 +81,18 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
             <Link
               key={href}
               href={href}
-              className="flex flex-1 flex-col items-center justify-center gap-0.5"
+              className="group flex flex-1 flex-col items-center justify-center gap-1 py-1"
             >
-              <I className={`size-6 ${active ? "text-accent" : "text-[#9A9A9A]"}`} />
-              <span className={`text-[9px] font-medium ${active ? "text-accent" : "text-[#9A9A9A]"}`}>
+              <div className={`flex size-10 items-center justify-center rounded-xl transition-colors duration-150 ${
+                active ? "bg-white/[0.08]" : "group-active:bg-white/5"
+              }`}>
+                <I className={`size-[22px] transition-colors duration-150 ${
+                  active ? "text-[#F2F2F2]" : "text-[#666666]"
+                }`} />
+              </div>
+              <span className={`text-[10px] font-medium leading-none transition-colors duration-150 ${
+                active ? "text-[#F2F2F2]" : "text-[#666666]"
+              }`}>
                 {label}
               </span>
             </Link>
