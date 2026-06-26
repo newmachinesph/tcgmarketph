@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   ShieldCheckIcon,
   BoltIcon,
@@ -12,12 +13,11 @@ import {
   ArrowRightIcon,
 } from "@heroicons/react/24/outline";
 
-// ── Hero card data ─────────────────────────────────────────────────────────────
+// Pokemon TCG card dimensions (portrait): 734 × 1024
 
 const HERO_CARDS = [
   {
     name:       "Umbreon VMAX",
-    subtitle:   "Alt Art · Evolving Skies",
     price:      "₱8,500",
     priceColor: "text-purple-400",
     badge:      "BGS 9.5",
@@ -31,7 +31,6 @@ const HERO_CARDS = [
   },
   {
     name:       "Charizard ex",
-    subtitle:   "Secret Rare · Obsidian Flames",
     price:      "₱12,500",
     priceColor: "text-accent",
     badge:      "PSA 10",
@@ -45,7 +44,6 @@ const HERO_CARDS = [
   },
   {
     name:       "Pikachu VMAX",
-    subtitle:   "Rainbow Rare · Chilling Reign",
     price:      "₱3,800",
     priceColor: "text-yellow-400",
     badge:      "Near Mint",
@@ -57,134 +55,71 @@ const HERO_CARDS = [
     ring:       "ring-1 ring-white/10",
     z:          "z-10",
   },
+] as const;
+
+const GAME_CARDS = [
+  { img: "https://images.pokemontcg.io/sv3pt5/215_hires.png",     name: "Charizard ex",  price: "₱12,500", featured: false },
+  { img: "https://images.pokemontcg.io/swsh7/215_hires.png",      name: "Umbreon VMAX",  price: "₱8,500",  featured: true  },
+  { img: "https://images.pokemontcg.io/swsh7/74_hires.png",       name: "Rayquaza VMAX", price: "₱6,200",  featured: false },
 ];
 
-// ── Game showcase ──────────────────────────────────────────────────────────────
-
-const GAMES = [
-  {
-    name:    "Pokémon TCG",
-    tagline: "Base Set to Scarlet & Violet",
-    color:   "from-yellow-500/20 to-yellow-500/5 border-yellow-400/30",
-    accent:  "text-yellow-400",
-    cards: [
-      { img: "https://images.pokemontcg.io/sv3pt5/215_hires.png",  name: "Charizard ex",  price: "₱12,500" },
-      { img: "https://images.pokemontcg.io/swsh7/215_hires.png",   name: "Umbreon VMAX",  price: "₱8,500"  },
-      { img: "https://images.pokemontcg.io/swsh7/74_hires.png",    name: "Rayquaza VMAX", price: "₱6,200"  },
-    ],
-  },
-  {
-    name:    "One Piece TCG",
-    tagline: "All OP sets — EN & JP",
-    color:   "from-red-500/20 to-red-500/5 border-red-400/30",
-    accent:  "text-red-400",
-    cards: [
-      { img: "https://images.pokemontcg.io/sv2/193_hires.png",     name: "Gardevoir ex",  price: "₱4,800"  },
-      { img: "https://images.pokemontcg.io/swsh12pt5/GG60_hires.png", name: "Mewtwo V",   price: "₱2,200"  },
-      { img: "https://images.pokemontcg.io/sv1/197_hires.png",     name: "Miraidon ex",   price: "₱1,800"  },
-    ],
-  },
+const OP_CARDS = [
+  { img: "https://images.pokemontcg.io/sv2/193_hires.png",        name: "Gardevoir ex",  price: "₱4,800",  featured: false },
+  { img: "https://images.pokemontcg.io/swsh12pt5/GG60_hires.png", name: "Mewtwo V",      price: "₱2,200",  featured: true  },
+  { img: "https://images.pokemontcg.io/sv1/197_hires.png",        name: "Miraidon ex",   price: "₱1,800",  featured: false },
 ];
-
-// ── Feature grid ───────────────────────────────────────────────────────────────
 
 const FEATURES = [
-  {
-    icon:  ShieldCheckIcon,
-    title: "Verified Sellers",
-    body:  "Every seller verifies their Philippine mobile number before listing. No anonymous accounts.",
-    color: "text-bid",
-    bg:    "bg-bid/10",
-  },
-  {
-    icon:  BoltIcon,
-    title: "Live Auctions",
-    body:  "Bid in real-time with anti-snipe protection. Auctions auto-extend when bids arrive in the final 30 seconds.",
-    color: "text-accent",
-    bg:    "bg-accent/10",
-  },
-  {
-    icon:  TagIcon,
-    title: "Make Offers",
-    body:  "Don't like the price? Send a counter-offer. Sellers can accept, decline, or counter back.",
-    color: "text-yellow-400",
-    bg:    "bg-yellow-400/10",
-  },
-  {
-    icon:  BellAlertIcon,
-    title: "Wishlist Alerts",
-    body:  "Add cards to your wishlist and get notified the moment a seller lists one — before anyone else.",
-    color: "text-purple-400",
-    bg:    "bg-purple-400/10",
-  },
-  {
-    icon:  StarIcon,
-    title: "Reputation System",
-    body:  "Buyers and sellers rate each other after every deal. No-shows are tracked and flagged automatically.",
-    color: "text-yellow-400",
-    bg:    "bg-yellow-400/10",
-  },
-  {
-    icon:  ChatBubbleLeftRightIcon,
-    title: "In-App Messaging",
-    body:  "Negotiate, confirm meetup details, and coordinate entirely inside the platform — no sharing personal numbers.",
-    color: "text-sky-400",
-    bg:    "bg-sky-400/10",
-  },
+  { icon: ShieldCheckIcon,         title: "Verified Sellers",  body: "Every seller verifies their Philippine mobile number before listing. No anonymous accounts.", color: "text-bid",       bg: "bg-bid/10"       },
+  { icon: BoltIcon,                title: "Live Auctions",     body: "Bid in real-time with anti-snipe protection. Auctions auto-extend when bids arrive in the final 30 seconds.", color: "text-accent",    bg: "bg-accent/10"    },
+  { icon: TagIcon,                 title: "Make Offers",       body: "Don't like the price? Send a counter-offer. Sellers can accept, decline, or counter back.", color: "text-yellow-400", bg: "bg-yellow-400/10" },
+  { icon: BellAlertIcon,           title: "Wishlist Alerts",   body: "Add cards to your wishlist and get notified the moment a seller lists one — before anyone else.", color: "text-purple-400", bg: "bg-purple-400/10" },
+  { icon: StarIcon,                title: "Reputation System", body: "Buyers and sellers rate each other after every deal. No-shows are tracked and flagged automatically.", color: "text-yellow-400", bg: "bg-yellow-400/10" },
+  { icon: ChatBubbleLeftRightIcon, title: "In-App Messaging",  body: "Negotiate, confirm meetup details, and coordinate entirely inside the platform — no sharing personal numbers.", color: "text-sky-400",   bg: "bg-sky-400/10"   },
 ];
-
-// ── How it works ───────────────────────────────────────────────────────────────
 
 const STEPS = [
-  {
-    step:  "01",
-    icon:  "🔍",
-    title: "Browse & Find",
-    body:  "Search thousands of Pokémon and One Piece cards. Filter by condition, price, game, and more.",
-  },
-  {
-    step:  "02",
-    icon:  "💬",
-    title: "Connect with the Seller",
-    body:  "Message the seller directly, make an offer, or place a bid — all without leaving the platform.",
-  },
-  {
-    step:  "03",
-    icon:  "🤝",
-    title: "Meet & Trade",
-    body:  "Agree on a public meetup spot, exchange card for cash, then rate each other. Simple and safe.",
-  },
+  { step: "01", icon: "🔍", title: "Browse & Find",           body: "Search thousands of Pokémon and One Piece cards. Filter by condition, price, game, and more." },
+  { step: "02", icon: "💬", title: "Connect with the Seller", body: "Message the seller directly, make an offer, or place a bid — all without leaving the platform." },
+  { step: "03", icon: "🤝", title: "Meet & Trade",            body: "Agree on a public meetup spot, exchange card for cash, then rate each other. Simple and safe." },
 ];
 
-// ── Trust pillars ──────────────────────────────────────────────────────────────
-
 const TRUST = [
-  { icon: MapPinIcon,     title: "Public Meetup Only",   body: "All trades happen face-to-face in public places. No shipping, no scams." },
-  { icon: UserGroupIcon,  title: "Community Moderated",  body: "Reports reviewed by admins. Bad actors are banned from the platform." },
+  { icon: MapPinIcon,      title: "Public Meetup Only",  body: "All trades happen face-to-face in public places. No shipping, no scams." },
+  { icon: UserGroupIcon,   title: "Community Moderated", body: "Reports reviewed by admins. Bad actors are banned from the platform." },
   { icon: CheckCircleIcon, title: "Transparent Ratings", body: "Every completed deal adds to your public reputation score visible to all buyers." },
 ];
 
-// ── Page ───────────────────────────────────────────────────────────────────────
+function GameCardTile({ card }: { card: { img: string; name: string; price: string; featured: boolean } }) {
+  return (
+    <div className={`relative overflow-hidden rounded-xl ring-1 ring-white/10 shadow-xl shadow-black/50 transition hover:-translate-y-1 ${card.featured ? "w-28 -translate-y-3" : "w-24"}`}>
+      <Image src={card.img} alt={card.name} width={200} height={280} className="w-full" />
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-1.5">
+        <p className="truncate text-[8px] font-semibold text-white">{card.name}</p>
+        <p className="text-[9px] font-bold text-yellow-400">{card.price}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function LandingPage() {
   return (
     <>
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
+      {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden px-6 pb-24 pt-14 lg:px-10 lg:pt-20">
-        {/* Background glow */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute left-1/2 top-0 h-[500px] w-[900px] -translate-x-1/2 rounded-full bg-accent/8 blur-[140px]" />
         </div>
 
         <div className="relative mx-auto grid max-w-screen-xl items-center gap-14 lg:grid-cols-2 lg:gap-10">
-          {/* Left — text */}
+          {/* Text */}
           <div className="text-center lg:text-left">
             <span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-1.5 text-xs font-semibold text-accent">
               🇵🇭 Made for Filipino card players
             </span>
 
             <h1 className="font-display mt-5 text-4xl font-bold tracking-tight text-[#F2F2F2] sm:text-5xl lg:text-[3.5rem] lg:leading-tight">
-              Buy & Sell TCG Cards{" "}
+              Buy &amp; Sell TCG Cards{" "}
               <span className="text-accent">in the Philippines</span>
             </h1>
 
@@ -194,22 +129,15 @@ export default function LandingPage() {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-              <Link
-                href="/signup"
-                className="rounded-xl bg-accent px-7 py-3.5 text-base font-bold text-white shadow-lg shadow-accent/20 transition hover:bg-accent/90 active:scale-95"
-              >
+              <Link href="/signup" className="rounded-xl bg-accent px-7 py-3.5 text-base font-bold text-white shadow-lg shadow-accent/20 transition hover:bg-accent/90 active:scale-95">
                 Start Selling Free →
               </Link>
-              <Link
-                href="/marketplace"
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-surface px-7 py-3.5 text-base font-semibold text-[#F2F2F2] transition hover:border-white/20"
-              >
+              <Link href="/marketplace" className="flex items-center gap-2 rounded-xl border border-white/10 bg-surface px-7 py-3.5 text-base font-semibold text-[#F2F2F2] transition hover:border-white/20">
                 Browse Marketplace
                 <ArrowRightIcon className="size-4 opacity-60" />
               </Link>
             </div>
 
-            {/* Mini trust row */}
             <div className="mt-8 flex flex-wrap items-center justify-center gap-5 lg:justify-start">
               {["₱0 listing fees", "Verified sellers only", "Cash-on-meetup"].map((t) => (
                 <span key={t} className="flex items-center gap-1.5 text-sm text-[#9A9A9A]">
@@ -220,27 +148,17 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Right — floating card showcase */}
+          {/* Card fan */}
           <div className="relative mx-auto flex h-[22rem] w-full max-w-sm items-center justify-center lg:max-w-none">
-            {/* Glow behind cards */}
             <div className="absolute h-60 w-60 rounded-full bg-accent/15 blur-3xl" />
 
-            {/* Cards fan */}
             {HERO_CARDS.map((card) => (
               <div
                 key={card.name}
                 className={`absolute ${card.translate} ${card.rotation} ${card.z} transition-transform duration-500 hover:-translate-y-3 hover:scale-105`}
               >
                 <div className={`relative ${card.size} overflow-hidden rounded-2xl shadow-2xl shadow-black/70 ${card.ring}`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={card.image}
-                    alt={card.name}
-                    className="w-full"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
+                  <Image src={card.image} alt={card.name} width={280} height={390} className="w-full" />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-2.5">
                     <p className="truncate text-[10px] font-semibold text-white">{card.name}</p>
                     <p className={`mt-0.5 text-sm font-bold ${card.priceColor}`}>{card.price}</p>
@@ -252,14 +170,12 @@ export default function LandingPage() {
               </div>
             ))}
 
-            {/* Floating "Live Auction" badge */}
             <div className="absolute right-0 top-6 z-30 rounded-2xl border border-white/10 bg-surface px-3 py-2 shadow-xl shadow-black/40">
               <p className="text-[9px] font-bold uppercase tracking-widest text-[#9A9A9A]">🔴 Live Auction</p>
               <p className="mt-0.5 text-sm font-bold text-[#F2F2F2]">₱4,200</p>
               <p className="text-[10px] text-[#9A9A9A]">current bid</p>
             </div>
 
-            {/* Floating "Just sold" badge */}
             <div className="absolute bottom-10 left-0 z-30 flex items-center gap-2 rounded-2xl border border-bid/20 bg-bid/10 px-3 py-2 shadow-xl shadow-black/40">
               <CheckCircleIcon className="size-4 shrink-0 text-bid" />
               <div>
@@ -271,7 +187,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Stats strip ─────────────────────────────────────────────────────── */}
+      {/* ── Stats strip ──────────────────────────────────────────────── */}
       <section className="border-y border-white/8 bg-surface/40">
         <div className="mx-auto grid max-w-screen-xl grid-cols-2 divide-x divide-white/8 md:grid-cols-4">
           {[
@@ -288,67 +204,40 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Games ───────────────────────────────────────────────────────────── */}
+      {/* ── Games ────────────────────────────────────────────────────── */}
       <section className="px-6 py-24 lg:px-10">
         <div className="mx-auto max-w-screen-xl">
-          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#9A9A9A]">
-            Supported games
-          </p>
-          <h2 className="font-display text-center text-3xl font-bold text-[#F2F2F2]">
-            Your favourite TCGs, one marketplace
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-[#9A9A9A]">
-            From budget pulls to PSA 10 grails — every card, every condition.
-          </p>
+          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#9A9A9A]">Supported games</p>
+          <h2 className="font-display text-center text-3xl font-bold text-[#F2F2F2]">Your favourite TCGs, one marketplace</h2>
+          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-[#9A9A9A]">From budget pulls to PSA 10 grails — every card, every condition.</p>
 
           <div className="mt-12 grid gap-6 lg:grid-cols-2">
-            {GAMES.map((game) => (
-              <div
-                key={game.name}
-                className={`relative overflow-hidden rounded-3xl border bg-gradient-to-br p-7 ${game.color}`}
-              >
-                <div className="mb-5">
-                  <h3 className={`font-display text-xl font-bold ${game.accent}`}>{game.name}</h3>
-                  <p className="mt-1 text-sm text-[#9A9A9A]">{game.tagline}</p>
-                </div>
-
-                {/* Card row */}
-                <div className="flex items-end gap-3">
-                  {game.cards.map((c, i) => (
-                    <div
-                      key={c.name}
-                      className={`relative overflow-hidden rounded-xl ring-1 ring-white/10 shadow-xl shadow-black/50 transition hover:-translate-y-1 ${i === 1 ? "w-28 -translate-y-3" : "w-24"}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={c.img}
-                        alt={c.name}
-                        className="w-full"
-                        onError={(e) => {
-                          const el = e.target as HTMLImageElement;
-                          el.parentElement!.style.background = "#2A2A2A";
-                          el.style.display = "none";
-                        }}
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-1.5">
-                        <p className="truncate text-[8px] font-semibold text-white">{c.name}</p>
-                        <p className={`text-[9px] font-bold ${game.accent}`}>{c.price}</p>
-                      </div>
-                    </div>
-                  ))}
-
-                  <Link
-                    href="/marketplace"
-                    className="ml-auto flex flex-col items-center justify-center self-center rounded-xl border border-white/10 bg-surface/60 px-4 py-3 text-center text-xs font-semibold text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
-                  >
-                    <span className="text-xl">→</span>
-                    Browse all
-                  </Link>
-                </div>
+            <div className="relative overflow-hidden rounded-3xl border border-yellow-400/30 bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 p-7">
+              <div className="mb-5">
+                <h3 className="font-display text-xl font-bold text-yellow-400">Pokémon TCG</h3>
+                <p className="mt-1 text-sm text-[#9A9A9A]">Base Set to Scarlet &amp; Violet</p>
               </div>
-            ))}
+              <div className="flex items-end gap-3">
+                {GAME_CARDS.map((c) => <GameCardTile key={c.name} card={c} />)}
+                <Link href="/marketplace" className="ml-auto flex flex-col items-center justify-center self-center rounded-xl border border-white/10 bg-surface/60 px-4 py-3 text-center text-xs font-semibold text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
+                  <span className="text-xl">→</span>Browse all
+                </Link>
+              </div>
+            </div>
 
-            {/* Coming soon */}
+            <div className="relative overflow-hidden rounded-3xl border border-red-400/30 bg-gradient-to-br from-red-500/20 to-red-500/5 p-7">
+              <div className="mb-5">
+                <h3 className="font-display text-xl font-bold text-red-400">One Piece TCG</h3>
+                <p className="mt-1 text-sm text-[#9A9A9A]">All OP sets — EN &amp; JP</p>
+              </div>
+              <div className="flex items-end gap-3">
+                {OP_CARDS.map((c) => <GameCardTile key={c.name} card={c} />)}
+                <Link href="/marketplace" className="ml-auto flex flex-col items-center justify-center self-center rounded-xl border border-white/10 bg-surface/60 px-4 py-3 text-center text-xs font-semibold text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
+                  <span className="text-xl">→</span>Browse all
+                </Link>
+              </div>
+            </div>
+
             <div className="rounded-3xl border border-white/8 bg-surface/40 p-7 opacity-50 lg:col-span-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -362,26 +251,18 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How it works ────────────────────────────────────────────────────── */}
+      {/* ── How it works ─────────────────────────────────────────────── */}
       <section className="bg-surface/30 px-6 py-24 lg:px-10">
         <div className="mx-auto max-w-screen-xl">
-          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#9A9A9A]">
-            Simple by design
-          </p>
-          <h2 className="font-display text-center text-3xl font-bold text-[#F2F2F2]">
-            How it works
-          </h2>
+          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#9A9A9A]">Simple by design</p>
+          <h2 className="font-display text-center text-3xl font-bold text-[#F2F2F2]">How it works</h2>
 
           <div className="mt-12 grid gap-4 md:grid-cols-3">
             {STEPS.map(({ step, icon, title, body }) => (
               <div key={step} className="relative rounded-2xl border border-white/8 bg-surface p-8">
                 <div className="mb-4 flex items-center gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-accent/10 text-2xl">
-                    {icon}
-                  </span>
-                  <span className="font-display text-4xl font-extrabold text-white/6 select-none leading-none">
-                    {step}
-                  </span>
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-accent/10 text-2xl">{icon}</span>
+                  <span className="font-display select-none text-4xl font-extrabold leading-none text-white/6">{step}</span>
                 </div>
                 <h3 className="font-display text-lg font-bold text-[#F2F2F2]">{title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-[#9A9A9A]">{body}</p>
@@ -391,15 +272,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Features ────────────────────────────────────────────────────────── */}
+      {/* ── Features ─────────────────────────────────────────────────── */}
       <section className="px-6 py-24 lg:px-10">
         <div className="mx-auto max-w-screen-xl">
-          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#9A9A9A]">
-            Everything you need
-          </p>
-          <h2 className="font-display text-center text-3xl font-bold text-[#F2F2F2]">
-            Built for serious collectors
-          </h2>
+          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#9A9A9A]">Everything you need</p>
+          <h2 className="font-display text-center text-3xl font-bold text-[#F2F2F2]">Built for serious collectors</h2>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map(({ icon: Icon, title, body, color, bg }) => (
@@ -415,7 +292,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Trust ───────────────────────────────────────────────────────────── */}
+      {/* ── Trust ────────────────────────────────────────────────────── */}
       <section className="px-6 py-24 lg:px-10">
         <div className="mx-auto max-w-screen-xl">
           <div className="overflow-hidden rounded-3xl border border-white/8 bg-surface">
@@ -424,12 +301,8 @@ export default function LandingPage() {
                 <ShieldCheckIcon className="size-3.5" />
                 Safety first
               </span>
-              <h2 className="font-display mt-4 text-3xl font-bold text-[#F2F2F2]">
-                Trade with confidence
-              </h2>
-              <p className="mx-auto mt-3 max-w-lg text-sm text-[#9A9A9A]">
-                Every feature is designed to protect both buyer and seller in a cash-on-meetup environment.
-              </p>
+              <h2 className="font-display mt-4 text-3xl font-bold text-[#F2F2F2]">Trade with confidence</h2>
+              <p className="mx-auto mt-3 max-w-lg text-sm text-[#9A9A9A]">Every feature is designed to protect both buyer and seller in a cash-on-meetup environment.</p>
             </div>
             <div className="grid divide-y divide-white/8 border-t border-white/8 md:grid-cols-3 md:divide-x md:divide-y-0">
               {TRUST.map(({ icon: Icon, title, body }) => (
@@ -446,36 +319,23 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA banner ──────────────────────────────────────────────────────── */}
+      {/* ── CTA banner ───────────────────────────────────────────────── */}
       <section className="px-6 pb-24 lg:px-10">
         <div className="mx-auto max-w-screen-xl">
           <div className="relative overflow-hidden rounded-3xl bg-accent px-8 py-20 text-center">
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute -left-16 -top-16 h-72 w-72 rounded-full bg-white/8 blur-3xl" />
               <div className="absolute -bottom-16 -right-16 h-72 w-72 rounded-full bg-black/20 blur-3xl" />
-              <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/5 blur-2xl" />
             </div>
             <div className="relative">
-              <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-white/60">
-                Join the community
-              </p>
-              <h2 className="font-display text-3xl font-extrabold text-white sm:text-4xl">
-                Ready to trade? It&apos;s free.
-              </h2>
-              <p className="mt-4 text-white/75">
-                No listing fees. No commission. Just connect with other Filipino card players.
-              </p>
+              <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-white/60">Join the community</p>
+              <h2 className="font-display text-3xl font-extrabold text-white sm:text-4xl">Ready to trade? It&apos;s free.</h2>
+              <p className="mt-4 text-white/75">No listing fees. No commission. Just connect with other Filipino card players.</p>
               <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-                <Link
-                  href="/signup"
-                  className="rounded-xl bg-white px-8 py-3.5 text-base font-bold text-accent shadow-lg transition hover:bg-white/90 active:scale-95"
-                >
+                <Link href="/signup" className="rounded-xl bg-white px-8 py-3.5 text-base font-bold text-accent shadow-lg transition hover:bg-white/90 active:scale-95">
                   Create Free Account
                 </Link>
-                <Link
-                  href="/marketplace"
-                  className="rounded-xl border border-white/30 px-8 py-3.5 text-base font-semibold text-white transition hover:border-white/60"
-                >
+                <Link href="/marketplace" className="rounded-xl border border-white/30 px-8 py-3.5 text-base font-semibold text-white transition hover:border-white/60">
                   Browse first
                 </Link>
               </div>
