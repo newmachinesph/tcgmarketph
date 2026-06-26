@@ -6,7 +6,10 @@ import { authRatelimit, resetRatelimit } from "@/lib/rate-limit";
 // This is NOT the security boundary. Every API route under /api/ enforces its own
 // session check via auth.api.getSession(). Never remove those checks on the assumption
 // that the middleware protects the API layer.
-const PROTECTED = ["/dashboard", "/profile-setup", "/profile", "/settings", "/collection", "/wishlist", "/browse", "/listings", "/marketplace", "/transactions", "/offers", "/bids", "/messages", "/admin", "/sellers"];
+// Public routes: /marketplace, /sellers, /sellers/[id], /listings/[id], /about, /safety, /faq
+const PROTECTED = ["/dashboard", "/profile-setup", "/profile", "/settings", "/collection", "/wishlist", "/browse", "/listings/new", "/listings/analytics", "/transactions", "/offers", "/bids", "/messages", "/admin"];
+// Exact-match protected routes (don't want startsWith to catch child segments)
+const PROTECTED_EXACT = ["/listings"];
 const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 // HTTP (dev): better-auth.session_token
 // HTTPS (prod): __Secure-better-auth.session_token
@@ -64,7 +67,13 @@ export async function proxy(request: NextRequest) {
     request.cookies.get(SESSION_COOKIE_SECURE)?.value ??
     request.cookies.get(SESSION_COOKIE)?.value;
 
-  const isProtected = PROTECTED.some((p) => pathname.startsWith(p));
+  // /listings/[id]/edit — protect edit sub-pages but keep /listings/[id] public
+  const isListingEdit = /^\/listings\/[^/]+\/edit(\/|$)/.test(pathname);
+
+  const isProtected =
+    PROTECTED_EXACT.includes(pathname) ||
+    PROTECTED.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
+    isListingEdit;
   const isAuthRoute = AUTH_ROUTES.includes(pathname);
 
   if (isProtected && !sessionToken) {
