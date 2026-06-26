@@ -45,10 +45,10 @@ const VALUES = [
 ];
 
 const TIMELINE = [
-  { year: "2024", event: "TCGMarket PH founded by a group of Filipino collectors tired of Facebook group scams." },
-  { year: "Early 2025", event: "Launched with Pokémon TCG support. First 100 verified sellers joined in the first week." },
-  { year: "Mid 2025", event: "One Piece TCG added. Live auction system launched with anti-snipe protection." },
-  { year: "2026", event: "KYC verification, phone verification, and real-time messaging deployed. More games coming." },
+  { year: "Jun 2026", event: "TCGMarket PH launched — built by Filipino collectors tired of Facebook group scams. First 100 verified sellers joined in week one." },
+  { year: "Jul 2026", event: "One Piece TCG catalog added. Live auction system launched with anti-snipe bid extension." },
+  { year: "Aug 2026", event: "KYC verification through Didit and real-time messaging deployed. Reputation scores go live." },
+  { year: "Coming soon", event: "iOS & Android app, Yu-Gi-Oh!, Magic: The Gathering, Lorcana support on the roadmap." },
 ];
 
 export default function AboutPage() {
