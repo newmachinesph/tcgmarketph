@@ -3,6 +3,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user as userTable } from "@/db/schema/auth";
 import { listings } from "@/db/schema/listings";
+import { cardCatalog } from "@/db/schema/cards";
 import { transactions } from "@/db/schema/transactions";
 import { createNotification } from "@/lib/notify";
 import { emailTransactionAgreed } from "@/lib/email";
@@ -92,9 +93,9 @@ export async function POST(request: NextRequest) {
     .set({ status: "agreed", paidAt: new Date() })
     .where(eq(transactions.id, txnRecord.id));
 
-  // Decrement listing quantity / mark sold
+  // Decrement listing quantity / mark sold; fetch card name for email
   const [listing] = await db
-    .select({ id: listings.id, quantity: listings.quantity })
+    .select({ id: listings.id, quantity: listings.quantity, cardId: listings.cardId })
     .from(listings)
     .where(eq(listings.id, txnRecord.listingId));
 
@@ -107,11 +108,14 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Notifications ────────────────────────────────────────────────────────────
-  const [buyer, seller] = await Promise.all([
+  const [buyer, seller, cardRow] = await Promise.all([
     db.select({ email: userTable.email, name: userTable.name, displayName: userTable.displayName })
       .from(userTable).where(eq(userTable.id, txnRecord.buyerId)).then((r) => r[0]),
     db.select({ email: userTable.email, name: userTable.name, displayName: userTable.displayName })
       .from(userTable).where(eq(userTable.id, txnRecord.sellerId)).then((r) => r[0]),
+    listing?.cardId
+      ? db.select({ name: cardCatalog.name }).from(cardCatalog).where(eq(cardCatalog.id, listing.cardId)).then((r) => r[0])
+      : Promise.resolve(undefined),
   ]);
 
   createNotification(
@@ -135,7 +139,7 @@ export async function POST(request: NextRequest) {
       buyerEmail:  buyer.email,
       buyerName:   buyer.displayName ?? buyer.name,
       sellerName:  seller.displayName ?? seller.name,
-      cardName:    "your listing",
+      cardName:    cardRow?.name ?? "your listing",
       price:       txnRecord.agreedPrice,
       txnId:       txnRecord.id,
       buyerId:     txnRecord.buyerId,

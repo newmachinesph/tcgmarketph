@@ -116,27 +116,30 @@ export default function SellerProfilePage() {
   async function sendMessage() {
     if (!msgText.trim() || msgSending) return;
     setMsgSending(true);
+    try {
+      // Get or create conversation
+      const convRes  = await fetch("/api/conversations", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ recipientId: id }),
+      });
+      const convData = await convRes.json();
+      if (!convRes.ok) { setMsgSending(false); return; }
 
-    // Get or create conversation
-    const convRes  = await fetch("/api/conversations", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ recipientId: id }),
-    });
-    const convData = await convRes.json();
-    if (!convRes.ok) { setMsgSending(false); return; }
+      const convId = convData.conversation.id;
 
-    const convId = convData.conversation.id;
+      // Send the message
+      const msgRes = await fetch(`/api/conversations/${convId}/messages`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ body: msgText.trim() }),
+      });
+      if (!msgRes.ok) { setMsgSending(false); return; }
 
-    // Send the message
-    const msgRes = await fetch(`/api/conversations/${convId}/messages`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ body: msgText.trim() }),
-    });
-    if (!msgRes.ok) { setMsgSending(false); return; }
-
-    router.push(`/messages/${convId}`);
+      router.push(`/messages/${convId}`);
+    } catch {
+      setMsgSending(false);
+    }
   }
 
   if (loading) {

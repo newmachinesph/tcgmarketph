@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { PhoneVerify } from "@/components/PhoneVerify";
@@ -56,7 +56,11 @@ function KycCard({ kycStatus }: { kycStatus: string }) {
   async function start() {
     setLoading(true);
     setError("");
-    const res  = await fetch("/api/kyc/start", { method: "POST" });
+    const res  = await fetch("/api/kyc/start", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ callbackPath: "/verify" }),
+    });
     const data = await res.json();
     setLoading(false);
     if (!res.ok) {
@@ -130,11 +134,18 @@ function KycCard({ kycStatus }: { kycStatus: string }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function VerifyPage() {
-  const { data: session, isPending } = authClient.useSession();
-  const router = useRouter();
+  const { data: session, isPending, refetch } = authClient.useSession();
+  const searchParams = useSearchParams();
 
   // Track phone verification locally so the UI updates immediately on success
   const [localPhoneVerified, setLocalPhoneVerified] = useState<boolean | null>(null);
+
+  // When Didit redirects back with ?kyc=done, refresh the session to pick up kycStatus
+  useEffect(() => {
+    if (searchParams.get("kyc") === "done") {
+      refetch?.();
+    }
+  }, [searchParams, refetch]);
 
   if (isPending) {
     return (
@@ -142,6 +153,11 @@ export default function VerifyPage() {
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
       </div>
     );
+  }
+
+  if (!session) {
+    window.location.href = "/login";
+    return null;
   }
 
   const user          = session?.user as Record<string, unknown> | undefined;
@@ -214,7 +230,7 @@ export default function VerifyPage() {
           {/* ── Continue ── */}
           <div className="space-y-2 pt-2 border-t border-white/5">
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => { window.location.href = "/dashboard"; }}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
             >
               {phoneVerified ? "Go to Dashboard" : "Skip verification for now"}

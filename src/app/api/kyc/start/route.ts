@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
@@ -10,9 +10,17 @@ const DIDIT_API    = "https://verification.didit.me/v3/session/";
 const WORKFLOW_ID  = "4d1c8c29-9c61-44c1-9aba-d72614a80518";
 const BASE_URL     = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  let callbackPath = "/profile";
+  try {
+    const body = await request.json() as Record<string, unknown>;
+    if (typeof body.callbackPath === "string" && body.callbackPath.startsWith("/")) {
+      callbackPath = body.callbackPath;
+    }
+  } catch { /* no body or invalid JSON — use default */ }
 
   const userId = session.user.id;
 
@@ -40,7 +48,7 @@ export async function POST() {
     },
     body: JSON.stringify({
       workflow_id:     WORKFLOW_ID,
-      callback:        `${BASE_URL}/profile?kyc=done`,
+      callback:        `${BASE_URL}${callbackPath}?kyc=done`,
       callback_method: "both",
       vendor_data:     userId,
     }),
