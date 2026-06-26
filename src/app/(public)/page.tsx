@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   ShieldCheckIcon,
   BoltIcon,
@@ -12,8 +11,11 @@ import {
   UserGroupIcon,
   ArrowRightIcon,
 } from "@heroicons/react/24/outline";
+import { TCGCardImage } from "@/components/TCGCardImage";
 
-// Pokemon TCG card dimensions (portrait): 734 × 1024
+// ── Card data ──────────────────────────────────────────────────────────────────
+// Pokemon TCG images: https://images.pokemontcg.io/{setId}/{num}_hires.png
+// One Piece images:   https://en.onepiece-cardgame.com/images/cardlist/card/{id}.png
 
 const HERO_CARDS = [
   {
@@ -22,6 +24,7 @@ const HERO_CARDS = [
     priceColor: "text-purple-400",
     badge:      "BGS 9.5",
     badgeClass: "bg-purple-400/20 text-purple-400",
+    // Umbreon VMAX Alt Art — Evolving Skies #215 secret
     image:      "https://images.pokemontcg.io/swsh7/215_hires.png",
     rotation:   "-rotate-12",
     translate:  "-translate-x-24",
@@ -35,7 +38,8 @@ const HERO_CARDS = [
     priceColor: "text-accent",
     badge:      "PSA 10",
     badgeClass: "bg-yellow-400/20 text-yellow-300",
-    image:      "https://images.pokemontcg.io/sv3pt5/215_hires.png",
+    // Charizard ex Special Illustration Rare — Obsidian Flames sv3 #228
+    image:      "https://images.pokemontcg.io/sv3/228_hires.png",
     rotation:   "rotate-0",
     translate:  "translate-x-0",
     size:       "w-44",
@@ -48,6 +52,7 @@ const HERO_CARDS = [
     priceColor: "text-yellow-400",
     badge:      "Near Mint",
     badgeClass: "bg-bid/20 text-bid",
+    // Pikachu VMAX Rainbow Rare — Chilling Reign #188
     image:      "https://images.pokemontcg.io/swsh6/188_hires.png",
     rotation:   "rotate-12",
     translate:  "translate-x-24",
@@ -57,16 +62,34 @@ const HERO_CARDS = [
   },
 ] as const;
 
-const GAME_CARDS = [
-  { img: "https://images.pokemontcg.io/sv3pt5/215_hires.png",     name: "Charizard ex",  price: "₱12,500", featured: false },
-  { img: "https://images.pokemontcg.io/swsh7/215_hires.png",      name: "Umbreon VMAX",  price: "₱8,500",  featured: true  },
-  { img: "https://images.pokemontcg.io/swsh7/74_hires.png",       name: "Rayquaza VMAX", price: "₱6,200",  featured: false },
+const POKEMON_CARDS = [
+  { img: "https://images.pokemontcg.io/sv3/228_hires.png",    name: "Charizard ex SIR", price: "₱12,500", featured: false },
+  { img: "https://images.pokemontcg.io/swsh7/215_hires.png",  name: "Umbreon VMAX AA",  price: "₱8,500",  featured: true  },
+  { img: "https://images.pokemontcg.io/swsh7/74_hires.png",   name: "Rayquaza VMAX AA", price: "₱6,200",  featured: false },
 ];
 
 const OP_CARDS = [
-  { img: "https://images.pokemontcg.io/sv2/193_hires.png",        name: "Gardevoir ex",  price: "₱4,800",  featured: false },
-  { img: "https://images.pokemontcg.io/swsh12pt5/GG60_hires.png", name: "Mewtwo V",      price: "₱2,200",  featured: true  },
-  { img: "https://images.pokemontcg.io/sv1/197_hires.png",        name: "Miraidon ex",   price: "₱1,800",  featured: false },
+  {
+    // Monkey D. Luffy — OP01 Leader
+    img:      "https://en.onepiece-cardgame.com/images/cardlist/card/OP01-001.png",
+    name:     "Monkey D. Luffy",
+    price:    "₱4,500",
+    featured: false,
+  },
+  {
+    // Shanks — OP01-120 Secret Rare
+    img:      "https://en.onepiece-cardgame.com/images/cardlist/card/OP01-120.png",
+    name:     "Shanks (Secret)",
+    price:    "₱18,000",
+    featured: true,
+  },
+  {
+    // Trafalgar D. Water Law — OP02 Leader
+    img:      "https://en.onepiece-cardgame.com/images/cardlist/card/OP02-001.png",
+    name:     "Trafalgar Law",
+    price:    "₱3,200",
+    featured: false,
+  },
 ];
 
 const FEATURES = [
@@ -90,13 +113,17 @@ const TRUST = [
   { icon: CheckCircleIcon, title: "Transparent Ratings", body: "Every completed deal adds to your public reputation score visible to all buyers." },
 ];
 
-function GameCardTile({ card }: { card: { img: string; name: string; price: string; featured: boolean } }) {
+// ── Sub-component — isolated so client `onError` stays out of the server tree
+function GameCardTile({ card, accentColor }: {
+  card: { img: string; name: string; price: string; featured: boolean };
+  accentColor: string;
+}) {
   return (
     <div className={`relative overflow-hidden rounded-xl ring-1 ring-white/10 shadow-xl shadow-black/50 transition hover:-translate-y-1 ${card.featured ? "w-28 -translate-y-3" : "w-24"}`}>
-      <Image src={card.img} alt={card.name} width={200} height={280} className="w-full" />
+      <TCGCardImage src={card.img} alt={card.name} className="w-full" />
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-1.5">
         <p className="truncate text-[8px] font-semibold text-white">{card.name}</p>
-        <p className="text-[9px] font-bold text-yellow-400">{card.price}</p>
+        <p className={`text-[9px] font-bold ${accentColor}`}>{card.price}</p>
       </div>
     </div>
   );
@@ -158,7 +185,7 @@ export default function LandingPage() {
                 className={`absolute ${card.translate} ${card.rotation} ${card.z} transition-transform duration-500 hover:-translate-y-3 hover:scale-105`}
               >
                 <div className={`relative ${card.size} overflow-hidden rounded-2xl shadow-2xl shadow-black/70 ${card.ring}`}>
-                  <Image src={card.image} alt={card.name} width={280} height={390} className="w-full" />
+                  <TCGCardImage src={card.image} alt={card.name} className="w-full" />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-2.5">
                     <p className="truncate text-[10px] font-semibold text-white">{card.name}</p>
                     <p className={`mt-0.5 text-sm font-bold ${card.priceColor}`}>{card.price}</p>
@@ -212,26 +239,32 @@ export default function LandingPage() {
           <p className="mx-auto mt-3 max-w-xl text-center text-sm text-[#9A9A9A]">From budget pulls to PSA 10 grails — every card, every condition.</p>
 
           <div className="mt-12 grid gap-6 lg:grid-cols-2">
-            <div className="relative overflow-hidden rounded-3xl border border-yellow-400/30 bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 p-7">
+            {/* Pokémon */}
+            <div className="overflow-hidden rounded-3xl border border-yellow-400/30 bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 p-7">
               <div className="mb-5">
                 <h3 className="font-display text-xl font-bold text-yellow-400">Pokémon TCG</h3>
                 <p className="mt-1 text-sm text-[#9A9A9A]">Base Set to Scarlet &amp; Violet</p>
               </div>
               <div className="flex items-end gap-3">
-                {GAME_CARDS.map((c) => <GameCardTile key={c.name} card={c} />)}
+                {POKEMON_CARDS.map((c) => (
+                  <GameCardTile key={c.name} card={c} accentColor="text-yellow-400" />
+                ))}
                 <Link href="/marketplace" className="ml-auto flex flex-col items-center justify-center self-center rounded-xl border border-white/10 bg-surface/60 px-4 py-3 text-center text-xs font-semibold text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
                   <span className="text-xl">→</span>Browse all
                 </Link>
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-red-400/30 bg-gradient-to-br from-red-500/20 to-red-500/5 p-7">
+            {/* One Piece */}
+            <div className="overflow-hidden rounded-3xl border border-red-400/30 bg-gradient-to-br from-red-500/20 to-red-500/5 p-7">
               <div className="mb-5">
                 <h3 className="font-display text-xl font-bold text-red-400">One Piece TCG</h3>
                 <p className="mt-1 text-sm text-[#9A9A9A]">All OP sets — EN &amp; JP</p>
               </div>
               <div className="flex items-end gap-3">
-                {OP_CARDS.map((c) => <GameCardTile key={c.name} card={c} />)}
+                {OP_CARDS.map((c) => (
+                  <GameCardTile key={c.name} card={c} accentColor="text-red-400" />
+                ))}
                 <Link href="/marketplace" className="ml-auto flex flex-col items-center justify-center self-center rounded-xl border border-white/10 bg-surface/60 px-4 py-3 text-center text-xs font-semibold text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
                   <span className="text-xl">→</span>Browse all
                 </Link>
