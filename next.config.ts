@@ -21,7 +21,12 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://accounts.google.com https://*.neon.tech",
+      // Ably realtime (WebSocket + HTTP fallback + connectivity check)
+      "connect-src 'self' https://accounts.google.com https://*.neon.tech" +
+        " wss://*.ably.io wss://*.ably-realtime.com https://*.ably.io https://*.ably-realtime.com" +
+        " https://internet-up.ably-realtime.com" +
+        // Better Auth uses this for OAuth
+        " https://oauth2.googleapis.com",
       "frame-ancestors 'none'",
     ].join("; "),
   },
