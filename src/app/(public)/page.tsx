@@ -24,8 +24,7 @@ const HERO_CARDS = [
     priceColor: "text-purple-400",
     badge:      "BGS 9.5",
     badgeClass: "bg-purple-400/20 text-purple-400",
-    // Umbreon VMAX Alt Art — Evolving Skies #215 secret
-    image:      "https://images.pokemontcg.io/swsh7/215_hires.png",
+    image:      "/cards/pokemon/swsh7-215.png",
     rotation:   "-rotate-12",
     translate:  "-translate-x-24",
     size:       "w-32",
@@ -38,8 +37,7 @@ const HERO_CARDS = [
     priceColor: "text-accent",
     badge:      "PSA 10",
     badgeClass: "bg-yellow-400/20 text-yellow-300",
-    // Charizard ex Special Illustration Rare — Obsidian Flames sv3 #228
-    image:      "https://images.pokemontcg.io/sv3/228_hires.png",
+    image:      "/cards/pokemon/sv3-228.png",
     rotation:   "rotate-0",
     translate:  "translate-x-0",
     size:       "w-44",
@@ -52,8 +50,7 @@ const HERO_CARDS = [
     priceColor: "text-yellow-400",
     badge:      "Near Mint",
     badgeClass: "bg-bid/20 text-bid",
-    // Pikachu VMAX Rainbow Rare — Chilling Reign #188
-    image:      "https://images.pokemontcg.io/swsh6/188_hires.png",
+    image:      "/cards/pokemon/swsh6-188.png",
     rotation:   "rotate-12",
     translate:  "translate-x-24",
     size:       "w-32",
@@ -63,15 +60,15 @@ const HERO_CARDS = [
 ] as const;
 
 const POKEMON_CARDS = [
-  { img: "https://images.pokemontcg.io/sv3/228_hires.png",    name: "Charizard ex SIR", price: "₱12,500", featured: false },
-  { img: "https://images.pokemontcg.io/swsh7/215_hires.png",  name: "Umbreon VMAX AA",  price: "₱8,500",  featured: true  },
-  { img: "https://images.pokemontcg.io/swsh7/74_hires.png",   name: "Rayquaza VMAX AA", price: "₱6,200",  featured: false },
+  { img: "/cards/pokemon/sv3-228.png",    name: "Charizard ex SIR", price: "₱12,500", featured: false },
+  { img: "/cards/pokemon/swsh7-215.png",  name: "Umbreon VMAX AA",  price: "₱8,500",  featured: true  },
+  { img: "/cards/pokemon/swsh7-74.png",   name: "Rayquaza VMAX AA", price: "₱6,200",  featured: false },
 ];
 
 const OP_CARDS = [
-  { name: "Monkey D. Luffy",  set: "OP01-001 Leader",  price: "₱4,500",  featured: false, color: "from-red-900 to-red-950"      },
-  { name: "Shanks",           set: "OP01-120 Secret",  price: "₱18,000", featured: true,  color: "from-yellow-900 to-yellow-950" },
-  { name: "Trafalgar Law",    set: "OP02-001 Leader",  price: "₱3,200",  featured: false, color: "from-blue-900 to-blue-950"    },
+  { img: "/cards/op/OP01-001.png", name: "Monkey D. Luffy", price: "₱4,500",  featured: false },
+  { img: "/cards/op/OP01-120.png", name: "Shanks",          price: "₱18,000", featured: true  },
+  { img: "/cards/op/OP02-001.png", name: "Trafalgar Law",   price: "₱3,200",  featured: false },
 ];
 
 const FEATURES = [
@@ -245,21 +242,7 @@ export default function LandingPage() {
               </div>
               <div className="flex items-end gap-3">
                 {OP_CARDS.map((c) => (
-                  <div
-                    key={c.name}
-                    className={`relative flex flex-col justify-between overflow-hidden rounded-xl ring-1 ring-white/10 shadow-xl shadow-black/50 transition hover:-translate-y-1 ${c.featured ? "h-36 w-28 -translate-y-3" : "h-32 w-24"}`}
-                  >
-                    {/* Styled card face */}
-                    <div className={`absolute inset-0 bg-gradient-to-b ${c.color}`} />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-2">
-                      <span className="text-2xl">☠️</span>
-                      <p className="text-center text-[8px] font-bold leading-tight text-white">{c.name}</p>
-                      <p className="text-center text-[7px] text-white/50">{c.set}</p>
-                    </div>
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                      <p className="text-[9px] font-bold text-red-400">{c.price}</p>
-                    </div>
-                  </div>
+                  <GameCardTile key={c.name} card={c} accentColor="text-red-400" />
                 ))}
                 <Link href="/marketplace" className="ml-auto flex flex-col items-center justify-center self-center rounded-xl border border-white/10 bg-surface/60 px-4 py-3 text-center text-xs font-semibold text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
                   <span className="text-xl">→</span>Browse all
