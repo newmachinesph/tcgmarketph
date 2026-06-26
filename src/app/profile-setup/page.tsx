@@ -53,7 +53,7 @@ export default function ProfileSetupPage() {
       });
     } else {
       toast.success("Profile saved!");
-      window.location.href = "/dashboard";
+      window.location.href = "/verify";
     }
   };
 
@@ -72,22 +72,23 @@ export default function ProfileSetupPage() {
       <div className="w-full max-w-lg">
 
         {/* Step indicator */}
+        {/* Step indicator — reuse same layout as /verify page */}
         <div className="mb-6 flex items-center justify-center gap-2">
           {[
-            { label: "Account", done: true },
-            { label: "Profile",  active: true },
-            { label: "Verify",   done: false },
+            { label: "Account", state: "done"   },
+            { label: "Profile", state: "active" },
+            { label: "Verify",  state: "next"   },
           ].map((step, i) => (
             <div key={step.label} className="flex items-center gap-2">
               <div className={[
                 "flex size-7 items-center justify-center rounded-full text-xs font-bold",
-                step.done    ? "bg-bid/20 text-bid" :
-                step.active  ? "bg-accent text-white" :
-                               "border border-white/10 bg-surface text-[#9A9A9A]",
+                step.state === "done"   ? "bg-bid/20 text-bid"       :
+                step.state === "active" ? "bg-accent text-white"     :
+                                          "border border-white/10 bg-surface text-[#9A9A9A]",
               ].join(" ")}>
-                {step.done ? "✓" : i + 1}
+                {step.state === "done" ? "✓" : i + 1}
               </div>
-              <span className={`text-xs font-medium ${step.active ? "text-[#F2F2F2]" : "text-[#9A9A9A]"}`}>
+              <span className={`text-xs font-medium ${step.state === "active" ? "text-[#F2F2F2]" : "text-[#9A9A9A]"}`}>
                 {step.label}
               </span>
               {i < 2 && <div className="h-px w-6 bg-white/10" />}
@@ -221,7 +222,7 @@ export default function ProfileSetupPage() {
               className="w-full justify-center"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Saving…" : "Save & Go to Dashboard"}
+              {isSubmitting ? "Saving…" : "Save & Continue →"}
             </Button>
 
           </form>

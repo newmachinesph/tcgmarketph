@@ -7,7 +7,7 @@ import { authRatelimit, resetRatelimit } from "@/lib/rate-limit";
 // session check via auth.api.getSession(). Never remove those checks on the assumption
 // that the middleware protects the API layer.
 // Public routes: /marketplace, /sellers, /sellers/[id], /listings/[id], /about, /safety, /faq
-const PROTECTED = ["/dashboard", "/profile-setup", "/profile", "/settings", "/collection", "/wishlist", "/browse", "/listings/new", "/listings/analytics", "/transactions", "/offers", "/bids", "/messages", "/admin"];
+const PROTECTED = ["/dashboard", "/profile-setup", "/verify", "/profile", "/settings", "/collection", "/wishlist", "/browse", "/listings/new", "/listings/analytics", "/transactions", "/offers", "/bids", "/messages", "/admin"];
 // Exact-match protected routes (don't want startsWith to catch child segments)
 const PROTECTED_EXACT = ["/listings"];
 const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
