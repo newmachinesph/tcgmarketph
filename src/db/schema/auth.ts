@@ -53,6 +53,7 @@ export const user = pgTable(
     image: text("image"),
 
     displayName: text("display_name"),
+    username: text("username"),
     phone: text("phone"),
     phoneVerified: boolean("phone_verified").notNull().default(false),
 
@@ -71,6 +72,7 @@ export const user = pgTable(
     noShowCount:     integer("no_show_count").notNull().default(0),
 
     preferredCurrency: text("preferred_currency").notNull().default("PHP"),
+    collectionPublic: boolean("collection_public").notNull().default(false),
 
     emailPrefs: json("email_prefs").$type<EmailPrefs>(),
 
@@ -84,8 +86,9 @@ export const user = pgTable(
       .$onUpdate(() => new Date()),
   },
   (t) => ({
-    emailIdx: uniqueIndex("user_email_idx").on(t.email),
-    phoneIdx: index("user_phone_idx").on(t.phone),
+    emailIdx:    uniqueIndex("user_email_idx").on(t.email),
+    phoneIdx:    index("user_phone_idx").on(t.phone),
+    usernameIdx: uniqueIndex("user_username_idx").on(t.username),
   })
 );
 
