@@ -10,7 +10,9 @@ import {
   EyeIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  BoltIcon,
 } from "@heroicons/react/24/outline";
+import { ViewsChart } from "@/components/ViewsChart";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,16 +28,19 @@ interface ListingStat {
   offerCount: number;
 }
 
+interface DayRow { date: string; views: number }
 interface Summary {
-  activeListings: number;
-  viewsThisMonth: number;
-  offersReceived: number;
-  dealsClosed:    number;
+  activeListings:     number;
+  viewsThisMonth:     number;
+  offersReceived:     number;
+  dealsClosed:        number;
+  offerConversionPct: number | null;
+  avgDaysToSale:      number | null;
+  dailyViews:         DayRow[];
 }
 
-interface DayRow   { date: string; views: number }
-interface Funnel   { total: number; pending: number; accepted: number; declined: number; countered: number; cancelled: number; expired: number }
-interface Detail   { dailyViews: DayRow[]; offerFunnel: Funnel }
+interface Funnel { total: number; pending: number; accepted: number; declined: number; countered: number; cancelled: number; expired: number }
+interface Detail { dailyViews: DayRow[]; offerFunnel: Funnel }
 
 const STATUS_STYLE: Record<string, string> = {
   active:    "bg-emerald-400/10 text-emerald-400",
@@ -165,40 +170,56 @@ export default function ListingAnalyticsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const SUMMARY_CARDS = summary ? [
-    { label: "Active listings",   value: summary.activeListings,  color: "text-emerald-400" },
-    { label: "Views this month",  value: summary.viewsThisMonth,  color: "text-sky-400"     },
-    { label: "Offers received",   value: summary.offersReceived,  color: "text-purple-400"  },
-    { label: "Deals closed",      value: summary.dealsClosed,     color: "text-bid"         },
-  ] : [];
-
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-10 lg:px-10 space-y-8">
 
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/listings" className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
-          <ArrowLeftIcon className="size-4" />
-        </Link>
-        <div className="flex items-center gap-2">
-          <ChartBarIcon className="size-5 text-[#9A9A9A]" />
-          <h1 className="text-xl font-bold text-[#F2F2F2]">Listing Analytics</h1>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link href="/listings" className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
+            <ArrowLeftIcon className="size-4" />
+          </Link>
+          <div className="flex items-center gap-2">
+            <ChartBarIcon className="size-5 text-[#9A9A9A]" />
+            <h1 className="text-xl font-bold text-[#F2F2F2]">Listing Analytics</h1>
+          </div>
         </div>
+        <Link href="/upgrade" className="flex items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/20">
+          <BoltIcon className="size-3.5" /> Power Seller
+        </Link>
       </div>
 
       {/* Summary cards */}
       {loading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[1,2,3,4].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-surface" />)}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {[1,2,3,4,5,6].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-surface" />)}
         </div>
       ) : summary && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {SUMMARY_CARDS.map(({ label, value, color }) => (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            { label: "Active listings",   value: summary.activeListings.toLocaleString(),   color: "text-emerald-400" },
+            { label: "Views this month",  value: summary.viewsThisMonth.toLocaleString(),   color: "text-sky-400"     },
+            { label: "Offers received",   value: summary.offersReceived.toLocaleString(),   color: "text-purple-400"  },
+            { label: "Deals closed",      value: summary.dealsClosed.toLocaleString(),      color: "text-bid"         },
+            { label: "Offer conversion",  value: summary.offerConversionPct !== null ? `${summary.offerConversionPct}%` : "—", color: "text-accent" },
+            { label: "Avg days to sale",  value: summary.avgDaysToSale !== null ? `${summary.avgDaysToSale}d` : "—", color: "text-yellow-400" },
+          ].map(({ label, value, color }) => (
             <div key={label} className="rounded-2xl border border-white/10 bg-surface p-4 text-center">
-              <p className={`text-2xl font-bold ${color}`}>{value.toLocaleString()}</p>
+              <p className={`text-2xl font-bold ${color}`}>{value}</p>
               <p className="mt-1 text-[11px] text-[#9A9A9A]">{label}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Aggregate views chart */}
+      {!loading && summary && (
+        <div className="rounded-2xl border border-white/10 bg-surface p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <EyeIcon className="size-4 text-[#9A9A9A]" />
+            <h2 className="text-sm font-semibold text-[#F2F2F2]">Views across all listings — last 30 days</h2>
+          </div>
+          <ViewsChart data={summary.dailyViews} />
         </div>
       )}
 

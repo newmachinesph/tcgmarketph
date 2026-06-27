@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { eq, and, gte, count, inArray, sql } from "drizzle-orm";
+import { eq, and, gte, count, inArray, sql, or } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listings, listingViews } from "@/db/schema/listings";
@@ -59,11 +59,57 @@ export async function GET() {
     .where(inArray(offers.listingId, listingIds))
     .groupBy(offers.listingId);
 
-  // Completed deals total for this seller
-  const [dealRow] = await db
-    .select({ total: count(transactions.id) })
-    .from(transactions)
-    .where(and(eq(transactions.sellerId, uid), eq(transactions.status, "completed")));
+  // Completed deals + offer conversion stats
+  const [dealRow, offerConvRow, txnTimeRows, dailyAggRows] = await Promise.all([
+    // Deals closed
+    db.select({ total: count(transactions.id) })
+      .from(transactions)
+      .where(and(eq(transactions.sellerId, uid), eq(transactions.status, "completed"))),
+
+    // Offer conversion: total received + accepted for this seller
+    db.select({
+      total:    count(offers.id),
+      accepted: sql<number>`count(*) filter (where ${offers.status} = 'accepted')`.mapWith(Number),
+    })
+      .from(offers)
+      .where(eq(offers.sellerId, uid)),
+
+    // Time-to-sale: createdAt → paidAt for agreed/completed transactions
+    db.select({ listingId: transactions.listingId, createdAt: transactions.createdAt, paidAt: transactions.paidAt })
+      .from(transactions)
+      .where(and(
+        eq(transactions.sellerId, uid),
+        inArray(transactions.status, ["agreed", "completed"]),
+        inArray(transactions.listingId, listingIds),
+      )),
+
+    // Daily views across all listings (last 30d) for aggregate chart
+    db.select({
+      date:  sql<string>`date_trunc('day', ${listingViews.viewedAt})::date`.mapWith(String),
+      views: sql<number>`count(distinct coalesce(${listingViews.viewerId}, ${listingViews.ipHash}))`.mapWith(Number),
+    })
+      .from(listingViews)
+      .where(and(
+        inArray(listingViews.listingId, listingIds),
+        gte(listingViews.viewedAt, monthAgo),
+      ))
+      .groupBy(sql`date_trunc('day', ${listingViews.viewedAt})::date`)
+      .orderBy(sql`date_trunc('day', ${listingViews.viewedAt})::date`),
+  ]);
+
+  // Avg time-to-sale in days
+  const listingCreatedAt = Object.fromEntries(myListings.map((r) => [r.listing.id, r.listing.createdAt]));
+  const saleDeltasDays = txnTimeRows
+    .map((t) => {
+      const end   = t.paidAt ?? t.createdAt;
+      const start = listingCreatedAt[t.listingId];
+      if (!start) return null;
+      return (end.getTime() - start.getTime()) / 86_400_000;
+    })
+    .filter((d): d is number => d !== null && d >= 0);
+  const avgDaysToSale = saleDeltasDays.length
+    ? Math.round((saleDeltasDays.reduce((a, b) => a + b, 0) / saleDeltasDays.length) * 10) / 10
+    : null;
 
   const viewMap  = Object.fromEntries(viewRows.map((r)  => [r.listingId, r.views]));
   const offerMap = Object.fromEntries(offerRows.map((r) => [r.listingId, Number(r.offerCount)]));
@@ -80,11 +126,17 @@ export async function GET() {
     offerCount: offerMap[listing.id] ?? 0,
   }));
 
+  const totalOffersAll  = Number(offerConvRow[0]?.total  ?? 0);
+  const acceptedOffers  = Number(offerConvRow[0]?.accepted ?? 0);
+
   const summary = {
-    activeListings: myListings.filter((r) => r.listing.status === "active").length,
-    viewsThisMonth: viewRows.reduce((s, r) => s + r.views, 0),
-    offersReceived: offerRows.reduce((s, r) => s + Number(r.offerCount), 0),
-    dealsClosed:    Number(dealRow?.total ?? 0),
+    activeListings:    myListings.filter((r) => r.listing.status === "active").length,
+    viewsThisMonth:    viewRows.reduce((s, r) => s + r.views, 0),
+    offersReceived:    offerRows.reduce((s, r) => s + Number(r.offerCount), 0),
+    dealsClosed:       Number(dealRow[0]?.total ?? 0),
+    offerConversionPct: totalOffersAll > 0 ? Math.round((acceptedOffers / totalOffersAll) * 100) : null,
+    avgDaysToSale,
+    dailyViews: dailyAggRows,
   };
 
   return NextResponse.json({ listings: result, summary });
