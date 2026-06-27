@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
   BellIcon,
+  BoltIcon,
   DevicePhoneMobileIcon,
   EnvelopeIcon,
   KeyIcon,
@@ -19,6 +20,7 @@ import {
   LinkIcon,
   RectangleStackIcon,
   AtSymbolIcon,
+  ArrowRightIcon,
 } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -37,16 +39,18 @@ import { DEFAULT_PREFS, PREF_LABELS } from "@/lib/email-prefs-shared";
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface UserProps {
-  id:                string;
-  name:              string | null;
-  email:             string;
-  image:             string | null;
-  phone:             string | null;
-  phoneVerified:     boolean;
-  preferredCurrency: string;
-  username:          string | null;
-  collectionPublic:  boolean;
-  smsNotifications:  boolean;
+  id:                   string;
+  name:                 string | null;
+  email:                string;
+  image:                string | null;
+  phone:                string | null;
+  phoneVerified:        boolean;
+  preferredCurrency:    string;
+  username:             string | null;
+  collectionPublic:     boolean;
+  smsNotifications:     boolean;
+  subscriptionTier:     string;
+  subscriptionExpiresAt: string | null;
 }
 
 // ── Layout helpers ─────────────────────────────────────────────────────────────
@@ -643,11 +647,70 @@ function SmsNotificationsSection({
   );
 }
 
+// ── Subscription ──────────────────────────────────────────────────────────────
+
+function SubscriptionSection({ tier, expiresAt }: { tier: string; expiresAt: string | null }) {
+  const [loading, setLoading] = useState(false);
+
+  const isPower   = tier === "power_seller";
+  const expiryDate = expiresAt ? new Date(expiresAt) : null;
+  const daysLeft   = expiryDate ? Math.ceil((expiryDate.getTime() - Date.now()) / 86_400_000) : null;
+  const expired    = daysLeft !== null && daysLeft <= 0;
+
+  async function upgrade() {
+    setLoading(true);
+    try {
+      const res  = await fetch("/api/billing/subscribe", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      window.location.href = data.checkoutUrl;
+    } catch {
+      toast.error("Could not open payment page — try again");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Section title="Subscription">
+      <Row
+        icon={BoltIcon}
+        label={isPower && !expired ? "Power Seller" : "Free Plan"}
+        description={
+          isPower && !expired && expiryDate
+            ? `Active · expires ${expiryDate.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })} (${daysLeft} day${daysLeft !== 1 ? "s" : ""} left)`
+            : isPower && expired
+            ? "Subscription expired — renew to re-activate"
+            : "10 listings · 3 photos each"
+        }
+        action={
+          isPower && !expired ? (
+            <button
+              onClick={upgrade}
+              disabled={loading}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-[#F2F2F2] transition hover:border-white/20 disabled:opacity-50"
+            >
+              {loading ? "…" : "Renew"}
+            </button>
+          ) : (
+            <button
+              onClick={upgrade}
+              disabled={loading}
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+            >
+              {loading ? "…" : <>Upgrade <ArrowRightIcon className="size-3" /></>}
+            </button>
+          )
+        }
+      />
+    </Section>
+  );
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 export function SettingsClient({ user }: { user: UserProps }) {
   const [expanded, setExpanded] = useState<"password" | "email" | "delete" | null>(null);
-  const { username, collectionPublic, smsNotifications } = user;
+  const { username, collectionPublic, smsNotifications, subscriptionTier, subscriptionExpiresAt } = user;
 
   const emailChanged =
     typeof window !== "undefined" &&
@@ -673,6 +736,8 @@ export function SettingsClient({ user }: { user: UserProps }) {
       )}
 
       <div className="space-y-6">
+        <SubscriptionSection tier={subscriptionTier} expiresAt={subscriptionExpiresAt} />
+
         <ProfileUrlSection userId={user.id} initialUsername={username} />
 
         <CollectionPrivacySection initialPublic={collectionPublic} />

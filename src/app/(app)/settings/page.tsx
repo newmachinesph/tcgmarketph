@@ -19,9 +19,11 @@ export default async function SettingsPage() {
 
   const [row] = await db
     .select({
-      username:         userTable.username,
-      collectionPublic: userTable.collectionPublic,
-      smsNotifications: userTable.smsNotifications,
+      username:              userTable.username,
+      collectionPublic:      userTable.collectionPublic,
+      smsNotifications:      userTable.smsNotifications,
+      subscriptionTier:      userTable.subscriptionTier,
+      subscriptionExpiresAt: userTable.subscriptionExpiresAt,
     })
     .from(userTable)
     .where(eq(userTable.id, id));
@@ -32,13 +34,15 @@ export default async function SettingsPage() {
         id,
         name,
         email,
-        image:             image ?? null,
-        phone:             u.phone ?? null,
-        phoneVerified:     u.phoneVerified ?? false,
-        preferredCurrency: u.preferredCurrency ?? "PHP",
-        username:          row?.username ?? null,
-        collectionPublic:  row?.collectionPublic ?? false,
-        smsNotifications:  row?.smsNotifications ?? false,
+        image:                image ?? null,
+        phone:                u.phone ?? null,
+        phoneVerified:        u.phoneVerified ?? false,
+        preferredCurrency:    u.preferredCurrency ?? "PHP",
+        username:             row?.username ?? null,
+        collectionPublic:     row?.collectionPublic ?? false,
+        smsNotifications:     row?.smsNotifications ?? false,
+        subscriptionTier:     row?.subscriptionTier ?? "free",
+        subscriptionExpiresAt: row?.subscriptionExpiresAt?.toISOString() ?? null,
       }}
     />
   );

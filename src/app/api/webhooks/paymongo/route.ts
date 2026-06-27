@@ -9,6 +9,8 @@ import { createNotification } from "@/lib/notify";
 import { emailTransactionAgreed } from "@/lib/email";
 import { verifyPayMongoSignature } from "@/lib/paymongo";
 
+const SUBSCRIPTION_DAYS = 30;
+
 export async function POST(request: NextRequest) {
   const rawBody   = await request.text();
   const sigHeader = request.headers.get("paymongo-signature") ?? "";
@@ -39,20 +41,43 @@ export async function POST(request: NextRequest) {
 
   let linkId:           string | undefined;
   let txnIdFromRemarks: string | undefined;
+  let subUserIdFromRemarks: string | undefined;
 
   if (eventType === "link.payment.paid") {
-    // paymentData IS the payment-link object; its id is the link id
     linkId = paymentData?.["id"] as string | undefined;
+    const linkAttrs = paymentData?.["attributes"] as Record<string, unknown> | undefined;
+    const remarks = linkAttrs?.["remarks"] as string | undefined ?? "";
+    const subM = remarks.match(/^sub:(.+)$/i);
+    if (subM) subUserIdFromRemarks = subM[1];
   } else if (eventType === "payment.paid") {
-    // paymentData is the payment object; source.id is the originating link id
     const source = paymentAttrs?.["source"] as Record<string, unknown> | undefined;
     linkId = source?.["id"] as string | undefined;
-    // Fallback: parse txn id from remarks ("txn:<id>")
     const remarks = paymentAttrs?.["remarks"] as string | undefined ?? "";
-    const m = remarks.match(/txn:([a-z0-9]+)/i);
-    txnIdFromRemarks = m?.[1];
+    const txnM = remarks.match(/txn:([a-z0-9]+)/i);
+    txnIdFromRemarks = txnM?.[1];
+    const subM = remarks.match(/^sub:(.+)$/i);
+    if (subM) subUserIdFromRemarks = subM[1];
   } else {
-    // Acknowledge but ignore other event types
+    return NextResponse.json({ ok: true });
+  }
+
+  // ── Subscription upgrade ─────────────────────────────────────────────────────
+  if (subUserIdFromRemarks) {
+    const expiresAt = new Date(Date.now() + SUBSCRIPTION_DAYS * 86_400_000);
+    await db
+      .update(userTable)
+      .set({ subscriptionTier: "power_seller", subscriptionExpiresAt: expiresAt })
+      .where(eq(userTable.id, subUserIdFromRemarks));
+
+    createNotification(
+      subUserIdFromRemarks,
+      "transaction_completed",
+      "Power Seller activated",
+      `Your Power Seller subscription is active until ${expiresAt.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}.`,
+      "/settings",
+    ).catch(console.error);
+
+    console.log(`[webhook/paymongo] Power Seller activated for user ${subUserIdFromRemarks} until ${expiresAt.toISOString()}`);
     return NextResponse.json({ ok: true });
   }
 

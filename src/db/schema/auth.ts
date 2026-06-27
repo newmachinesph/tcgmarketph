@@ -68,6 +68,8 @@ export const user = pgTable(
       .default("free"),
     isAdmin: boolean("is_admin").notNull().default(false),
 
+    subscriptionExpiresAt: timestamp("subscription_expires_at"),
+
     reputationScore: integer("reputation_score").notNull().default(0),
     noShowCount:     integer("no_show_count").notNull().default(0),
 

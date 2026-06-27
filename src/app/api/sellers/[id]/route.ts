@@ -16,19 +16,21 @@ export async function GET(request: NextRequest, { params }: Params) {
   const offset = (page - 1) * limit;
 
   const PROFILE_FIELDS = {
-    id:               userTable.id,
-    name:             userTable.name,
-    displayName:      userTable.displayName,
-    username:         userTable.username,
-    collectionPublic: userTable.collectionPublic,
-    image:            userTable.image,
-    city:             userTable.city,
-    bio:              userTable.bio,
-    phoneVerified:    userTable.phoneVerified,
-    reputationScore:  userTable.reputationScore,
-    noShowCount:      userTable.noShowCount,
-    isBanned:         userTable.isBanned,
-    createdAt:        userTable.createdAt,
+    id:                   userTable.id,
+    name:                 userTable.name,
+    displayName:          userTable.displayName,
+    username:             userTable.username,
+    collectionPublic:     userTable.collectionPublic,
+    image:                userTable.image,
+    city:                 userTable.city,
+    bio:                  userTable.bio,
+    phoneVerified:        userTable.phoneVerified,
+    reputationScore:      userTable.reputationScore,
+    noShowCount:          userTable.noShowCount,
+    isBanned:             userTable.isBanned,
+    createdAt:            userTable.createdAt,
+    subscriptionTier:     userTable.subscriptionTier,
+    subscriptionExpiresAt: userTable.subscriptionExpiresAt,
   };
 
   // Try by ID first, then by username slug

@@ -14,27 +14,30 @@ import {
   XMarkIcon,
   PaperAirplaneIcon,
   RectangleStackIcon,
+  BoltIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import { ReportButton } from "@/components/ReportButton";
 
 interface SellerProfile {
-  id:               string;
-  name:             string;
-  displayName:      string | null;
-  username:         string | null;
-  collectionPublic: boolean;
-  image:            string | null;
-  city:             string | null;
-  bio:              string | null;
-  phoneVerified:    boolean;
-  reputationScore:  number;
-  noShowCount:      number;
-  isBanned:         boolean;
-  createdAt:        string;
-  avgScore:         string | null;
-  ratingCount:      number;
-  completedDeals:   number;
+  id:                   string;
+  name:                 string;
+  displayName:          string | null;
+  username:             string | null;
+  collectionPublic:     boolean;
+  image:                string | null;
+  city:                 string | null;
+  bio:                  string | null;
+  phoneVerified:        boolean;
+  reputationScore:      number;
+  noShowCount:          number;
+  isBanned:             boolean;
+  createdAt:            string;
+  avgScore:             string | null;
+  ratingCount:          number;
+  completedDeals:       number;
+  subscriptionTier:     string | null;
+  subscriptionExpiresAt: string | null;
 }
 
 interface ListingCard {
@@ -237,6 +240,13 @@ export default function SellerProfilePage() {
               {seller.phoneVerified && (
                 <span className="flex items-center gap-1 rounded-full bg-emerald-600/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
                   <ShieldCheckIcon className="size-3" /> Verified
+                </span>
+              )}
+              {seller.subscriptionTier === "power_seller" &&
+               seller.subscriptionExpiresAt &&
+               new Date(seller.subscriptionExpiresAt) > new Date() && (
+                <span className="flex items-center gap-1 rounded-full bg-accent/20 px-2.5 py-0.5 text-[11px] font-bold text-accent">
+                  <BoltIcon className="size-3" /> Power Seller
                 </span>
               )}
               {seller.isBanned && (

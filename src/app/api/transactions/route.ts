@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       const link = await createPaymentLink({
         amountPHP:   totalPHP,
         description: `TCGmarket: ${row.card.name} (${quantity > 1 ? `×${quantity}` : row.card.setName ?? "card"})`,
-        txnId:       "pending", // updated below after insert
+        remarks:     "txn:pending",
       });
       paymongoLinkId      = link.id;
       paymongoCheckoutUrl = link.checkoutUrl;

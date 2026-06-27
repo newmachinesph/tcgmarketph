@@ -20,7 +20,7 @@ export interface PayMongoLink {
 export async function createPaymentLink(opts: {
   amountPHP:   number;
   description: string;
-  txnId:       string;
+  remarks:     string;
 }): Promise<PayMongoLink> {
   const centavos = Math.round(opts.amountPHP * 100);
 
@@ -35,7 +35,7 @@ export async function createPaymentLink(opts: {
         attributes: {
           amount:               centavos,
           description:          opts.description,
-          remarks:              `txn:${opts.txnId}`,
+          remarks:              opts.remarks,
           payment_method_types: ["qrph"],
         },
       },
