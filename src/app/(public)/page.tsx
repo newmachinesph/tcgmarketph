@@ -12,6 +12,7 @@ import {
   MapPinIcon,
   UserGroupIcon,
   ArrowRightIcon,
+  RectangleStackIcon,
 } from "@heroicons/react/24/outline";
 import { TCGCardImage } from "@/components/TCGCardImage";
 
@@ -79,7 +80,8 @@ const FEATURES = [
   { icon: TagIcon,                 title: "Make Offers",       body: "Don't like the price? Send a counter-offer. Sellers can accept, decline, or counter back.", color: "text-yellow-400", bg: "bg-yellow-400/10", href: undefined },
   { icon: BellAlertIcon,           title: "Wishlist Alerts",   body: "Add cards to your wishlist and get notified the moment a seller lists one — before anyone else.", color: "text-purple-400", bg: "bg-purple-400/10", href: undefined },
   { icon: StarIcon,                title: "Reputation System", body: "Buyers and sellers rate each other after every deal. No-shows are tracked and flagged automatically.", color: "text-yellow-400", bg: "bg-yellow-400/10", href: undefined },
-  { icon: ChatBubbleLeftRightIcon, title: "In-App Messaging",  body: "Negotiate, confirm meetup details, and coordinate entirely inside the platform — no sharing personal numbers.", color: "text-sky-400",   bg: "bg-sky-400/10",   href: undefined },
+  { icon: ChatBubbleLeftRightIcon, title: "In-App Messaging",  body: "Negotiate, confirm meetup details, and coordinate entirely inside the platform — no sharing personal numbers.", color: "text-sky-400",    bg: "bg-sky-400/10",    href: undefined },
+  { icon: RectangleStackIcon,      title: "Collection Manager", body: "Track every card you own, organise by folders, and share your collection publicly with a personal profile URL.", color: "text-emerald-400", bg: "bg-emerald-400/10", href: undefined },
 ];
 
 const STEPS = [

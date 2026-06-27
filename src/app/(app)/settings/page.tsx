@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { user as userTable } from "@/db/schema/auth";
 import { SettingsClient } from "./SettingsClient";
 
 export default async function SettingsPage() {
@@ -14,6 +17,11 @@ export default async function SettingsPage() {
     preferredCurrency?: string | null;
   };
 
+  const [row] = await db
+    .select({ username: userTable.username, collectionPublic: userTable.collectionPublic })
+    .from(userTable)
+    .where(eq(userTable.id, id));
+
   return (
     <SettingsClient
       user={{
@@ -24,6 +32,8 @@ export default async function SettingsPage() {
         phone:             u.phone ?? null,
         phoneVerified:     u.phoneVerified ?? false,
         preferredCurrency: u.preferredCurrency ?? "PHP",
+        username:          row?.username ?? null,
+        collectionPublic:  row?.collectionPublic ?? false,
       }}
     />
   );

@@ -6,6 +6,9 @@ import {
   SparklesIcon,
   HeartIcon,
   ArrowRightIcon,
+  RectangleStackIcon,
+  LinkIcon,
+  LockOpenIcon,
 } from "@heroicons/react/24/outline";
 
 export const metadata = {
@@ -142,6 +145,33 @@ export default function AboutPage() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Collection Manager */}
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#9A9A9A]">For collectors</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F2F2F2]">Your collection, always organised</h2>
+          <div className="mt-4 space-y-3 text-sm text-[#9A9A9A]">
+            <p>TCGMarket PH is more than a marketplace — it&apos;s a home for your entire collection. Log every card you own, track graded slabs alongside raw copies, and organise everything into custom folders.</p>
+            <p>When you&apos;re ready to sell, listing a card from your collection pre-fills all the details automatically. No re-entering condition, grade, or set — it&apos;s already there.</p>
+            <p>Turn on a public collection URL and share your inventory with other collectors in one link. No screenshots, no spreadsheets.</p>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-6 space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">Collection features</p>
+          {[
+            { icon: RectangleStackIcon, text: "Log every card with condition, grade, and quantity" },
+            { icon: SparklesIcon,       text: "Organise into custom folders — by set, game, or anything you like" },
+            { icon: LinkIcon,           text: "Shareable public profile URL — /sellers/your-username" },
+            { icon: LockOpenIcon,       text: "Public or private — you control who sees your collection" },
+          ].map(({ icon: Icon, text }) => (
+            <div key={text} className="flex items-start gap-3 text-sm text-[#F2F2F2]">
+              <Icon className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+              {text}
+            </div>
+          ))}
         </div>
       </div>
 

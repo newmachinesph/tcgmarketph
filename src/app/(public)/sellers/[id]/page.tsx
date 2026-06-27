@@ -13,25 +13,28 @@ import {
   CalendarDaysIcon,
   XMarkIcon,
   PaperAirplaneIcon,
+  RectangleStackIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import { ReportButton } from "@/components/ReportButton";
 
 interface SellerProfile {
-  id:              string;
-  name:            string;
-  displayName:     string | null;
-  image:           string | null;
-  city:            string | null;
-  bio:             string | null;
-  phoneVerified:   boolean;
-  reputationScore: number;
-  noShowCount:     number;
-  isBanned:        boolean;
-  createdAt:       string;
-  avgScore:        string | null;
-  ratingCount:     number;
-  completedDeals:  number;
+  id:               string;
+  name:             string;
+  displayName:      string | null;
+  username:         string | null;
+  collectionPublic: boolean;
+  image:            string | null;
+  city:             string | null;
+  bio:              string | null;
+  phoneVerified:    boolean;
+  reputationScore:  number;
+  noShowCount:      number;
+  isBanned:         boolean;
+  createdAt:        string;
+  avgScore:         string | null;
+  ratingCount:      number;
+  completedDeals:   number;
 }
 
 interface ListingCard {
@@ -291,6 +294,15 @@ export default function SellerProfilePage() {
               <ChatBubbleLeftEllipsisIcon className="size-4" />
               Message
             </button>
+            {seller.collectionPublic && (
+              <Link
+                href={`/sellers/${id}/collection`}
+                className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-[#F2F2F2] transition hover:border-white/20"
+              >
+                <RectangleStackIcon className="size-4" />
+                View Collection
+              </Link>
+            )}
             <div className="flex justify-end">
               <ReportButton targetType="user" targetId={id} label="Report seller" />
             </div>

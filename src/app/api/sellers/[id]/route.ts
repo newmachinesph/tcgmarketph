@@ -15,23 +15,27 @@ export async function GET(request: NextRequest, { params }: Params) {
   const limit = 12;
   const offset = (page - 1) * limit;
 
-  // Public profile fields only
-  const [profile] = await db
-    .select({
-      id:              userTable.id,
-      name:            userTable.name,
-      displayName:     userTable.displayName,
-      image:           userTable.image,
-      city:            userTable.city,
-      bio:             userTable.bio,
-      phoneVerified:   userTable.phoneVerified,
-      reputationScore: userTable.reputationScore,
-      noShowCount:     userTable.noShowCount,
-      isBanned:        userTable.isBanned,
-      createdAt:       userTable.createdAt,
-    })
-    .from(userTable)
-    .where(eq(userTable.id, id));
+  const PROFILE_FIELDS = {
+    id:               userTable.id,
+    name:             userTable.name,
+    displayName:      userTable.displayName,
+    username:         userTable.username,
+    collectionPublic: userTable.collectionPublic,
+    image:            userTable.image,
+    city:             userTable.city,
+    bio:              userTable.bio,
+    phoneVerified:    userTable.phoneVerified,
+    reputationScore:  userTable.reputationScore,
+    noShowCount:      userTable.noShowCount,
+    isBanned:         userTable.isBanned,
+    createdAt:        userTable.createdAt,
+  };
+
+  // Try by ID first, then by username slug
+  let [profile] = await db.select(PROFILE_FIELDS).from(userTable).where(eq(userTable.id, id));
+  if (!profile) {
+    [profile] = await db.select(PROFILE_FIELDS).from(userTable).where(eq(userTable.username, id));
+  }
 
   if (!profile) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

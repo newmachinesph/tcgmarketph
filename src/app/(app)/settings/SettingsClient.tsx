@@ -16,6 +16,9 @@ import {
   XMarkIcon,
   CurrencyDollarIcon,
   NoSymbolIcon,
+  LinkIcon,
+  RectangleStackIcon,
+  AtSymbolIcon,
 } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -41,6 +44,8 @@ interface UserProps {
   phone:             string | null;
   phoneVerified:     boolean;
   preferredCurrency: string;
+  username:          string | null;
+  collectionPublic:  boolean;
 }
 
 // ── Layout helpers ─────────────────────────────────────────────────────────────
@@ -335,6 +340,149 @@ function DeleteAccountForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ── Profile URL ────────────────────────────────────────────────────────────────
+
+function ProfileUrlSection({ userId, initialUsername }: { userId: string; initialUsername: string | null }) {
+  const [username, setUsername]     = useState(initialUsername ?? "");
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+  const [saved, setSaved]           = useState(false);
+  const [copied, setCopied]         = useState(false);
+
+  const profileUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/sellers/${username || userId}`
+      : `/sellers/${username || userId}`;
+
+  async function save() {
+    if (!username.trim() || saving) return;
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    const res  = await fetch("/api/account/username", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ username: username.trim() }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) {
+      setError(data.error ?? "Something went wrong");
+    } else {
+      setSaved(true);
+      setUsername(data.username);
+    }
+  }
+
+  function copy() {
+    navigator.clipboard.writeText(profileUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <Section title="Profile URL">
+      <Row
+        icon={AtSymbolIcon}
+        label="Username"
+        description="Your public username for a shareable seller profile URL."
+      >
+        <div className="mx-6 mb-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#9A9A9A]">@</span>
+              <input
+                value={username}
+                onChange={(e) => { setUsername(e.target.value); setError(null); setSaved(false); }}
+                onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+                placeholder="your-username"
+                maxLength={20}
+                className={inputCls(!!error) + " pl-7"}
+              />
+            </div>
+            <button
+              onClick={save}
+              disabled={saving || !username.trim()}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+          {error  && <p className="text-xs text-red-400">{error}</p>}
+          {saved  && <p className="text-xs text-emerald-400">Username saved!</p>}
+          <p className="text-[10px] text-[#9A9A9A]">3–20 chars · letters, numbers, hyphens, underscores</p>
+        </div>
+      </Row>
+
+      <Row
+        icon={LinkIcon}
+        label="Your profile link"
+        description="Share this URL so others can view your seller profile."
+      >
+        <div className="mx-6 mb-5 flex items-center gap-2">
+          <div className="flex-1 truncate rounded-lg border border-white/10 bg-surface2 px-3 py-2 text-xs text-[#9A9A9A]">
+            {profileUrl}
+          </div>
+          <button
+            onClick={copy}
+            className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-xs text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </Row>
+    </Section>
+  );
+}
+
+// ── Collection Privacy ─────────────────────────────────────────────────────────
+
+function CollectionPrivacySection({ initialPublic }: { initialPublic: boolean }) {
+  const [isPublic, setIsPublic] = useState(initialPublic);
+  const [saving, setSaving]     = useState(false);
+
+  async function toggle() {
+    if (saving) return;
+    const next = !isPublic;
+    setIsPublic(next);
+    setSaving(true);
+    const res = await fetch("/api/account/collection-privacy", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ public: next }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      setIsPublic(!next);
+      toast.error("Failed to update collection privacy");
+    } else {
+      toast.success(next ? "Collection is now public" : "Collection is now private");
+    }
+  }
+
+  return (
+    <Section title="Collection">
+      <Row
+        icon={RectangleStackIcon}
+        label="Public collection"
+        description={
+          isPublic
+            ? "Anyone with your profile link can browse your collection."
+            : "Your collection is private — only you can see it."
+        }
+        action={
+          <Toggle
+            checked={isPublic}
+            disabled={saving}
+            onChange={toggle}
+          />
+        }
+      />
+    </Section>
+  );
+}
+
 // ── Preferences ────────────────────────────────────────────────────────────────
 
 function PreferencesSection({ initialCurrency }: { initialCurrency: string }) {
@@ -443,6 +591,7 @@ function BlockedUsersSection() {
 
 export function SettingsClient({ user }: { user: UserProps }) {
   const [expanded, setExpanded] = useState<"password" | "email" | "delete" | null>(null);
+  const { username, collectionPublic } = user;
 
   const emailChanged =
     typeof window !== "undefined" &&
@@ -468,6 +617,10 @@ export function SettingsClient({ user }: { user: UserProps }) {
       )}
 
       <div className="space-y-6">
+        <ProfileUrlSection userId={user.id} initialUsername={username} />
+
+        <CollectionPrivacySection initialPublic={collectionPublic} />
+
         <PreferencesSection initialCurrency={user.preferredCurrency} />
 
         <EmailPrefsSection />
