@@ -50,6 +50,9 @@ interface Transaction {
   status: string;
   buyerNote: string | null;
   cancelReason: string | null;
+  adminNote: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
   paymongoCheckoutUrl: string | null;
   paidAt: string | null;
   createdAt: string;
@@ -343,6 +346,17 @@ export default function TransactionDetailPage() {
         )}
         {txn.cancelReason && (
           <p className="mt-1 text-xs text-[#9A9A9A]">Reason: {txn.cancelReason}</p>
+        )}
+        {txn.status === "disputed" && !txn.resolvedAt && (
+          <p className="mt-1 text-xs text-[#9A9A9A]">
+            A dispute has been filed. An admin will review and reach out to both parties within 24–48 hours.
+            Do not arrange a meetup until the dispute is resolved.
+          </p>
+        )}
+        {txn.status === "disputed" && txn.resolvedAt && (
+          <p className="mt-1 text-xs text-[#9A9A9A]">
+            Resolved on {new Date(txn.resolvedAt).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}.
+          </p>
         )}
       </div>
 
