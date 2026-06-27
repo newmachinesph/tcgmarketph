@@ -1,5 +1,3 @@
-// Inline .env.local parser — no dotenv dep needed
-import { createReadStream } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
@@ -22,25 +20,34 @@ console.log("Connecting to DB host:", new URL(rawUrl).hostname);
 const client = new pg.Client({ connectionString: rawUrl });
 await client.connect();
 
-const migrationFile = resolve(__dir, "../drizzle/0002_needy_blink.sql");
-const statements = readFileSync(migrationFile, "utf8")
-  .split("--> statement-breakpoint")
-  .map((s) => s.trim())
-  .filter(Boolean);
+import { readdirSync } from "fs";
 
-for (const stmt of statements) {
-  console.log("Running:", stmt.slice(0, 80));
-  try {
-    await client.query(stmt);
-    console.log("  ✓ done");
-  } catch (e) {
-    if (e.message?.includes("already exists") || e.message?.includes("duplicate")) {
-      console.log("  ⚠ already applied, skipping");
-    } else {
-      await client.end();
-      throw e;
+const drizzleDir = resolve(__dir, "../drizzle");
+const sqlFiles = readdirSync(drizzleDir)
+  .filter((f) => /^\d{4}_.*\.sql$/.test(f))
+  .sort();
+
+for (const file of sqlFiles) {
+  console.log(`\n── ${file}`);
+  const statements = readFileSync(resolve(drizzleDir, file), "utf8")
+    .split("--> statement-breakpoint")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  for (const stmt of statements) {
+    console.log("Running:", stmt.slice(0, 80));
+    try {
+      await client.query(stmt);
+      console.log("  ✓ done");
+    } catch (e) {
+      if (e.message?.includes("already exists") || e.message?.includes("duplicate")) {
+        console.log("  ⚠ already applied, skipping");
+      } else {
+        await client.end();
+        throw e;
+      }
     }
   }
 }
 await client.end();
-console.log("Migration complete.");
+console.log("\nMigration complete.");

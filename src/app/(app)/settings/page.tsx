@@ -18,7 +18,11 @@ export default async function SettingsPage() {
   };
 
   const [row] = await db
-    .select({ username: userTable.username, collectionPublic: userTable.collectionPublic })
+    .select({
+      username:         userTable.username,
+      collectionPublic: userTable.collectionPublic,
+      smsNotifications: userTable.smsNotifications,
+    })
     .from(userTable)
     .where(eq(userTable.id, id));
 
@@ -34,6 +38,7 @@ export default async function SettingsPage() {
         preferredCurrency: u.preferredCurrency ?? "PHP",
         username:          row?.username ?? null,
         collectionPublic:  row?.collectionPublic ?? false,
+        smsNotifications:  row?.smsNotifications ?? false,
       }}
     />
   );

@@ -72,7 +72,8 @@ export const user = pgTable(
     noShowCount:     integer("no_show_count").notNull().default(0),
 
     preferredCurrency: text("preferred_currency").notNull().default("PHP"),
-    collectionPublic: boolean("collection_public").notNull().default(false),
+    collectionPublic:  boolean("collection_public").notNull().default(false),
+    smsNotifications:  boolean("sms_notifications").notNull().default(false),
 
     emailPrefs: json("email_prefs").$type<EmailPrefs>(),
 

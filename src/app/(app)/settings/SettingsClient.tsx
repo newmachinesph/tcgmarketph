@@ -46,6 +46,7 @@ interface UserProps {
   preferredCurrency: string;
   username:          string | null;
   collectionPublic:  boolean;
+  smsNotifications:  boolean;
 }
 
 // ── Layout helpers ─────────────────────────────────────────────────────────────
@@ -587,11 +588,66 @@ function BlockedUsersSection() {
   );
 }
 
+// ── SMS Notifications ──────────────────────────────────────────────────────────
+
+function SmsNotificationsSection({
+  initialEnabled,
+  phoneVerified,
+}: {
+  initialEnabled: boolean;
+  phoneVerified:  boolean;
+}) {
+  const [enabled, setEnabled] = useState(initialEnabled);
+  const [saving, setSaving]   = useState(false);
+
+  async function toggle() {
+    if (!phoneVerified || saving) return;
+    const next = !enabled;
+    setEnabled(next);
+    setSaving(true);
+    const res = await fetch("/api/account/sms-notifications", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ enabled: next }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      setEnabled(!next);
+      toast.error("Failed to update SMS preference");
+    } else {
+      toast.success(next ? "SMS notifications on" : "SMS notifications off");
+    }
+  }
+
+  return (
+    <Section title="Other Notifications">
+      <Row
+        icon={DevicePhoneMobileIcon}
+        label="SMS notifications"
+        description={
+          phoneVerified
+            ? "Receive transaction alerts on your verified phone number."
+            : "Verify your phone in Edit Profile to enable SMS alerts."
+        }
+        action={
+          phoneVerified ? (
+            <Toggle checked={enabled} disabled={saving} onChange={toggle} />
+          ) : (
+            <span className="rounded-full bg-surface2 px-2.5 py-1 text-[10px] font-bold uppercase text-[#9A9A9A]">
+              Verify phone first
+            </span>
+          )
+        }
+      />
+    </Section>
+  );
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 export function SettingsClient({ user }: { user: UserProps }) {
   const [expanded, setExpanded] = useState<"password" | "email" | "delete" | null>(null);
-  const { username, collectionPublic } = user;
+  const { username, collectionPublic, smsNotifications } = user;
 
   const emailChanged =
     typeof window !== "undefined" &&
@@ -625,14 +681,10 @@ export function SettingsClient({ user }: { user: UserProps }) {
 
         <EmailPrefsSection />
 
-        <Section title="Other Notifications">
-          <Row
-            icon={DevicePhoneMobileIcon}
-            label="SMS notifications"
-            description={user.phoneVerified ? "Transaction alerts sent to your verified number." : "Verify your phone in Edit Profile to enable."}
-            action={user.phoneVerified ? <Toggle checked={false} disabled /> : <ComingSoonBadge />}
-          />
-        </Section>
+        <SmsNotificationsSection
+          initialEnabled={smsNotifications}
+          phoneVerified={user.phoneVerified}
+        />
 
         <Section title="Security">
           <Row
