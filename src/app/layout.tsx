@@ -18,20 +18,40 @@ const dmSans = DM_Sans({
   weight: ["300", "400", "500", "600", "700"],
 });
 
+const SITE_URL = "https://tcgmarket.ph";
+const SITE_NAME = "TCGMarket PH";
+const DEFAULT_TITLE = "TCGMarket PH — Buy & Sell TCG Cards in the Philippines";
+const DEFAULT_DESCRIPTION =
+  "The Philippines' premier marketplace for Pokémon, One Piece, Yu-Gi-Oh!, and Magic: The Gathering cards.";
+
 export const metadata: Metadata = {
-  title: "TCGMarket PH — Buy & Sell TCG Cards in the Philippines",
-  description:
-    "The Philippines' premier marketplace for Pokémon, One Piece, Yu-Gi-Oh!, and Magic: The Gathering cards.",
+  title: DEFAULT_TITLE,
+  description: DEFAULT_DESCRIPTION,
+  metadataBase: new URL(SITE_URL),
+  alternates: { canonical: SITE_URL },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TCGMarket PH",
+    title: SITE_NAME,
   },
   other: { "mobile-web-app-capable": "yes" },
   icons: {
     icon:  [{ url: "/icons/icon-192", sizes: "192x192", type: "image/png" }],
     apple: [{ url: "/icons/icon-192", sizes: "192x192", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    url: SITE_URL,
+    locale: "en_PH",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
   },
 };
 

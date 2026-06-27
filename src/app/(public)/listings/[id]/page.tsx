@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -30,6 +31,26 @@ async function getListing(id: string) {
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("Failed to load listing");
   return res.json().then((d) => d.listing);
+}
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { id } = await params;
+  const listing = await getListing(id);
+  if (!listing) return { title: "Listing not found — TCGMarket PH" };
+
+  const game = GAME_LABEL[listing.card.game] ?? listing.card.game;
+  const condition = listing.isGraded
+    ? `${listing.gradingCompany?.toUpperCase()} ${listing.gradeValue}`
+    : CONDITION_LABEL[listing.condition] ?? listing.condition;
+  const price = parseFloat(listing.price).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+  const sellerName = listing.seller.displayName ?? listing.seller.name;
+  const location = listing.seller.city ? ` in ${listing.seller.city}` : "";
+
+  return {
+    title: `${listing.card.name} — ₱${price} · TCGMarket PH`,
+    description: `${game}${listing.card.setName ? ` · ${listing.card.setName}` : ""}. ${condition}. Sold by ${sellerName}${location}. Cash on meetup.`,
+    alternates: { canonical: `https://tcgmarket.ph/listings/${id}` },
+  };
 }
 
 export default async function ListingDetailPage({ params }: Params) {
