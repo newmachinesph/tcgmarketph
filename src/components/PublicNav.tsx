@@ -6,6 +6,7 @@ import Link from "next/link";
 const NAV = [
   { label: "Marketplace", href: "/marketplace" },
   { label: "Auctions",    href: "/auction",    hot: true },
+  { label: "Wanted",      href: "/wanted"      },
   { label: "Sellers",     href: "/sellers"     },
   { label: "About",       href: "/about"       },
   { label: "FAQ",         href: "/faq"         },

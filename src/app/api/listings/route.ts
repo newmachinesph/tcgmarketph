@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Trigger wishlist + saved-search match alerts asynchronously
+  // Trigger wishlist, saved-search, and wanted-listing match alerts asynchronously
   inngest.send([
     {
       name: "listings/wishlist.match",
@@ -160,6 +160,10 @@ export async function POST(request: NextRequest) {
     {
       name: "listings/saved-search.match",
       data: { listingId: listing.id },
+    },
+    {
+      name: "listings/wanted.match",
+      data: { listingId: listing.id, cardId: listing.cardId, sellerId: listing.sellerId },
     },
   ]).catch(console.error);
 

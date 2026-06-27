@@ -30,6 +30,7 @@ const NAV = [
   { label: "Sellers",     href: "/sellers",     hot: false },
   { label: "Collection",  href: "/collection",  hot: false },
   { label: "Wishlist",    href: "/wishlist",    hot: false },
+  { label: "Wanted",      href: "/wanted",      hot: false },
 ];
 
 const ACTIVITY = [
