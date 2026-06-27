@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, DM_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/Providers";
+import { MVPBanner } from "@/components/MVPBanner";
 import Script from "next/script";
 import "./globals.css";
 
@@ -53,6 +54,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <Providers>
           {children}
+          <MVPBanner />
         </Providers>
         <Toaster
           position="top-right"
