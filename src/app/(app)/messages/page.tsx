@@ -151,9 +151,9 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* Mobile: full-screen slide-up chat overlay */}
+      {/* Mobile: full-screen slide-up chat overlay — z above bottom nav (99999) */}
       <div
-        className={`fixed inset-0 z-[10000] bg-[#111111] transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed inset-0 z-[200000] bg-[#111111] transition-transform duration-300 ease-in-out lg:hidden ${
           activeId ? "translate-y-0" : "translate-y-full"
         }`}
       >

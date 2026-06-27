@@ -51,36 +51,22 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
 
   return (
     <>
-      {/* Hide on desktop — inline style beats any Tailwind conflict */}
       <style>{`@media(min-width:1024px){#mbn{display:none!important}}`}</style>
 
       <div
         id="mbn"
         style={{
-          position:       "fixed",
-          bottom:         0,
-          left:           0,
-          right:          0,
-          zIndex:         99999,
-          display:        "flex",
-          justifyContent: "center",
-          paddingLeft:    "20px",
-          paddingRight:   "20px",
-          paddingBottom:  "max(env(safe-area-inset-bottom, 0px), 16px)",
+          position:      "fixed",
+          bottom:        0,
+          left:          0,
+          right:         0,
+          zIndex:        99999,
+          background:    "#161616",
+          borderTop:     "1px solid rgba(255,255,255,0.08)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >
-        <nav
-          style={{
-            display:      "flex",
-            alignItems:   "center",
-            gap:          "2px",
-            background:   "#252525",
-            borderRadius: "9999px",
-            padding:      "6px",
-            border:       "1px solid rgba(255,255,255,0.10)",
-            boxShadow:    "0 4px 24px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)",
-          }}
-        >
+        <nav style={{ display: "flex", alignItems: "stretch" }}>
           {nav.map(({ href, label, Icon, ActiveIcon, cta }) => {
             const active = isActive(pathname, href);
             const I      = active ? ActiveIcon : Icon;
@@ -92,18 +78,33 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
                   href={href}
                   aria-label={label}
                   style={{
-                    display:         "flex",
-                    width:           "48px",
-                    height:          "48px",
-                    alignItems:      "center",
-                    justifyContent:  "center",
-                    borderRadius:    "9999px",
-                    background:      "#E24B4A",
-                    flexShrink:      0,
-                    boxShadow:       "0 0 16px rgba(226,75,74,0.45)",
+                    flex:           1,
+                    display:        "flex",
+                    flexDirection:  "column",
+                    alignItems:     "center",
+                    justifyContent: "center",
+                    gap:            "3px",
+                    paddingTop:     "10px",
+                    paddingBottom:  "10px",
                   }}
                 >
-                  <I style={{ width: "20px", height: "20px", color: "#fff" }} />
+                  <span
+                    style={{
+                      display:        "flex",
+                      width:          "36px",
+                      height:         "36px",
+                      alignItems:     "center",
+                      justifyContent: "center",
+                      borderRadius:   "9999px",
+                      background:     "#E24B4A",
+                      boxShadow:      "0 0 12px rgba(226,75,74,0.35)",
+                    }}
+                  >
+                    <I style={{ width: "18px", height: "18px", color: "#fff" }} />
+                  </span>
+                  <span style={{ fontSize: "10px", color: "#E24B4A", fontWeight: 600, lineHeight: 1 }}>
+                    {label}
+                  </span>
                 </Link>
               );
             }
@@ -114,33 +115,32 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
                 href={href}
                 aria-label={label}
                 style={{
+                  flex:           1,
                   display:        "flex",
-                  width:          "48px",
-                  height:         "48px",
+                  flexDirection:  "column",
                   alignItems:     "center",
                   justifyContent: "center",
-                  borderRadius:   "9999px",
-                  flexShrink:     0,
+                  gap:            "3px",
+                  paddingTop:     "10px",
+                  paddingBottom:  "10px",
                 }}
               >
+                <I
+                  style={{
+                    width:  "22px",
+                    height: "22px",
+                    color:  active ? "#E24B4A" : "#6B6B6B",
+                  }}
+                />
                 <span
                   style={{
-                    display:        "flex",
-                    width:          "40px",
-                    height:         "40px",
-                    alignItems:     "center",
-                    justifyContent: "center",
-                    borderRadius:   "9999px",
-                    background:     active ? "rgba(255,255,255,0.12)" : "transparent",
+                    fontSize:   "10px",
+                    fontWeight: active ? 600 : 400,
+                    color:      active ? "#E24B4A" : "#6B6B6B",
+                    lineHeight: 1,
                   }}
                 >
-                  <I
-                    style={{
-                      width:  "22px",
-                      height: "22px",
-                      color:  active ? "#FFFFFF" : "#777777",
-                    }}
-                  />
+                  {label}
                 </span>
               </Link>
             );

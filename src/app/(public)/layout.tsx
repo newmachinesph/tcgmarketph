@@ -10,7 +10,7 @@ export default async function PublicLayout({ children }: { children: React.React
   return (
     <div className="min-h-screen bg-primary text-[#F2F2F2]">
       <PublicHeader />
-      <main className="pb-28 lg:pb-0">{children}</main>
+      <main className="pb-20 lg:pb-0">{children}</main>
       <PublicFooter />
       <MobileBottomNav isAuthenticated={!!session} />
     </div>
