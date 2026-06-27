@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const [photos, sellerRatings] = await Promise.all([
-    db.select().from(listingPhotos).where(eq(listingPhotos.listingId, id)).orderBy(listingPhotos.order),
+    db.select().from(listingPhotos).where(eq(listingPhotos.listingId, row.listing.id)).orderBy(listingPhotos.order),
     db.select({ avg: avg(ratings.score), total: count(ratings.id) })
       .from(ratings).where(eq(ratings.rateeId, row.seller.id)),
   ]);
