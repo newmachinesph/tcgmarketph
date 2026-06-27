@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AuctionTicker } from "@/components/AuctionTicker";
 import {
   ShieldCheckIcon,
   BoltIcon,
@@ -10,7 +11,6 @@ import {
   MapPinIcon,
   UserGroupIcon,
   ArrowRightIcon,
-  FireIcon,
 } from "@heroicons/react/24/outline";
 import { TCGCardImage } from "@/components/TCGCardImage";
 
@@ -143,10 +143,6 @@ export default function LandingPage() {
                 Browse Marketplace
                 <ArrowRightIcon className="size-4 opacity-60" />
               </Link>
-              <Link href="/auction" className="flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-7 py-3.5 text-base font-semibold text-orange-400 transition hover:border-orange-500/50 hover:bg-orange-500/20">
-                <FireIcon className="size-5" />
-                Live Auctions
-              </Link>
             </div>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-5 lg:justify-start">
@@ -197,6 +193,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Auction ticker ───────────────────────────────────────────── */}
+      <AuctionTicker />
 
       {/* ── Stats strip ──────────────────────────────────────────────── */}
       <section className="border-y border-white/8 bg-surface/40">

@@ -24,12 +24,13 @@ interface AppHeaderProps {
 
 // Primary nav items — always visible on desktop
 const NAV = [
-  { label: "Dashboard",   href: "/dashboard"   },
-  { label: "Browse",      href: "/browse"      },
-  { label: "Marketplace", href: "/marketplace" },
-  { label: "Sellers",     href: "/sellers"     },
-  { label: "Collection",  href: "/collection"  },
-  { label: "Wishlist",    href: "/wishlist"    },
+  { label: "Dashboard",   href: "/dashboard",   hot: false },
+  { label: "Browse",      href: "/browse",      hot: false },
+  { label: "Marketplace", href: "/marketplace", hot: false },
+  { label: "Auctions",    href: "/auction",     hot: true  },
+  { label: "Sellers",     href: "/sellers",     hot: false },
+  { label: "Collection",  href: "/collection",  hot: false },
+  { label: "Wishlist",    href: "/wishlist",    hot: false },
 ];
 
 // Items grouped under "Activity" dropdown
@@ -92,7 +93,21 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
 
           {/* Desktop nav */}
           <nav className="hidden items-center gap-0.5 lg:flex">
-            {NAV.map((item) => (
+            {NAV.map((item) => item.hot ? (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                  isActive(item.href) ? "bg-orange-500/20 text-orange-400" : "text-orange-400 hover:bg-orange-500/10"
+                }`}
+              >
+                <span className="relative flex size-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75" />
+                  <span className="relative inline-flex size-1.5 rounded-full bg-orange-400" />
+                </span>
+                {item.label}
+              </Link>
+            ) : (
               <Link
                 key={item.href}
                 href={item.href}

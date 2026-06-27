@@ -7,11 +7,11 @@ import { Bars3Icon, XMarkIcon, ArrowRightStartOnRectangleIcon } from "@heroicons
 import { authClient } from "@/lib/auth-client";
 
 const NAV = [
-  { label: "Marketplace", href: "/marketplace" },
-  { label: "Sellers",     href: "/sellers"     },
-  { label: "About",       href: "/about"       },
-  { label: "Safety",      href: "/safety"      },
-  { label: "FAQ",         href: "/faq"         },
+  { label: "Marketplace", href: "/marketplace", hot: false },
+  { label: "Auctions",    href: "/auction",     hot: true  },
+  { label: "Sellers",     href: "/sellers",     hot: false },
+  { label: "About",       href: "/about",       hot: false },
+  { label: "FAQ",         href: "/faq",         hot: false },
 ];
 
 export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
@@ -51,8 +51,16 @@ export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className={navClass(item.href)}
+                className={item.hot
+                  ? `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-orange-400 transition hover:bg-orange-500/10 ${pathname === item.href || pathname.startsWith(item.href + "/") ? "bg-orange-500/10" : ""}`
+                  : navClass(item.href)}
               >
+                {item.hot && (
+                  <span className="relative flex size-1.5 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75" />
+                    <span className="relative inline-flex size-1.5 rounded-full bg-orange-400" />
+                  </span>
+                )}
                 {item.label}
               </Link>
             ))}
