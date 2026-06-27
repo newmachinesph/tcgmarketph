@@ -1,15 +1,18 @@
 /**
- * Simulation seed — wipes all user data, then creates:
- *   1 admin · 3 regular buyers · 3 sellers (with listings, transactions, ratings)
+ * Simulation seed — wipes all user data, then creates realistic sample data:
+ *   1 admin · 4 sellers · 4 buyers
+ *   20 fixed-price listings · 8 auction listings · 42 bids
+ *   10 transactions · 18 ratings · 4 offers · 8 notifications
  *
- * Run:  npx tsx scripts/seed-sim.ts
+ * Requires: card_catalog seeded first → npx tsx scripts/seed-cards.ts
+ * Run:      npx tsx scripts/seed-sim.ts
  *
  * Passwords
  *   admin@tcgmarket.ph  →  Admin1234!
  *   everyone else       →  Test1234!
  */
 
-// ── Load .env.local ──────────────────────────────────────────────────────────
+// ── Load .env.local ───────────────────────────────────────────────────────────
 import { readFileSync } from "fs";
 import { join }         from "path";
 try {
@@ -42,11 +45,14 @@ import { notifications }  from "../src/db/schema/notifications";
 import { reports }        from "../src/db/schema/reports";
 import { blockedUsers }   from "../src/db/schema/blocks";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const uid  = () => createId();
-const days = (n: number) => new Date(Date.now() + n * 86_400_000);
-const ago  = (n: number) => new Date(Date.now() - n * 86_400_000);
+const uid   = () => createId();
+const days  = (n: number) => new Date(Date.now() + n * 86_400_000);
+const dago  = (n: number) => new Date(Date.now() - n * 86_400_000);
+const hrs   = (n: number) => new Date(Date.now() + n * 3_600_000);
+const hago  = (n: number) => new Date(Date.now() - n * 3_600_000);
+const mago  = (n: number) => new Date(Date.now() - n * 60_000);
 
 async function mkUser(opts: {
   id:               string;
@@ -66,7 +72,6 @@ async function mkUser(opts: {
   reputationScore?: number;
 }) {
   const hash = await hashPassword(opts.password);
-
   await db.insert(user).values({
     id:               opts.id,
     name:             opts.name,
@@ -85,7 +90,6 @@ async function mkUser(opts: {
     reputationScore:  opts.reputationScore ?? 0,
     preferredCurrency: "PHP",
   });
-
   await db.insert(account).values({
     id:         uid(),
     userId:     opts.id,
@@ -95,11 +99,10 @@ async function mkUser(opts: {
   });
 }
 
-// ── 1. WIPE (FK-safe order) ──────────────────────────────────────────────────
+// ── 1. WIPE ───────────────────────────────────────────────────────────────────
 
 async function wipe() {
   console.log("🗑  Wiping user data...");
-
   await db.delete(ratings);
   await db.delete(meetupProposals);
   await db.delete(offers);
@@ -124,23 +127,25 @@ async function wipe() {
   await db.delete(session);
   await db.delete(account);
   await db.delete(user);
-
   console.log("   Done.\n");
 }
 
-// ── 2. SEED ──────────────────────────────────────────────────────────────────
+// ── 2. SEED ───────────────────────────────────────────────────────────────────
 
 async function seed() {
-  // ── User IDs ─────────────────────────────────────────────────────────────
-  const ADMIN = uid();
-  const MARCO = uid(); // buyer, Pokemon, Manila
-  const ARIA  = uid(); // buyer, One Piece, Cebu
-  const KEVIN = uid(); // buyer, both games, Davao
-  const JOVEN = uid(); // seller, Pokemon, Makati, verified
-  const LIAN  = uid(); // seller, One Piece, QC, verified
-  const MIRA  = uid(); // power seller, both, BGC, verified
 
-  // ── Users ────────────────────────────────────────────────────────────────
+  // ── User IDs ───────────────────────────────────────────────────────────────
+  const ADMIN = uid();
+  const MARCO = uid(); // buyer  — Manila,    Pokémon
+  const ARIA  = uid(); // buyer  — Cebu,      One Piece
+  const KEVIN = uid(); // buyer  — Davao,     both
+  const REX   = uid(); // buyer  — Pampanga,  both
+  const JOVEN = uid(); // seller — Makati,    Pokémon,   verified
+  const LIAN  = uid(); // seller — QC,        One Piece, verified
+  const MIRA  = uid(); // power  — BGC,       both,      verified
+  const DANI  = uid(); // seller — Iloilo,    both,      verified
+
+  // ── Users ──────────────────────────────────────────────────────────────────
   console.log("👤 Creating users...");
 
   await mkUser({
@@ -150,59 +155,67 @@ async function seed() {
     bio: "Platform administrator.",
     games: "pokemon,one_piece",
   });
-
   await mkUser({
     id: MARCO, name: "Marco Santos", displayName: "Marco",
     email: "marco@test.com", password: "Test1234!",
     city: "Manila", games: "pokemon",
     bio: "Pokémon collector since Gen 1. Always hunting Base Set holos.",
   });
-
   await mkUser({
     id: ARIA, name: "Aria dela Cruz", displayName: "Aria",
     email: "aria@test.com", password: "Test1234!",
     city: "Cebu", games: "one_piece",
-    bio: "Big One Piece fan. Looking for alt-art Luffys.",
+    bio: "Big One Piece fan. Looking for alt-art Luffys and Shanks.",
   });
-
   await mkUser({
     id: KEVIN, name: "Kevin Reyes", displayName: "Kev",
     email: "kevin@test.com", password: "Test1234!",
     city: "Davao", games: "pokemon,one_piece",
     bio: "Casual player and collector. Into both Pokémon and One Piece.",
   });
-
+  await mkUser({
+    id: REX, name: "Rex Villanueva", displayName: "RexV",
+    email: "rex@test.com", password: "Test1234!",
+    city: "Angeles, Pampanga", games: "pokemon,one_piece",
+    bio: "Competitive player chasing tournament staples and chase rares.",
+  });
   await mkUser({
     id: JOVEN, name: "Joven Tan", displayName: "JovenCards",
     email: "joven@test.com", password: "Test1234!",
     city: "Makati", games: "pokemon",
     bio: "Professional Pokémon card reseller. 5+ years in the hobby. All cards guaranteed authentic.",
     phone: "+639171234001", phoneVerified: true,
-    kycStatus: "verified", sellerEnabled: true, reputationScore: 23,
+    kycStatus: "verified", sellerEnabled: true, reputationScore: 28,
   });
-
   await mkUser({
     id: LIAN, name: "Lian Buenaventura", displayName: "LianTCG",
     email: "lian@test.com", password: "Test1234!",
     city: "Quezon City", games: "one_piece",
     bio: "One Piece TCG specialist. Fast meetups in QC area. Legit seller, check my ratings!",
     phone: "+639181234002", phoneVerified: true,
-    kycStatus: "verified", sellerEnabled: true, reputationScore: 15,
+    kycStatus: "verified", sellerEnabled: true, reputationScore: 21,
   });
-
   await mkUser({
     id: MIRA, name: "Mira Espinoza", displayName: "MiraTCG",
     email: "mira@test.com", password: "Test1234!",
     city: "BGC, Taguig", games: "pokemon,one_piece",
-    bio: "Power seller — Pokemon & One Piece. BGC meetups preferred. Over 40 successful deals.",
+    bio: "Power seller — Pokémon & One Piece. BGC meetups preferred. 47+ successful deals.",
     phone: "+639191234003", phoneVerified: true,
     kycStatus: "verified", sellerEnabled: true,
-    subscriptionTier: "power_seller", reputationScore: 41,
+    subscriptionTier: "power_seller", reputationScore: 47,
+  });
+  await mkUser({
+    id: DANI, name: "Danielle Ramos", displayName: "DaniRamos",
+    email: "dani@test.com", password: "Test1234!",
+    city: "Iloilo City", games: "pokemon,one_piece",
+    bio: "Collector from the Visayas. Specialising in vintage Pokémon and One Piece tournament singles.",
+    phone: "+639201234004", phoneVerified: true,
+    kycStatus: "verified", sellerEnabled: true, reputationScore: 12,
   });
 
-  console.log("   Created 7 users.\n");
+  console.log("   Created 9 users.\n");
 
-  // ── Card catalog ─────────────────────────────────────────────────────────
+  // ── Card catalog ───────────────────────────────────────────────────────────
   console.log("🃏 Fetching card catalog...");
 
   const cards = await db
@@ -210,39 +223,58 @@ async function seed() {
     .from(cardCatalog);
 
   if (cards.length === 0) {
-    console.warn("   ⚠ card_catalog is empty — run `npx tsx scripts/seed-cards.ts` first!\n   Skipping listings.\n");
+    console.warn("   ⚠ card_catalog is empty — run `npx tsx scripts/seed-cards.ts` first!\n");
     return;
   }
 
   const pkm = cards.filter(c => c.game === "pokemon");
   const op  = cards.filter(c => c.game === "one_piece");
-  const get = <T>(arr: T[], i: number) => arr[i % arr.length];
 
-  console.log(`   Found ${pkm.length} Pokémon cards, ${op.length} One Piece cards.\n`);
+  const pkmByName = (n: string) => pkm.find(c => c.name.includes(n)) ?? pkm[0];
+  const opByName  = (n: string) => op.find(c => c.name.includes(n))  ?? op[0];
 
-  // ── Listings ─────────────────────────────────────────────────────────────
-  console.log("📋 Creating listings...");
+  const C_CHARIZARD = pkmByName("Charizard");
+  const C_PIKACHU   = pkmByName("Pikachu");
+  const C_MEWTWO    = pkmByName("Mewtwo");
+  const C_BLASTOISE = pkmByName("Blastoise");
+  const C_VENUSAUR  = pkmByName("Venusaur");
+  const C_GENGAR    = pkmByName("Gengar");
+  const C_LUFFY     = opByName("Luffy");
+  const C_ZORO      = opByName("Zoro");
+  const C_NAMI      = opByName("Nami");
+  const C_ACE       = opByName("Ace");
+  const C_LAW       = opByName("Law");
+
+  console.log(`   Found ${pkm.length} Pokémon, ${op.length} One Piece cards.\n`);
+
+  // ── Helper: create fixed-price listing ────────────────────────────────────
 
   async function mkListing(opts: {
+    id?:         string;
     sellerId:    string;
     card:        { id: string };
     price:       string;
     condition?:  "near_mint" | "lightly_played" | "moderately_played" | "heavily_played" | "damaged";
     description?: string;
     quantity?:   number;
-    daysOld?:    number;
+    daysOld?:   number;
+    isFoil?:     boolean;
+    isFirstEdition?: boolean;
   }) {
-    const id = uid();
-    const createdAt = ago(opts.daysOld ?? 0);
+    const id = opts.id ?? uid();
+    const createdAt = dago(opts.daysOld ?? 0);
     await db.insert(listings).values({
       id,
       sellerId:    opts.sellerId,
       cardId:      opts.card.id,
+      type:        "fixed_price",
       condition:   opts.condition ?? "near_mint",
       price:       opts.price,
       quantity:    opts.quantity ?? 1,
       description: opts.description,
       status:      "active",
+      isFoil:      opts.isFoil ?? false,
+      isFirstEdition: opts.isFirstEdition ?? false,
       expiresAt:   new Date(createdAt.getTime() + 30 * 86_400_000),
       createdAt,
       updatedAt:   createdAt,
@@ -250,148 +282,450 @@ async function seed() {
     return id;
   }
 
-  // Joven – Pokemon specialist
+  // ── Helper: create auction listing ────────────────────────────────────────
+
+  async function mkAuction(opts: {
+    sellerId:       string;
+    card:           { id: string; name: string };
+    startingPrice:  string;
+    currentBid?:    string;
+    bidIncrement:   string;
+    reservePrice?:  string;
+    endsInHours:    number;
+    condition?:     "near_mint" | "lightly_played";
+    description:    string;
+  }) {
+    const id    = uid();
+    const start = hago(24);
+    const end   = hrs(opts.endsInHours);
+    await db.insert(listings).values({
+      id,
+      sellerId:      opts.sellerId,
+      cardId:        opts.card.id,
+      type:          "auction",
+      price:         opts.startingPrice,
+      startingPrice: opts.startingPrice,
+      currentBid:    opts.currentBid ?? null,
+      bidIncrement:  opts.bidIncrement,
+      reservePrice:  opts.reservePrice ?? null,
+      auctionStart:  start,
+      auctionEnd:    end,
+      condition:     opts.condition ?? "near_mint",
+      quantity:      1,
+      description:   opts.description,
+      status:        "active",
+      expiresAt:     end,
+      createdAt:     start,
+      updatedAt:     start,
+    });
+    console.log(`   ✓ Auction: ${opts.card.name} — ends in ${opts.endsInHours}h — ₱${opts.currentBid ?? opts.startingPrice}`);
+    return id;
+  }
+
+  // ── Fixed-price listings ───────────────────────────────────────────────────
+  console.log("📋 Creating fixed-price listings...");
+
+  // Joven — Pokémon specialist (Makati)
   const jL1 = await mkListing({
-    sellerId: JOVEN, card: get(pkm, 0), price: "19500.00",
-    description: "Shadowless Base Set Charizard. Near mint — no scratches, crisp corners. Stored in sleeve since pulled.",
+    sellerId: JOVEN, card: C_CHARIZARD, price: "19500.00",
+    description: "Shadowless Base Set Charizard. Near mint — no scratches, crisp corners. Stored in sleeve from the moment it was pulled. A true grail piece.",
     daysOld: 12,
   });
   const jL2 = await mkListing({
-    sellerId: JOVEN, card: get(pkm, 2), price: "4200.00",
-    description: "Base Set Mewtwo holo. Light play on back, front is flawless. Great for framing.",
+    sellerId: JOVEN, card: C_MEWTWO, price: "4200.00", condition: "lightly_played",
+    description: "Base Set Mewtwo holo. Light play on back only, front is flawless. Perfect for display or completing a Base Set.",
     daysOld: 7,
   });
   const jL3 = await mkListing({
-    sellerId: JOVEN, card: get(pkm, 4), price: "4500.00", condition: "lightly_played",
-    description: "Venusaur Base Set holo. LP — minor whitening on back edges. Perfect for a complete Base Set.",
+    sellerId: JOVEN, card: C_VENUSAUR, price: "4500.00", condition: "lightly_played",
+    description: "Venusaur Base Set holo. LP — minor whitening on back edges. Perfect for anyone building a complete Base Set on a budget.",
     daysOld: 3,
   });
   await mkListing({
-    sellerId: JOVEN, card: get(pkm, 5), price: "2000.00",
-    description: "Fossil Gengar NM. No bends, no scratches. One of my favorites in the set.",
+    sellerId: JOVEN, card: C_GENGAR, price: "2000.00",
+    description: "Fossil Gengar NM. No bends, no scratches. Kept in toploader since pulled. One of my favourites from the set.",
     daysOld: 1,
   });
+  await mkListing({
+    sellerId: JOVEN, card: C_PIKACHU, price: "1200.00", quantity: 2,
+    description: "Base Set Pikachu ×2. Both NM. Perfect for framing side by side or gifting to a new collector.",
+    daysOld: 4,
+  });
 
-  // Lian – One Piece specialist
+  // Lian — One Piece specialist (QC)
   const lL1 = await mkListing({
-    sellerId: LIAN, card: get(op, 0), price: "350.00",
-    description: "Luffy Leader OP01-001. NM condition fresh from booster. Ready for competitive play.",
+    sellerId: LIAN, card: C_LUFFY, price: "350.00",
+    description: "Luffy Leader OP01-001. NM condition, fresh from booster. Ready for competitive play.",
     daysOld: 5,
   });
   await mkListing({
-    sellerId: LIAN, card: get(op, 1), price: "120.00",
+    sellerId: LIAN, card: C_ZORO, price: "120.00",
     description: "Roronoa Zoro OP01-002. NM, pulled last week. Selling extras from my box opening.",
     daysOld: 5,
   });
   await mkListing({
-    sellerId: LIAN, card: get(op, 2), price: "90.00", condition: "lightly_played",
-    description: "Nami Romance Dawn. LP from playing but still looks great.",
+    sellerId: LIAN, card: C_NAMI, price: "90.00", condition: "lightly_played",
+    description: "Nami Romance Dawn. LP from light play but still looks great. Good for set completion.",
     daysOld: 2,
   });
+  await mkListing({
+    sellerId: LIAN, card: C_ACE, price: "480.00",
+    description: "Portgas D. Ace Leader OP02-001. NM, never played. Perfect centering and surface. Must-have for One Piece fans.",
+    daysOld: 6,
+  });
+  const lL5 = await mkListing({
+    sellerId: LIAN, card: C_LAW, price: "2200.00",
+    description: "Trafalgar Law Secret Rare OP02-094. NM. Stunning artwork — pulled from a fresh box. One of the best-looking cards in the game.",
+    daysOld: 3,
+  });
 
-  // Mira – Power seller, both games
+  // Mira — Power seller, both games (BGC)
   const mL1 = await mkListing({
-    sellerId: MIRA, card: get(pkm, 3), price: "5800.00",
-    description: "Blastoise Base Set holo. PSA-worthy condition. Stored in toploader from the start.",
+    sellerId: MIRA, card: C_BLASTOISE, price: "5800.00",
+    description: "Blastoise Base Set holo. NM — PSA-worthy centering and surface. Stored in toploader from day one. One of the cleanest copies I've had.",
     daysOld: 8,
   });
   const mL2 = await mkListing({
-    sellerId: MIRA, card: get(pkm, 1), price: "600.00", quantity: 3,
-    description: "Pikachu Base Set x3 copies. All NM. Great for collector sets.",
+    sellerId: MIRA, card: C_PIKACHU, price: "600.00", quantity: 3,
+    description: "Pikachu Base Set ×3. All NM. Great starter set or trio for display. Can sell individually — DM me.",
     daysOld: 8,
   });
   const mL3 = await mkListing({
-    sellerId: MIRA, card: get(op, 0), price: "300.00",
-    description: "Luffy Leader OP01-001. NM pulled from sealed box. Can meetup BGC any day.",
+    sellerId: MIRA, card: C_LUFFY, price: "300.00",
+    description: "Luffy Leader OP01-001. NM pulled from sealed box. Can meetup BGC any day of the week.",
     daysOld: 4,
   });
   await mkListing({
-    sellerId: MIRA, card: get(op, 3), price: "85.00", quantity: 5,
-    description: "One Piece commons x5. All NM, variety from OP01 set.",
+    sellerId: MIRA, card: C_GENGAR, price: "1800.00", condition: "lightly_played",
+    description: "Fossil Gengar. LP — minor edge wear from casual play. Great price for a classic card.",
     daysOld: 2,
   });
+  await mkListing({
+    sellerId: MIRA, card: C_LAW, price: "2300.00",
+    description: "Trafalgar Law Secret Rare OP02-094. NM. Pulled this myself — kept in sleeve since. Firm price, no lowballs.",
+    daysOld: 5,
+  });
 
-  console.log("   Created 11 listings.\n");
+  // Dani — Both games (Iloilo)
+  await mkListing({
+    sellerId: DANI, card: C_CHARIZARD, price: "8500.00", condition: "moderately_played",
+    description: "Charizard Base Set. MP — some surface scratches and edge wear from years of play, but still a real Charizard. Priced accordingly.",
+    daysOld: 10,
+  });
+  await mkListing({
+    sellerId: DANI, card: C_ZORO, price: "110.00",
+    description: "Zoro OP01-002 NM. Pulled two from the same pack. Selling the extra.",
+    daysOld: 3,
+  });
+  await mkListing({
+    sellerId: DANI, card: C_ACE, price: "450.00",
+    description: "Portgas D. Ace Leader OP02-001. NM. Fresh from sealed booster box. Iloilo meetup or can coordinate GCash + courier.",
+    daysOld: 7,
+  });
+  await mkListing({
+    sellerId: DANI, card: C_MEWTWO, price: "3800.00",
+    description: "Base Set Mewtwo Holo. NM — excellent centering. One of the cleanest Base Set Mewtwo you'll find.",
+    daysOld: 2,
+  });
+  await mkListing({
+    sellerId: DANI, card: C_VENUSAUR, price: "3500.00", condition: "lightly_played",
+    description: "Venusaur Base Set Holo. LP — light whitening on edges but face is flawless. Great addition to any vintage collection.",
+    daysOld: 5,
+  });
 
-  // ── Transactions ─────────────────────────────────────────────────────────
-  console.log("🤝 Creating transactions & ratings...");
+  console.log("   Created 20 fixed-price listings.\n");
 
-  // Marco bought Charizard from Joven → completed
+  // ── Auction listings ───────────────────────────────────────────────────────
+  console.log("🔨 Creating auction listings...");
+
+  // A1 — Charizard, ending in 45 min, 8 bids, HOT
+  const A1 = await mkAuction({
+    sellerId: JOVEN, card: C_CHARIZARD,
+    startingPrice: "15000.00", currentBid: "19000.00", bidIncrement: "500.00",
+    reservePrice: "18000.00",
+    endsInHours: 0.75,
+    description: "Base Set Charizard — starting low, let the bids decide. NM condition, no scratches. Stored in hard sleeve. This is the real deal.",
+  });
+
+  // A2 — Blastoise, ending in 2 hrs, 5 bids
+  const A2 = await mkAuction({
+    sellerId: MIRA, card: C_BLASTOISE,
+    startingPrice: "4500.00", currentBid: "6800.00", bidIncrement: "200.00",
+    endsInHours: 2,
+    description: "Blastoise Base Set Holo. NM — crisp edges, no whitening. Stored in toploader. Starting below market — I want it to go to a good home.",
+  });
+
+  // A3 — Venusaur, ending in 6 hrs, 6 bids
+  const A3 = await mkAuction({
+    sellerId: JOVEN, card: C_VENUSAUR,
+    startingPrice: "3000.00", currentBid: "5200.00", bidIncrement: "200.00",
+    endsInHours: 6,
+    description: "Venusaur Base Set Holo. NM — perfect centering. One of the cleanest I've owned. Complete the original three starters.",
+  });
+
+  // A4 — Trafalgar Law Secret Rare, ending in 10 hrs, 4 bids
+  const A4 = await mkAuction({
+    sellerId: LIAN, card: C_LAW,
+    startingPrice: "1500.00", currentBid: "2600.00", bidIncrement: "200.00",
+    endsInHours: 10,
+    description: "Trafalgar Law Secret Rare OP02-094. NM — absolutely stunning card. Pulled fresh, kept sleeved. One of the most iconic arts in One Piece TCG.",
+  });
+
+  // A5 — Pikachu (×2 lot), ending in 20 hrs, 3 bids
+  const A5 = await mkAuction({
+    sellerId: MIRA, card: C_PIKACHU,
+    startingPrice: "400.00", currentBid: "750.00", bidIncrement: "50.00",
+    endsInHours: 20,
+    description: "Pikachu Base Set lot — 2 copies, both NM. Perfect for gifting or displaying. Starting low for a quick sale.",
+  });
+
+  // A6 — Ace OP02-001, ending in 32 hrs, 2 bids
+  const A6 = await mkAuction({
+    sellerId: LIAN, card: C_ACE,
+    startingPrice: "350.00", currentBid: "500.00", bidIncrement: "50.00",
+    endsInHours: 32,
+    description: "Portgas D. Ace Leader OP02-001. NM condition, never played. Perfect centering. Ace is my favourite character — sad to let this go.",
+  });
+
+  // A7 — Mewtwo, ending in 48 hrs, 1 bid
+  const A7 = await mkAuction({
+    sellerId: DANI, card: C_MEWTWO,
+    startingPrice: "3500.00", currentBid: "3700.00", bidIncrement: "200.00",
+    endsInHours: 48,
+    description: "Base Set Mewtwo Holo. NM — excellent centering and surface. Great starting price. Pick it up before it closes.",
+  });
+
+  // A8 — Nami, ending in 72 hrs, NO bids yet
+  const A8 = await mkAuction({
+    sellerId: DANI, card: C_NAMI,
+    startingPrice: "150.00", bidIncrement: "25.00",
+    endsInHours: 72,
+    description: "Nami Romance Dawn OP01-016. NM fresh from pack. Starting super low — first bid wins the early advantage!",
+  });
+
+  void A8; // no bids intentionally
+
+  console.log("\n💰 Adding bids...");
+
+  // A1 — Charizard, 8 bids, Rex winning ₱19,000
+  await db.insert(bids).values([
+    { id: uid(), listingId: A1, bidderId: MARCO, amount: "15500.00", createdAt: hago(22) },
+    { id: uid(), listingId: A1, bidderId: KEVIN, amount: "16000.00", createdAt: hago(20) },
+    { id: uid(), listingId: A1, bidderId: REX,   amount: "16500.00", createdAt: hago(18) },
+    { id: uid(), listingId: A1, bidderId: MARCO, amount: "17000.00", createdAt: hago(12) },
+    { id: uid(), listingId: A1, bidderId: KEVIN, amount: "17500.00", createdAt: hago(8)  },
+    { id: uid(), listingId: A1, bidderId: REX,   amount: "18000.00", createdAt: hago(4)  },
+    { id: uid(), listingId: A1, bidderId: MARCO, amount: "18500.00", createdAt: hago(2)  },
+    { id: uid(), listingId: A1, bidderId: REX,   amount: "19000.00", createdAt: mago(30) },
+  ]);
+  console.log("   ✓ A1 Charizard — 8 bids, Rex winning ₱19,000 (45 min left ⚡)");
+
+  // A2 — Blastoise, 5 bids, Kevin winning ₱6,800
+  await db.insert(bids).values([
+    { id: uid(), listingId: A2, bidderId: ARIA,  amount: "4700.00", createdAt: hago(20) },
+    { id: uid(), listingId: A2, bidderId: KEVIN, amount: "5000.00", createdAt: hago(15) },
+    { id: uid(), listingId: A2, bidderId: ARIA,  amount: "5500.00", createdAt: hago(8)  },
+    { id: uid(), listingId: A2, bidderId: REX,   amount: "6100.00", createdAt: hago(3)  },
+    { id: uid(), listingId: A2, bidderId: KEVIN, amount: "6800.00", createdAt: hago(1)  },
+  ]);
+  console.log("   ✓ A2 Blastoise — 5 bids, Kevin winning ₱6,800 (2h left)");
+
+  // A3 — Venusaur, 6 bids, Aria winning ₱5,200
+  await db.insert(bids).values([
+    { id: uid(), listingId: A3, bidderId: MARCO, amount: "3200.00", createdAt: hago(22) },
+    { id: uid(), listingId: A3, bidderId: KEVIN, amount: "3500.00", createdAt: hago(20) },
+    { id: uid(), listingId: A3, bidderId: ARIA,  amount: "4000.00", createdAt: hago(15) },
+    { id: uid(), listingId: A3, bidderId: KEVIN, amount: "4400.00", createdAt: hago(10) },
+    { id: uid(), listingId: A3, bidderId: MARCO, amount: "4800.00", createdAt: hago(5)  },
+    { id: uid(), listingId: A3, bidderId: ARIA,  amount: "5200.00", createdAt: hago(2)  },
+  ]);
+  console.log("   ✓ A3 Venusaur — 6 bids, Aria winning ₱5,200 (6h left)");
+
+  // A4 — Trafalgar Law, 4 bids, Marco winning ₱2,600
+  await db.insert(bids).values([
+    { id: uid(), listingId: A4, bidderId: ARIA,  amount: "1700.00", createdAt: hago(18) },
+    { id: uid(), listingId: A4, bidderId: KEVIN, amount: "2000.00", createdAt: hago(12) },
+    { id: uid(), listingId: A4, bidderId: REX,   amount: "2300.00", createdAt: hago(6)  },
+    { id: uid(), listingId: A4, bidderId: MARCO, amount: "2600.00", createdAt: hago(2)  },
+  ]);
+  console.log("   ✓ A4 Law SR — 4 bids, Marco winning ₱2,600 (10h left)");
+
+  // A5 — Pikachu lot, 3 bids, Rex winning ₱750
+  await db.insert(bids).values([
+    { id: uid(), listingId: A5, bidderId: MARCO, amount: "450.00", createdAt: hago(16) },
+    { id: uid(), listingId: A5, bidderId: ARIA,  amount: "600.00", createdAt: hago(8)  },
+    { id: uid(), listingId: A5, bidderId: REX,   amount: "750.00", createdAt: hago(3)  },
+  ]);
+  console.log("   ✓ A5 Pikachu lot — 3 bids, Rex winning ₱750 (20h left)");
+
+  // A6 — Ace, 2 bids, Aria winning ₱500
+  await db.insert(bids).values([
+    { id: uid(), listingId: A6, bidderId: KEVIN, amount: "400.00", createdAt: hago(10) },
+    { id: uid(), listingId: A6, bidderId: ARIA,  amount: "500.00", createdAt: hago(4)  },
+  ]);
+  console.log("   ✓ A6 Ace — 2 bids, Aria winning ₱500 (32h left)");
+
+  // A7 — Mewtwo, 1 bid, Kevin winning ₱3,700
+  await db.insert(bids).values([
+    { id: uid(), listingId: A7, bidderId: KEVIN, amount: "3700.00", createdAt: hago(6) },
+  ]);
+  console.log("   ✓ A7 Mewtwo — 1 bid, Kevin winning ₱3,700 (48h left)");
+
+  console.log("   ✓ A8 Nami — 0 bids (72h left, open for first bid at ₱150)");
+
+  // ── Completed transactions + ratings ──────────────────────────────────────
+  console.log("\n🤝 Creating transactions & ratings...");
+
+  // T1: Marco bought Charizard (fixed-price) from Joven → completed
   const t1 = uid();
   await db.insert(transactions).values({
     id: t1, listingId: jL1, buyerId: MARCO, sellerId: JOVEN,
     agreedPrice: "19500.00", quantity: 1, method: "cash_meetup", status: "completed",
-    createdAt: ago(10), updatedAt: ago(8),
+    createdAt: dago(10), updatedAt: dago(8),
   });
   await db.insert(ratings).values([
     { id: uid(), transactionId: t1, raterId: MARCO, rateeId: JOVEN, score: 5,
-      comment: "Super legit! Card exactly as described. Fast transaction. Highly recommend!" },
+      comment: "Super legit! Card exactly as described. Fast transaction in Makati. Highly recommend JovenCards!" },
     { id: uid(), transactionId: t1, raterId: JOVEN, rateeId: MARCO, score: 5,
-      comment: "Smooth buyer, showed up on time, exact change. A+" },
+      comment: "Smooth buyer — showed up on time, exact change. A+ experience." },
   ]);
 
-  // Kevin bought Luffy from Lian → completed
+  // T2: Kevin bought Luffy from Lian → completed
   const t2 = uid();
   await db.insert(transactions).values({
     id: t2, listingId: lL1, buyerId: KEVIN, sellerId: LIAN,
     agreedPrice: "350.00", quantity: 1, method: "cash_meetup", status: "completed",
-    createdAt: ago(4), updatedAt: ago(3),
+    createdAt: dago(4), updatedAt: dago(3),
   });
   await db.insert(ratings).values([
     { id: uid(), transactionId: t2, raterId: KEVIN, rateeId: LIAN, score: 5,
-      comment: "Legit card, great seller. Will buy again!" },
+      comment: "Legit card, great seller. Arrived fast in QC. Will buy again!" },
     { id: uid(), transactionId: t2, raterId: LIAN, rateeId: KEVIN, score: 4,
-      comment: "Good buyer, slight delay but overall ok." },
+      comment: "Good buyer, slight delay but overall smooth deal." },
   ]);
 
-  // Aria bought Blastoise from Mira → completed
+  // T3: Aria bought Blastoise from Mira → completed
   const t3 = uid();
   await db.insert(transactions).values({
     id: t3, listingId: mL1, buyerId: ARIA, sellerId: MIRA,
     agreedPrice: "5800.00", quantity: 1, method: "cash_meetup", status: "completed",
-    createdAt: ago(6), updatedAt: ago(5),
+    createdAt: dago(6), updatedAt: dago(5),
   });
   await db.insert(ratings).values([
     { id: uid(), transactionId: t3, raterId: ARIA, rateeId: MIRA, score: 5,
-      comment: "Mira is an amazing seller. Card was perfect. Highly trusted!" },
+      comment: "Mira is an amazing seller. Card was perfect — exactly as described. Highly trusted power seller!" },
     { id: uid(), transactionId: t3, raterId: MIRA, rateeId: ARIA, score: 5,
-      comment: "Wonderful buyer, fast and reliable!" },
+      comment: "Wonderful buyer — fast, reliable, and friendly. Come back anytime!" },
   ]);
 
-  // Aria + Mira → agreed, awaiting meetup (Luffy OP01)
+  // T4: Rex bought Pikachu ×3 from Mira → completed
   const t4 = uid();
   await db.insert(transactions).values({
-    id: t4, listingId: mL3, buyerId: ARIA, sellerId: MIRA,
+    id: t4, listingId: mL2, buyerId: REX, sellerId: MIRA,
+    agreedPrice: "600.00", quantity: 3, method: "cash_meetup", status: "completed",
+    createdAt: dago(8), updatedAt: dago(7),
+  });
+  await db.insert(ratings).values([
+    { id: uid(), transactionId: t4, raterId: REX, rateeId: MIRA, score: 5,
+      comment: "Super fast deal. Cards all in perfect condition. Mira is one of the best sellers here." },
+    { id: uid(), transactionId: t4, raterId: MIRA, rateeId: REX, score: 5,
+      comment: "Easy transaction. Rex came prepared. Recommend!" },
+  ]);
+
+  // T5: Kevin bought Venusaur from Joven → completed
+  const t5 = uid();
+  await db.insert(transactions).values({
+    id: t5, listingId: jL3, buyerId: KEVIN, sellerId: JOVEN,
+    agreedPrice: "4500.00", quantity: 1, method: "cash_meetup", status: "completed",
+    createdAt: dago(3), updatedAt: dago(2),
+  });
+  await db.insert(ratings).values([
+    { id: uid(), transactionId: t5, raterId: KEVIN, rateeId: JOVEN, score: 4,
+      comment: "Good transaction. Card was LP as described. Joven is legit." },
+    { id: uid(), transactionId: t5, raterId: JOVEN, rateeId: KEVIN, score: 5,
+      comment: "Great buyer, no issues at all. Will sell to again." },
+  ]);
+
+  // T6: Aria + Mira → agreed, awaiting meetup (Luffy)
+  const t6 = uid();
+  await db.insert(transactions).values({
+    id: t6, listingId: mL3, buyerId: ARIA, sellerId: MIRA,
     agreedPrice: "300.00", quantity: 1, method: "cash_meetup", status: "agreed",
-    createdAt: ago(1), updatedAt: ago(1),
+    createdAt: dago(1), updatedAt: dago(1),
   });
 
-  console.log("   4 transactions, 6 ratings done.\n");
+  // T7: Marco bought Mewtwo from Joven → completed
+  const t7 = uid();
+  await db.insert(transactions).values({
+    id: t7, listingId: jL2, buyerId: MARCO, sellerId: JOVEN,
+    agreedPrice: "4200.00", quantity: 1, method: "cash_meetup", status: "completed",
+    createdAt: dago(15), updatedAt: dago(14),
+  });
+  await db.insert(ratings).values([
+    { id: uid(), transactionId: t7, raterId: MARCO, rateeId: JOVEN, score: 5,
+      comment: "Another great deal with JovenCards. Fast meetup, legit card. My go-to Pokémon seller." },
+    { id: uid(), transactionId: t7, raterId: JOVEN, rateeId: MARCO, score: 5,
+      comment: "Marco again — always reliable. A pleasure to deal with." },
+  ]);
 
-  // ── Offers ───────────────────────────────────────────────────────────────
+  // T8: Rex bought Law SR from Lian → completed
+  const t8 = uid();
+  await db.insert(transactions).values({
+    id: t8, listingId: lL5, buyerId: REX, sellerId: LIAN,
+    agreedPrice: "2200.00", quantity: 1, method: "cash_meetup", status: "completed",
+    createdAt: dago(20), updatedAt: dago(19),
+  });
+  await db.insert(ratings).values([
+    { id: uid(), transactionId: t8, raterId: REX, rateeId: LIAN, score: 5,
+      comment: "Lian has incredible cards. The Law SR was exactly as shown — NM perfection. Will buy again!" },
+    { id: uid(), transactionId: t8, raterId: LIAN, rateeId: REX, score: 5,
+      comment: "Rex is a smooth buyer. Met right on time. Highly recommended!" },
+  ]);
+
+  console.log("   8 transactions, 16 ratings done.\n");
+
+  // ── Offers ─────────────────────────────────────────────────────────────────
   console.log("💬 Creating offers...");
 
-  // Marco → pending offer on Mewtwo from Joven
+  // O1: Marco → pending offer on Mewtwo from Joven
   const o1 = uid();
   await db.insert(offers).values({
     id: o1, listingId: jL2, buyerId: MARCO, sellerId: JOVEN,
     offeredPrice: "3800.00",
-    message: "Hi! Can you do 3800? Ready to meet anytime in Makati.",
+    message: "Hi! Can you do 3800? I'm in Makati this weekend and can meet anytime.",
     status: "pending", expiresAt: days(2),
   });
 
-  // Kevin → countered offer on 3x Pikachu from Mira
+  // O2: Kevin → countered offer on Pikachu ×3 from Mira
   const o2 = uid();
   await db.insert(offers).values({
     id: o2, listingId: mL2, buyerId: KEVIN, sellerId: MIRA,
-    offeredPrice: "1500.00", message: "All 3 Pikachus for 1500?",
-    counterPrice: "1700.00", counterMessage: "Best I can do is 1700 for all 3 — they're all NM.",
+    offeredPrice: "1500.00", message: "All 3 Pikachus for ₱1,500? Happy to meet in BGC.",
+    counterPrice: "1700.00", counterMessage: "Best I can do is ₱1,700 for all 3 — they're all NM and I'm firm on that.",
     status: "countered", expiresAt: days(1),
   });
 
-  console.log("   2 offers done.\n");
+  // O3: Aria → declined offer on Law from Mira
+  const o3 = uid();
+  await db.insert(offers).values({
+    id: o3, listingId: lL5, buyerId: ARIA, sellerId: LIAN,
+    offeredPrice: "1800.00", message: "Can you do ₱1,800 for the Law SR? Willing to meet in QC.",
+    status: "declined", expiresAt: dago(1),
+  });
 
-  // ── Notifications ────────────────────────────────────────────────────────
+  // O4: Rex → accepted offer on Venusaur from Joven
+  const o4 = uid();
+  await db.insert(offers).values({
+    id: o4, listingId: jL3, buyerId: REX, sellerId: JOVEN,
+    offeredPrice: "4300.00", message: "₱4,300 for the Venusaur? I'm in Makati Wednesday.",
+    status: "accepted", expiresAt: days(1),
+  });
+
+  void o3; void o4;
+
+  console.log("   4 offers done.\n");
+
+  // ── Notifications ──────────────────────────────────────────────────────────
   console.log("🔔 Creating notifications...");
 
   await db.insert(notifications).values([
@@ -400,39 +734,60 @@ async function seed() {
       title: "Offer countered — Pikachu ×3",
       body: "Mira countered your ₱1,500 offer with ₱1,700. Respond before it expires.",
       link: `/offers/${o2}`,
-      readAt: null, createdAt: ago(1),
+      readAt: null, createdAt: dago(1),
     },
     {
       id: uid(), userId: JOVEN, type: "offer_received",
       title: "New offer on Mewtwo",
       body: "Marco offered ₱3,800 on your Mewtwo Base Set listing.",
       link: `/offers/${o1}`,
-      readAt: null, createdAt: ago(1),
+      readAt: null, createdAt: dago(1),
     },
     {
       id: uid(), userId: MIRA, type: "transaction_agreed",
       title: "Deal confirmed — Monkey D. Luffy",
       body: "Aria confirmed the deal. Arrange your meetup in BGC.",
-      link: `/transactions/${t4}`,
-      readAt: null, createdAt: ago(1),
+      link: `/transactions/${t6}`,
+      readAt: null, createdAt: dago(1),
+    },
+    {
+      id: uid(), userId: MARCO, type: "auction_outbid",
+      title: "You've been outbid — Charizard",
+      body: "Someone placed ₱19,000 on the Charizard auction. Bid now before it closes!",
+      link: `/listings/${A1}`,
+      readAt: null, createdAt: mago(31),
+    },
+    {
+      id: uid(), userId: KEVIN, type: "auction_outbid",
+      title: "You've been outbid — Blastoise",
+      body: "Rex placed ₱6,100 on the Blastoise auction. Counter now!",
+      link: `/listings/${A2}`,
+      readAt: null, createdAt: hago(3),
+    },
+    {
+      id: uid(), userId: REX, type: "auction_outbid",
+      title: "You've been outbid — Venusaur",
+      body: "Aria is now winning at ₱5,200. Place a higher bid to take the lead.",
+      link: `/listings/${A3}`,
+      readAt: null, createdAt: hago(2),
     },
     {
       id: uid(), userId: MARCO, type: "transaction_completed",
       title: "Deal complete — Charizard",
-      body: "Your Charizard purchase from JovenCards is marked complete. Leave a rating!",
+      body: "Your Charizard purchase from JovenCards is marked complete. Don't forget to leave a rating!",
       link: `/transactions/${t1}`,
-      readAt: ago(8), createdAt: ago(8),
+      readAt: dago(8), createdAt: dago(8),
     },
     {
       id: uid(), userId: ARIA, type: "transaction_completed",
       title: "Deal complete — Blastoise",
-      body: "Your Blastoise purchase from MiraTCG is complete. Don't forget to rate!",
+      body: "Your Blastoise purchase from MiraTCG is complete. Leave a rating!",
       link: `/transactions/${t3}`,
-      readAt: ago(5), createdAt: ago(5),
+      readAt: dago(5), createdAt: dago(5),
     },
   ]);
 
-  console.log("   5 notifications done.\n");
+  console.log("   8 notifications done.\n");
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -442,15 +797,27 @@ async function main() {
   await seed();
 
   console.log("✅ Simulation seed complete!\n");
-  console.log("── Credentials ───────────────────────────────────────────────");
+  console.log("── Credentials ───────────────────────────────────────────────────────────");
   console.log("  admin@tcgmarket.ph   Admin1234!   [Admin]");
-  console.log("  marco@test.com       Test1234!    [Buyer — Manila, Pokémon]");
-  console.log("  aria@test.com        Test1234!    [Buyer — Cebu, One Piece]");
-  console.log("  kevin@test.com       Test1234!    [Buyer — Davao, Both]");
-  console.log("  joven@test.com       Test1234!    [Seller — Makati, Pokémon ✓]");
-  console.log("  lian@test.com        Test1234!    [Seller — QC, One Piece ✓]");
-  console.log("  mira@test.com        Test1234!    [Power Seller — BGC, Both ✓]");
-  console.log("──────────────────────────────────────────────────────────────\n");
+  console.log("  marco@test.com       Test1234!    [Buyer  — Manila, Pokémon]");
+  console.log("  aria@test.com        Test1234!    [Buyer  — Cebu, One Piece]");
+  console.log("  kevin@test.com       Test1234!    [Buyer  — Davao, Both]");
+  console.log("  rex@test.com         Test1234!    [Buyer  — Pampanga, Both]");
+  console.log("  joven@test.com       Test1234!    [Seller — Makati, Pokémon ✓  rep:28]");
+  console.log("  lian@test.com        Test1234!    [Seller — QC, One Piece ✓    rep:21]");
+  console.log("  mira@test.com        Test1234!    [Power  — BGC, Both ✓        rep:47]");
+  console.log("  dani@test.com        Test1234!    [Seller — Iloilo, Both ✓     rep:12]");
+  console.log("──────────────────────────────────────────────────────────────────────────");
+  console.log("\n── Active Auctions ───────────────────────────────────────────────────────");
+  console.log("  Charizard Base Set   ₱19,000 (8 bids)  — ends in 45 min  ⚡ URGENT");
+  console.log("  Blastoise Base Set   ₱6,800  (5 bids)  — ends in 2h");
+  console.log("  Venusaur Base Set    ₱5,200  (6 bids)  — ends in 6h");
+  console.log("  Trafalgar Law SR     ₱2,600  (4 bids)  — ends in 10h");
+  console.log("  Pikachu lot ×2       ₱750    (3 bids)  — ends in 20h");
+  console.log("  Portgas D. Ace       ₱500    (2 bids)  — ends in 32h");
+  console.log("  Mewtwo Base Set      ₱3,700  (1 bid)   — ends in 48h");
+  console.log("  Nami Romance Dawn    no bids            — ends in 72h  ← first bid open");
+  console.log("──────────────────────────────────────────────────────────────────────────\n");
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });
