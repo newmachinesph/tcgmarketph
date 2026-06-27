@@ -359,7 +359,9 @@ function SaveSearchDialog({ query }: {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function MarketplacePage() {
+interface PageProps { initialType?: ListingType; }
+
+export default function MarketplacePage({ initialType }: PageProps) {
   const [results, setResults]       = useState<MarketListing[]>([]);
   const [loading, setLoading]       = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -370,7 +372,15 @@ export default function MarketplacePage() {
   // Filters
   const [q, setQ]                       = useState("");
   const [game, setGame]                 = useState<Game>("");
-  const [listingType, setListingType]   = useState<ListingType>("");
+  const [listingType, setListingType]   = useState<ListingType>(() => {
+    // prop takes priority (for /auction page), then check URL params
+    if (initialType) return initialType;
+    if (typeof window !== "undefined") {
+      const t = new URLSearchParams(window.location.search).get("type");
+      if (t === "fixed_price" || t === "auction") return t as ListingType;
+    }
+    return "";
+  });
   const [condition, setCondition]       = useState("");
   const [isGraded, setIsGraded]         = useState<GradedFilter>("");
   const [city, setCity]                 = useState<City>("");
@@ -468,8 +478,14 @@ export default function MarketplacePage() {
       {/* Page header */}
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#F2F2F2]">Marketplace</h1>
-          <p className="mt-0.5 text-sm text-[#9A9A9A]">Browse cards for sale · pay online or meet up</p>
+          <h1 className="text-2xl font-bold text-[#F2F2F2]">
+            {initialType === "auction" ? "Live Auctions" : "Marketplace"}
+          </h1>
+          <p className="mt-0.5 text-sm text-[#9A9A9A]">
+            {initialType === "auction"
+              ? "Bid in real-time · anti-snipe protection · auto-close"
+              : "Browse cards for sale · pay online or meet up"}
+          </p>
         </div>
         <Link
           href="/listings/new"

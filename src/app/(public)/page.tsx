@@ -74,7 +74,7 @@ const OP_CARDS = [
 
 const FEATURES = [
   { icon: ShieldCheckIcon,         title: "Verified Sellers",  body: "Every seller verifies their Philippine mobile number before listing. No anonymous accounts.", color: "text-bid",       bg: "bg-bid/10",       href: undefined },
-  { icon: BoltIcon,                title: "Live Auctions",     body: "Bid in real-time with anti-snipe protection. Auctions auto-extend when bids arrive in the final 30 seconds.", color: "text-accent",    bg: "bg-accent/10",    href: "/marketplace?type=auction" },
+  { icon: BoltIcon,                title: "Live Auctions",     body: "Bid in real-time with anti-snipe protection. Auctions auto-extend when bids arrive in the final 30 seconds.", color: "text-accent",    bg: "bg-accent/10",    href: "/auction" },
   { icon: TagIcon,                 title: "Make Offers",       body: "Don't like the price? Send a counter-offer. Sellers can accept, decline, or counter back.", color: "text-yellow-400", bg: "bg-yellow-400/10", href: undefined },
   { icon: BellAlertIcon,           title: "Wishlist Alerts",   body: "Add cards to your wishlist and get notified the moment a seller lists one — before anyone else.", color: "text-purple-400", bg: "bg-purple-400/10", href: undefined },
   { icon: StarIcon,                title: "Reputation System", body: "Buyers and sellers rate each other after every deal. No-shows are tracked and flagged automatically.", color: "text-yellow-400", bg: "bg-yellow-400/10", href: undefined },
@@ -143,7 +143,7 @@ export default function LandingPage() {
                 Browse Marketplace
                 <ArrowRightIcon className="size-4 opacity-60" />
               </Link>
-              <Link href="/marketplace?type=auction" className="flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-7 py-3.5 text-base font-semibold text-orange-400 transition hover:border-orange-500/50 hover:bg-orange-500/20">
+              <Link href="/auction" className="flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-7 py-3.5 text-base font-semibold text-orange-400 transition hover:border-orange-500/50 hover:bg-orange-500/20">
                 <FireIcon className="size-5" />
                 Live Auctions
               </Link>
@@ -181,7 +181,7 @@ export default function LandingPage() {
               </div>
             ))}
 
-            <Link href="/marketplace?type=auction" className="absolute right-0 top-6 z-30 rounded-2xl border border-orange-500/30 bg-surface px-3 py-2 shadow-xl shadow-black/40 transition hover:border-orange-500/50">
+            <Link href="/auction" className="absolute right-0 top-6 z-30 rounded-2xl border border-orange-500/30 bg-surface px-3 py-2 shadow-xl shadow-black/40 transition hover:border-orange-500/50">
               <p className="text-[9px] font-bold uppercase tracking-widest text-orange-400">🔴 Live Auction</p>
               <p className="mt-0.5 text-sm font-bold text-[#F2F2F2]">₱4,200</p>
               <p className="text-[10px] text-[#9A9A9A]">current bid · tap to bid</p>
