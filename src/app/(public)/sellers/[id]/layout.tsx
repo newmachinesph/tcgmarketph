@@ -20,10 +20,20 @@ export async function generateMetadata({ params }: Omit<Props, "children">): Pro
   const deals = seller.completedDeals ?? 0;
   const location = seller.city ? ` · ${seller.city}` : "";
 
+  const title = `${name} — TCGMarket PH`;
+  const description = `${name} has ${deals} completed deal${deals !== 1 ? "s" : ""}${location}. Browse their Pokémon and One Piece TCG card listings.`;
+
   return {
-    title: `${name} — TCGMarket PH`,
-    description: `${name} has ${deals} completed deal${deals !== 1 ? "s" : ""}${location}. Browse their Pokémon and One Piece TCG card listings.`,
+    title,
+    description,
     alternates: { canonical: `https://tcgmarket.ph/sellers/${id}` },
+    openGraph: {
+      title,
+      description,
+      type: "profile",
+      url: `https://tcgmarket.ph/sellers/${id}`,
+    },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 

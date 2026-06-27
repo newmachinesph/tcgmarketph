@@ -46,10 +46,20 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const sellerName = listing.seller.displayName ?? listing.seller.name;
   const location = listing.seller.city ? ` in ${listing.seller.city}` : "";
 
+  const title = `${listing.card.name} — ₱${price} · TCGMarket PH`;
+  const description = `${game}${listing.card.setName ? ` · ${listing.card.setName}` : ""}. ${condition}. Sold by ${sellerName}${location}. Cash on meetup.`;
+
   return {
-    title: `${listing.card.name} — ₱${price} · TCGMarket PH`,
-    description: `${game}${listing.card.setName ? ` · ${listing.card.setName}` : ""}. ${condition}. Sold by ${sellerName}${location}. Cash on meetup.`,
+    title,
+    description,
     alternates: { canonical: `https://tcgmarket.ph/listings/${id}` },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: `https://tcgmarket.ph/listings/${id}`,
+    },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
