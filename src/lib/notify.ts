@@ -54,6 +54,13 @@ export async function createNotification(
     sendSmsNotification(userId, title, body).catch(() => {});
   }
 
+  // Web push — fire and forget
+  import("@/lib/webpush")
+    .then(({ sendWebPushToUser }) =>
+      sendWebPushToUser(userId, { title, body, url: link })
+    )
+    .catch(() => {});
+
   return notif;
 }
 

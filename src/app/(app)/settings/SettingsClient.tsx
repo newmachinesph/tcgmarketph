@@ -23,6 +23,7 @@ import {
   ArrowRightIcon,
 } from "@heroicons/react/24/outline";
 import { authClient } from "@/lib/auth-client";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import {
   changePasswordSchema,
   changeEmailSchema,
@@ -643,6 +644,15 @@ function SmsNotificationsSection({
           )
         }
       />
+      <Row
+        icon={BellIcon}
+        label="Push notifications"
+        description="Get browser notifications for offers, messages, and bids even when the tab is closed."
+      >
+        <div className="px-6 pb-4">
+          <PushNotificationToggle />
+        </div>
+      </Row>
     </Section>
   );
 }

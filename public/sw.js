@@ -1,4 +1,4 @@
-const CACHE = "tcgmarketph-v1";
+const CACHE = "tcgmarketph-v2";
 const PRECACHE = ["/", "/marketplace"];
 
 self.addEventListener("install", (e) => {
@@ -15,7 +15,38 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// Network-first, same-origin only
+// ── Push notifications ────────────────────────────────────────────────────────
+
+self.addEventListener("push", (e) => {
+  if (!e.data) return;
+  let payload;
+  try { payload = e.data.json(); } catch { return; }
+
+  const title   = payload.title ?? "TCGMarket PH";
+  const options = {
+    body:  payload.body  ?? "",
+    icon:  "/icons/icon-192.png",
+    badge: "/icons/badge-72.png",
+    data:  { url: payload.url ?? "/" },
+    vibrate: [200, 100, 200],
+  };
+
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url ?? "/";
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      const existing = list.find((c) => c.url.includes(self.location.origin));
+      if (existing) { existing.focus(); existing.navigate(url); }
+      else clients.openWindow(url);
+    })
+  );
+});
+
+// ── Network-first, same-origin only ──────────────────────────────────────────
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
 

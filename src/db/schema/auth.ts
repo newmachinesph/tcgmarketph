@@ -246,3 +246,27 @@ export const kycVerification = pgTable(
     sessionIdx: index("kyc_session_idx").on(t.diditSessionId),
   })
 );
+
+// =============================================================
+// PUSH_SUBSCRIPTION
+// =============================================================
+
+export const pushSubscription = pgTable(
+  "push_subscription",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh:   text("p256dh").notNull(),
+    auth:     text("auth").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx:     index("push_sub_user_idx").on(t.userId),
+    endpointIdx: uniqueIndex("push_sub_endpoint_idx").on(t.endpoint),
+  })
+);
