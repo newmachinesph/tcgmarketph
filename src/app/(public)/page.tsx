@@ -10,6 +10,7 @@ import {
   MapPinIcon,
   UserGroupIcon,
   ArrowRightIcon,
+  FireIcon,
 } from "@heroicons/react/24/outline";
 import { TCGCardImage } from "@/components/TCGCardImage";
 
@@ -72,12 +73,12 @@ const OP_CARDS = [
 ];
 
 const FEATURES = [
-  { icon: ShieldCheckIcon,         title: "Verified Sellers",  body: "Every seller verifies their Philippine mobile number before listing. No anonymous accounts.", color: "text-bid",       bg: "bg-bid/10"       },
-  { icon: BoltIcon,                title: "Live Auctions",     body: "Bid in real-time with anti-snipe protection. Auctions auto-extend when bids arrive in the final 30 seconds.", color: "text-accent",    bg: "bg-accent/10"    },
-  { icon: TagIcon,                 title: "Make Offers",       body: "Don't like the price? Send a counter-offer. Sellers can accept, decline, or counter back.", color: "text-yellow-400", bg: "bg-yellow-400/10" },
-  { icon: BellAlertIcon,           title: "Wishlist Alerts",   body: "Add cards to your wishlist and get notified the moment a seller lists one — before anyone else.", color: "text-purple-400", bg: "bg-purple-400/10" },
-  { icon: StarIcon,                title: "Reputation System", body: "Buyers and sellers rate each other after every deal. No-shows are tracked and flagged automatically.", color: "text-yellow-400", bg: "bg-yellow-400/10" },
-  { icon: ChatBubbleLeftRightIcon, title: "In-App Messaging",  body: "Negotiate, confirm meetup details, and coordinate entirely inside the platform — no sharing personal numbers.", color: "text-sky-400",   bg: "bg-sky-400/10"   },
+  { icon: ShieldCheckIcon,         title: "Verified Sellers",  body: "Every seller verifies their Philippine mobile number before listing. No anonymous accounts.", color: "text-bid",       bg: "bg-bid/10",       href: undefined },
+  { icon: BoltIcon,                title: "Live Auctions",     body: "Bid in real-time with anti-snipe protection. Auctions auto-extend when bids arrive in the final 30 seconds.", color: "text-accent",    bg: "bg-accent/10",    href: "/marketplace?type=auction" },
+  { icon: TagIcon,                 title: "Make Offers",       body: "Don't like the price? Send a counter-offer. Sellers can accept, decline, or counter back.", color: "text-yellow-400", bg: "bg-yellow-400/10", href: undefined },
+  { icon: BellAlertIcon,           title: "Wishlist Alerts",   body: "Add cards to your wishlist and get notified the moment a seller lists one — before anyone else.", color: "text-purple-400", bg: "bg-purple-400/10", href: undefined },
+  { icon: StarIcon,                title: "Reputation System", body: "Buyers and sellers rate each other after every deal. No-shows are tracked and flagged automatically.", color: "text-yellow-400", bg: "bg-yellow-400/10", href: undefined },
+  { icon: ChatBubbleLeftRightIcon, title: "In-App Messaging",  body: "Negotiate, confirm meetup details, and coordinate entirely inside the platform — no sharing personal numbers.", color: "text-sky-400",   bg: "bg-sky-400/10",   href: undefined },
 ];
 
 const STEPS = [
@@ -142,6 +143,10 @@ export default function LandingPage() {
                 Browse Marketplace
                 <ArrowRightIcon className="size-4 opacity-60" />
               </Link>
+              <Link href="/marketplace?type=auction" className="flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-7 py-3.5 text-base font-semibold text-orange-400 transition hover:border-orange-500/50 hover:bg-orange-500/20">
+                <FireIcon className="size-5" />
+                Live Auctions
+              </Link>
             </div>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-5 lg:justify-start">
@@ -176,11 +181,11 @@ export default function LandingPage() {
               </div>
             ))}
 
-            <div className="absolute right-0 top-6 z-30 rounded-2xl border border-white/10 bg-surface px-3 py-2 shadow-xl shadow-black/40">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-[#9A9A9A]">🔴 Live Auction</p>
+            <Link href="/marketplace?type=auction" className="absolute right-0 top-6 z-30 rounded-2xl border border-orange-500/30 bg-surface px-3 py-2 shadow-xl shadow-black/40 transition hover:border-orange-500/50">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-orange-400">🔴 Live Auction</p>
               <p className="mt-0.5 text-sm font-bold text-[#F2F2F2]">₱4,200</p>
-              <p className="text-[10px] text-[#9A9A9A]">current bid</p>
-            </div>
+              <p className="text-[10px] text-[#9A9A9A]">current bid · tap to bid</p>
+            </Link>
 
             <div className="absolute bottom-10 left-0 z-30 flex items-center gap-2 rounded-2xl border border-bid/20 bg-bid/10 px-3 py-2 shadow-xl shadow-black/40">
               <CheckCircleIcon className="size-4 shrink-0 text-bid" />
@@ -291,15 +296,29 @@ export default function LandingPage() {
           <h2 className="font-display text-center text-3xl font-bold text-[#F2F2F2]">Built for serious collectors</h2>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(({ icon: Icon, title, body, color, bg }) => (
-              <div key={title} className="group rounded-2xl border border-white/8 bg-surface p-6 transition hover:border-white/16 hover:bg-surface2">
-                <div className={`mb-4 inline-flex rounded-xl p-3 ${bg} transition group-hover:scale-110`}>
-                  <Icon className={`size-5 ${color}`} />
+            {FEATURES.map(({ icon: Icon, title, body, color, bg, href }) => {
+              const inner = (
+                <>
+                  <div className={`mb-4 inline-flex rounded-xl p-3 ${bg} transition group-hover:scale-110`}>
+                    <Icon className={`size-5 ${color}`} />
+                  </div>
+                  <h3 className="font-display font-semibold text-[#F2F2F2]">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#9A9A9A]">{body}</p>
+                  {href && (
+                    <p className={`mt-3 text-xs font-semibold ${color}`}>Browse now →</p>
+                  )}
+                </>
+              );
+              return href ? (
+                <Link key={title} href={href} className="group rounded-2xl border border-white/8 bg-surface p-6 transition hover:border-white/16 hover:bg-surface2 block">
+                  {inner}
+                </Link>
+              ) : (
+                <div key={title} className="group rounded-2xl border border-white/8 bg-surface p-6 transition hover:border-white/16 hover:bg-surface2">
+                  {inner}
                 </div>
-                <h3 className="font-display font-semibold text-[#F2F2F2]">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#9A9A9A]">{body}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
