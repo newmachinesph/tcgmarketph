@@ -52,8 +52,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ entry: row }, { status: 201 });
   } catch (err: unknown) {
-    // Unique violation: already on wishlist
-    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "23505") {
+    // Drizzle wraps the PG error in .cause — check both levels for the unique-violation code
+    const code =
+      (err && typeof err === "object" && "code" in err
+        ? (err as { code: unknown }).code
+        : null) ??
+      (err && typeof err === "object" && "cause" in err &&
+      (err as { cause: unknown }).cause &&
+      typeof (err as { cause: unknown }).cause === "object" &&
+      "code" in ((err as { cause: unknown }).cause as object)
+        ? ((err as { cause: { code: unknown } }).cause.code)
+        : null);
+
+    if (code === "23505") {
       return NextResponse.json({ error: "Card already on wishlist" }, { status: 409 });
     }
     throw err;
