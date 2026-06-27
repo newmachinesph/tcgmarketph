@@ -16,7 +16,7 @@ export default async function NewListingPage({ searchParams }: Props) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
 
-  if (!session.user.phoneVerified) redirect("/profile?verify=phone");
+  if (!session.user.phoneVerified) redirect("/verify?next=/listings/new");
 
   const { fromCollection } = await searchParams;
 

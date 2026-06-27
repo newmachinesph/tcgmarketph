@@ -148,6 +148,8 @@ function VerifyContent() {
   // Track phone verification locally so the UI updates immediately on success
   const [localPhoneVerified, setLocalPhoneVerified] = useState<boolean | null>(null);
 
+  const nextPath = searchParams.get("next") ?? "/dashboard";
+
   // When Didit redirects back with ?kyc=done, refresh the session to pick up kycStatus
   useEffect(() => {
     if (searchParams.get("kyc") === "done") {
@@ -176,6 +178,8 @@ function VerifyContent() {
   function handleVerified() {
     setLocalPhoneVerified(true);
   }
+
+  const isVerified = phoneVerified;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-primary px-4 py-12">
@@ -237,18 +241,38 @@ function VerifyContent() {
 
           {/* ── Continue ── */}
           <div className="space-y-2 pt-2 border-t border-white/5">
-            <button
-              onClick={() => { window.location.href = "/dashboard"; }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
-            >
-              {phoneVerified ? "Go to Dashboard" : "Skip verification for now"}
-              <ArrowRightIcon className="size-4" />
-            </button>
-            {!phoneVerified && (
-              <p className="text-center text-xs text-[#9A9A9A]">
-                You can verify your phone anytime in{" "}
-                <Link href="/settings" className="text-accent hover:underline">Settings</Link>.
-              </p>
+            {isVerified ? (
+              <>
+                <button
+                  onClick={() => { window.location.href = nextPath; }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                >
+                  {nextPath === "/listings/new" ? "Create your first listing" : "Continue"}
+                  <ArrowRightIcon className="size-4" />
+                </button>
+                {nextPath === "/dashboard" && (
+                  <button
+                    onClick={() => { window.location.href = "/listings/new"; }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm font-medium text-[#F2F2F2] transition hover:border-white/20"
+                  >
+                    Create your first listing →
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => { window.location.href = "/dashboard"; }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                >
+                  Skip for now
+                  <ArrowRightIcon className="size-4" />
+                </button>
+                <p className="text-center text-xs text-[#9A9A9A]">
+                  You can verify anytime in{" "}
+                  <Link href="/settings" className="text-accent hover:underline">Settings</Link>.
+                </p>
+              </>
             )}
           </div>
 

@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { eq, desc, count, sum, sql } from "drizzle-orm";
+import { eq, desc, count, sum, sql, and } from "drizzle-orm";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { userCollection, userWishlist, cardCatalog } from "@/db/schema/cards";
+import { listings } from "@/db/schema/listings";
 import { getUserCapabilities } from "@/lib/capabilities";
 import {
   ShieldCheckIcon,
@@ -38,7 +39,7 @@ export default async function DashboardPage({
   if (!u.city) redirect("/profile-setup");
 
   // Fetch everything in parallel
-  const [caps, collectionStats, wishlistStats, recentCards, collectionValue] = await Promise.all([
+  const [caps, collectionStats, wishlistStats, recentCards, collectionValue, listingCount] = await Promise.all([
     getUserCapabilities(u.id),
 
     // Collection: total quantity
@@ -77,6 +78,13 @@ export default async function DashboardPage({
       .innerJoin(cardCatalog, eq(userCollection.cardId, cardCatalog.id))
       .where(eq(userCollection.userId, u.id))
       .then((r) => r[0]?.value ?? 0),
+
+    // Has the user ever created a listing?
+    db
+      .select({ n: count(listings.id) })
+      .from(listings)
+      .where(eq(listings.sellerId, u.id))
+      .then((r) => r[0]?.n ?? 0),
   ]);
 
   const displayName = u.name;
@@ -87,13 +95,13 @@ export default async function DashboardPage({
 
   // Profile completion
   const steps = [
-    { label: "Account created", done: true },
-    { label: "Profile set up",  done: !!(u.city && u.bio) },
-    { label: "Phone verified",  done: !!u.phoneVerified, href: "/profile" },
-    { label: "Identity verified", done: u.kycStatus === "verified", href: "/profile#kyc",
-      subLabel: u.kycStatus === "pending" ? "Verification in progress…" :
-                u.kycStatus === "rejected" ? "Declined — retry in Profile" : "Verify your identity" },
-    { label: "Seller enabled",  done: !!u.phoneVerified, href: "/profile" },
+    { label: "Account created",    done: true },
+    { label: "Profile set up",     done: !!(u.city && u.bio), href: "/profile-setup" },
+    { label: "Phone verified",     done: !!u.phoneVerified,   href: "/verify" },
+    { label: "Identity verified",  done: u.kycStatus === "verified", href: "/verify",
+      subLabel: u.kycStatus === "pending" ? "Review in progress…" :
+                u.kycStatus === "rejected" ? "Declined — retry in Profile" : undefined },
+    { label: "List your first card", done: listingCount > 0, href: "/listings/new" },
   ];
   const completedSteps = steps.filter((s) => s.done).length;
   const progressPct    = Math.round((completedSteps / steps.length) * 100);
@@ -250,12 +258,12 @@ export default async function DashboardPage({
         </div>
       )}
 
-      {/* ── Profile completion banner ─────────────────────────────────────── */}
+      {/* ── Seller onboarding banner ──────────────────────────────────────── */}
       {!isComplete && (
         <div className="rounded-2xl border border-white/10 bg-surface p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-bold text-[#F2F2F2]">Complete your profile</p>
+              <p className="text-sm font-bold text-[#F2F2F2]">Get started as a seller</p>
               <p className="mt-0.5 text-xs text-[#9A9A9A]">{completedSteps} of {steps.length} steps done</p>
             </div>
             <span className="text-sm font-bold text-accent">{progressPct}%</span>
@@ -264,25 +272,34 @@ export default async function DashboardPage({
             <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${progressPct}%` }} />
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {steps.map((step) => (
-              <div key={step.label}
-                className={`flex flex-col gap-1 rounded-lg px-3 py-2 text-xs font-medium ${
-                  step.done ? "bg-bid/10 text-bid" : "border border-white/10 bg-surface2 text-[#9A9A9A]"
-                }`}>
-                <div className="flex items-center gap-2">
-                  {step.done ? <CheckCircleIcon className="size-3.5 shrink-0" /> : <ClockIcon className="size-3.5 shrink-0" />}
-                  <span>{step.label}</span>
-                  {!step.done && step.href && (
-                    <a href={step.href} className="ml-auto text-accent hover:underline">
-                      <ArrowRightIcon className="size-3" />
-                    </a>
+            {steps.map((step) => {
+              const inner = (
+                <>
+                  <div className="flex items-center gap-2">
+                    {step.done
+                      ? <CheckCircleIcon className="size-3.5 shrink-0" />
+                      : <ClockIcon className="size-3.5 shrink-0" />}
+                    <span className="flex-1 leading-tight">{step.label}</span>
+                    {!step.done && step.href && <ArrowRightIcon className="size-3 shrink-0 text-accent" />}
+                  </div>
+                  {step.subLabel && !step.done && (
+                    <p className="pl-5 text-[10px] leading-tight opacity-70">{step.subLabel}</p>
                   )}
-                </div>
-                {step.subLabel && !step.done && (
-                  <p className="pl-5 text-[10px] leading-tight opacity-70">{step.subLabel}</p>
-                )}
-              </div>
-            ))}
+                </>
+              );
+              const cls = `flex flex-col gap-1 rounded-lg px-3 py-2 text-xs font-medium transition ${
+                step.done
+                  ? "bg-bid/10 text-bid"
+                  : step.href
+                  ? "border border-white/10 bg-surface2 text-[#9A9A9A] hover:border-accent/30 hover:text-[#F2F2F2] cursor-pointer"
+                  : "border border-white/10 bg-surface2 text-[#9A9A9A]"
+              }`;
+              return !step.done && step.href ? (
+                <a key={step.label} href={step.href} className={cls}>{inner}</a>
+              ) : (
+                <div key={step.label} className={cls}>{inner}</div>
+              );
+            })}
           </div>
         </div>
       )}
