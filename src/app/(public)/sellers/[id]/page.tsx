@@ -35,6 +35,7 @@ interface SellerProfile {
 
 interface ListingCard {
   id:         string;
+  slug:       string | null;
   price:      string;
   condition:  string;
   isGraded:   boolean;
@@ -314,7 +315,7 @@ export default function SellerProfilePage() {
               {listings.map((l) => (
                 <Link
                   key={l.id}
-                  href={`/listings/${l.id}`}
+                  href={`/listings/${l.slug ?? l.id}`}
                   className="group rounded-2xl border border-white/10 bg-surface overflow-hidden transition hover:border-white/20"
                 >
                   <div className="aspect-[3/4] bg-surface2 overflow-hidden">

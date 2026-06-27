@@ -122,6 +122,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     listings: rows.map((r) => ({
       id:             r.listing.id,
+      slug:           r.listing.slug ?? null,
       price:          r.listing.price,
       type:           r.listing.type,
       currentBid:     r.listing.currentBid ?? null,

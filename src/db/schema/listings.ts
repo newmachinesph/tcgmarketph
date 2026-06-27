@@ -73,6 +73,9 @@ export const listings = pgTable(
     auctionStart:  timestamp("auction_start"),
     auctionEnd:    timestamp("auction_end"),
 
+    // Human-readable URL slug: {card-name-kebab}-{listing-id-first-8}
+    slug: text("slug").unique(),
+
     // Status & lifecycle
     status:    listingStatusEnum("status").notNull().default("active"),
     expiresAt: timestamp("expires_at").notNull(), // 30 days for fixed; = auctionEnd for auctions

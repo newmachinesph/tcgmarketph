@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { eq, and, count, inArray } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listings, listingPhotos } from "@/db/schema/listings";
@@ -9,6 +10,7 @@ import { createListingSchema } from "@/lib/validations/listing";
 import { getTierLimits } from "@/lib/constants/tiers";
 import { inngest } from "@/lib/inngest/client";
 import { listingRatelimit } from "@/lib/rate-limit";
+import { toListingSlug } from "@/lib/utils/slug";
 
 const LISTING_TTL_DAYS = 30;
 
@@ -109,9 +111,16 @@ export async function POST(request: NextRequest) {
     ? auctionEnd
     : (() => { const d = new Date(); d.setDate(d.getDate() + LISTING_TTL_DAYS); return d; })();
 
+  // Pre-generate ID so we can build the slug before insert
+  const listingId = createId();
+  const [cardRow] = await db.select({ name: cardCatalog.name }).from(cardCatalog).where(eq(cardCatalog.id, d.cardId)).limit(1);
+  const slug = cardRow ? toListingSlug(cardRow.name, listingId) : undefined;
+
   const [listing] = await db
     .insert(listings)
     .values({
+      id:                 listingId,
+      slug,
       sellerId:           session.user.id,
       cardId:             d.cardId,
       condition:          d.condition,

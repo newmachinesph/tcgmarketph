@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
@@ -71,6 +71,11 @@ export default async function ListingDetailPage({ params }: Params) {
   ]);
 
   if (!listing) notFound();
+
+  // Permanent redirect: old CUID-based URL → canonical slug URL
+  if (!id.includes("-") && listing.slug) {
+    permanentRedirect(`/listings/${listing.slug}`);
+  }
 
   const isOwner = session?.user.id === listing.sellerId;
   const isActive = listing.status === "active";

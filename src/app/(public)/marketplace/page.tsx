@@ -27,6 +27,7 @@ type City = string;
 
 interface MarketListing {
   id:            string;
+  slug:          string | null;
   price:         string;
   type:          string;
   currentBid:    string | null;
@@ -200,7 +201,7 @@ function ListingCard({ listing }: { listing: MarketListing }) {
 
   return (
     <Link
-      href={`/listings/${listing.id}`}
+      href={`/listings/${listing.slug ?? listing.id}`}
       className={`group flex flex-col overflow-hidden rounded-2xl border bg-surface transition hover:shadow-lg ${
         isUrgent
           ? "border-red-500/40 hover:border-red-500/60 shadow-red-500/5"

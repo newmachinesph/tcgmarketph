@@ -18,12 +18,15 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
 
+  // Slug-based URLs contain hyphens; CUID-based URLs do not
+  const whereClause = id.includes("-") ? eq(listings.slug, id) : eq(listings.id, id);
+
   const [row] = await db
     .select({ listing: listings, card: cardCatalog, seller: user })
     .from(listings)
     .innerJoin(cardCatalog, eq(listings.cardId, cardCatalog.id))
     .innerJoin(user, eq(listings.sellerId, user.id))
-    .where(eq(listings.id, id));
+    .where(whereClause);
 
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -48,7 +51,7 @@ export async function GET(request: NextRequest, { params }: Params) {
         ?? "unknown";
       const ipHash = createHash("sha256").update(ip).digest("hex").slice(0, 16);
 
-      await db.insert(listingViews).values({ listingId: id, viewerId, ipHash });
+      await db.insert(listingViews).values({ listingId: row.listing.id, viewerId, ipHash });
     } catch {
       // non-fatal
     }
