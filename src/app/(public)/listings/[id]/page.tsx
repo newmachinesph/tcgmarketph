@@ -176,6 +176,7 @@ export default async function ListingDetailPage({ params }: Params) {
               auctionEnd={listing.auctionEnd ?? listing.expiresAt}
               isOwner={isOwner}
               isActive={isActive}
+              currentUserName={session?.user.displayName ?? session?.user.name}
             />
           ) : isActive ? (
             <div className="space-y-2">
