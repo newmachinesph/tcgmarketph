@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, gte, lte, desc, asc, sql, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, desc, asc, sql, inArray, count } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { listings, listingPhotos } from "@/db/schema/listings";
+import { listings, listingPhotos, bids } from "@/db/schema/listings";
 import { cardCatalog } from "@/db/schema/cards";
 import { user as userTable } from "@/db/schema/auth";
 
@@ -99,14 +99,25 @@ export async function GET(request: NextRequest) {
 
   // ── Cover photo (order=0) per listing ───────────────────────────────────
   const ids = rows.map((r) => r.listing.id);
-  const photos = ids.length
-    ? await db
-        .select()
-        .from(listingPhotos)
-        .where(and(inArray(listingPhotos.listingId, ids), eq(listingPhotos.order, 0)))
-    : [];
 
-  const coverByListing = Object.fromEntries(photos.map((p) => [p.listingId, p.url]));
+  const [photos, bidCounts] = await Promise.all([
+    ids.length
+      ? db
+          .select()
+          .from(listingPhotos)
+          .where(and(inArray(listingPhotos.listingId, ids), eq(listingPhotos.order, 0)))
+      : Promise.resolve([]),
+    ids.length
+      ? db
+          .select({ listingId: bids.listingId, cnt: count() })
+          .from(bids)
+          .where(inArray(bids.listingId, ids))
+          .groupBy(bids.listingId)
+      : Promise.resolve([]),
+  ]);
+
+  const coverByListing    = Object.fromEntries(photos.map((p) => [p.listingId, p.url]));
+  const bidCountByListing = Object.fromEntries(bidCounts.map((b) => [b.listingId, Number(b.cnt)]));
 
   return NextResponse.json({
     listings: rows.map((r) => ({
@@ -116,6 +127,7 @@ export async function GET(request: NextRequest) {
       currentBid:     r.listing.currentBid ?? null,
       startingPrice:  r.listing.startingPrice ?? null,
       auctionEnd:     r.listing.auctionEnd ? r.listing.auctionEnd.toISOString() : null,
+      bidCount:       bidCountByListing[r.listing.id] ?? 0,
       condition:      r.listing.condition,
       isGraded:       r.listing.isGraded,
       gradingCompany: r.listing.gradingCompany,

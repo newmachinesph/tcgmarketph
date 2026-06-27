@@ -32,6 +32,7 @@ interface MarketListing {
   currentBid:    string | null;
   startingPrice: string | null;
   auctionEnd:    string | null;
+  bidCount:      number;
   condition:     string;
   isGraded:      boolean;
   gradingCompany: string;
@@ -106,21 +107,84 @@ const GAME_LABEL: Record<string, string> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function auctionTimeLeft(endIso: string | null) {
-  if (!endIso) return null;
-  const ms = new Date(endIso).getTime() - Date.now();
+function msLeft(endIso: string | null): number {
+  if (!endIso) return 0;
+  return Math.max(0, new Date(endIso).getTime() - Date.now());
+}
+
+function fmtTimeLeft(ms: number): string {
   if (ms <= 0) return "Ended";
-  const h = Math.floor(ms / 3_600_000);
-  const m = Math.floor((ms % 3_600_000) / 60_000);
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
   if (h > 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
   if (h > 0)  return `${h}h ${m}m`;
-  return `${m}m left`;
+  if (m > 0)  return `${m}m ${sec}s`;
+  return `${sec}s`;
+}
+
+// ── Live auction countdown (self-contained, avoids page-level re-render) ──────
+
+function AuctionMeta({ endIso, bidCount, currentBid, startingPrice, price }: {
+  endIso:       string | null;
+  bidCount:     number;
+  currentBid:   string | null;
+  startingPrice: string | null;
+  price:        string;
+}) {
+  const [ms, setMs] = useState(() => msLeft(endIso));
+
+  useEffect(() => {
+    if (!endIso) return;
+    const t = setInterval(() => setMs(msLeft(endIso)), 1000);
+    return () => clearInterval(t);
+  }, [endIso]);
+
+  const urgent  = ms > 0 && ms < 3_600_000; // < 1 hour
+  const ended   = ms <= 0;
+  const hasBids = bidCount > 0;
+  const bid = currentBid ?? startingPrice ?? price;
+
+  return (
+    <div className="mt-1 space-y-1">
+      <div className="flex items-center justify-between gap-1">
+        <div>
+          <p className="text-[10px] text-[#9A9A9A]">
+            {hasBids ? "Current bid" : "Starting at"}
+          </p>
+          <p className="text-base font-bold text-[#F2F2F2]">
+            ₱{parseFloat(bid).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+        {hasBids && (
+          <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-semibold text-[#9A9A9A]">
+            {bidCount} bid{bidCount !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+      {endIso && (
+        <p className={`flex items-center gap-0.5 text-[10px] font-medium tabular-nums ${
+          ended ? "text-[#9A9A9A]" : urgent ? "text-red-400" : "text-orange-400"
+        }`}>
+          <ClockIcon className="size-3 shrink-0" />
+          {fmtTimeLeft(ms)}
+          {urgent && !ended && (
+            <span className="ml-0.5 relative flex size-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex size-1.5 rounded-full bg-red-400" />
+            </span>
+          )}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ── Listing card ─────────────────────────────────────────────────────────────
 
 function ListingCard({ listing }: { listing: MarketListing }) {
-  const sellerName = listing.seller.displayName;
+  const sellerName     = listing.seller.displayName;
   const conditionLabel = listing.isGraded
     ? `${listing.gradingCompany.toUpperCase()} ${listing.gradeValue}`
     : (CONDITION_LABEL[listing.condition] ?? listing.condition);
@@ -129,10 +193,19 @@ function ListingCard({ listing }: { listing: MarketListing }) {
   if (listing.isFoil)         tags.push("Foil");
   if (listing.isFirstEdition) tags.push("1st Ed.");
 
+  const isAuction = listing.type === "auction";
+  const isUrgent  = isAuction && listing.auctionEnd
+    ? msLeft(listing.auctionEnd) < 3_600_000 && msLeft(listing.auctionEnd) > 0
+    : false;
+
   return (
     <Link
       href={`/listings/${listing.id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface transition hover:border-white/20 hover:shadow-lg"
+      className={`group flex flex-col overflow-hidden rounded-2xl border bg-surface transition hover:shadow-lg ${
+        isUrgent
+          ? "border-red-500/40 hover:border-red-500/60 shadow-red-500/5"
+          : "border-white/10 hover:border-white/20"
+      }`}
     >
       {/* Photo */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface2">
@@ -155,24 +228,31 @@ function ListingCard({ listing }: { listing: MarketListing }) {
         )}
 
         {/* Game badge */}
-        <span
-          className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-            GAME_BADGE[listing.card.game] ?? "bg-white/10 text-white/70"
-          }`}
-        >
+        <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+          GAME_BADGE[listing.card.game] ?? "bg-white/10 text-white/70"
+        }`}>
           {GAME_LABEL[listing.card.game] ?? listing.card.game}
         </span>
 
-        {/* Auction badge or quantity badge */}
-        {listing.type === "auction" ? (
-          <span className="absolute right-2 top-2 rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
-            AUCTION
+        {/* Right badge: auction (with urgency) or quantity */}
+        {isAuction ? (
+          <span className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow ${
+            isUrgent ? "bg-red-500 animate-pulse" : "bg-orange-500"
+          }`}>
+            {isUrgent ? "ENDING" : "AUCTION"}
           </span>
         ) : listing.quantity > 1 ? (
           <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">
             ×{listing.quantity}
           </span>
         ) : null}
+
+        {/* No-bids invite badge */}
+        {isAuction && listing.bidCount === 0 && (
+          <div className="absolute bottom-2 left-2 right-2 rounded-lg bg-black/70 px-2 py-1 text-center text-[9px] font-semibold text-white/80">
+            No bids yet — be first!
+          </div>
+        )}
       </div>
 
       {/* Details */}
@@ -190,31 +270,21 @@ function ListingCard({ listing }: { listing: MarketListing }) {
             {conditionLabel}
           </span>
           {tags.map((t) => (
-            <span
-              key={t}
-              className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-medium text-accent"
-            >
+            <span key={t} className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-medium text-accent">
               {t}
             </span>
           ))}
         </div>
 
-        {/* Price */}
-        {listing.type === "auction" ? (
-          <div className="mt-1">
-            <p className="text-[10px] text-[#9A9A9A]">
-              {listing.currentBid ? "Current bid" : "Starting at"}
-            </p>
-            <p className="text-base font-bold text-[#F2F2F2]">
-              ₱{parseFloat(listing.currentBid ?? listing.startingPrice ?? listing.price).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-            </p>
-            {listing.auctionEnd && (
-              <p className="flex items-center gap-0.5 text-[10px] text-orange-400">
-                <ClockIcon className="size-3 shrink-0" />
-                {auctionTimeLeft(listing.auctionEnd)}
-              </p>
-            )}
-          </div>
+        {/* Price section */}
+        {isAuction ? (
+          <AuctionMeta
+            endIso={listing.auctionEnd}
+            bidCount={listing.bidCount}
+            currentBid={listing.currentBid}
+            startingPrice={listing.startingPrice}
+            price={listing.price}
+          />
         ) : (
           <p className="mt-1 text-base font-bold text-[#F2F2F2]">
             ₱{parseFloat(listing.price).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
@@ -224,11 +294,7 @@ function ListingCard({ listing }: { listing: MarketListing }) {
         {/* Seller */}
         <div className="mt-auto flex items-center gap-1.5 pt-2">
           {listing.seller.image ? (
-            <img
-              src={listing.seller.image}
-              alt={sellerName}
-              className="size-5 rounded-full object-cover"
-            />
+            <img src={listing.seller.image} alt={sellerName} className="size-5 rounded-full object-cover" />
           ) : (
             <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface2 text-[9px] font-bold text-[#9A9A9A]">
               {sellerName.charAt(0).toUpperCase()}
@@ -237,7 +303,9 @@ function ListingCard({ listing }: { listing: MarketListing }) {
           <span
             className="min-w-0 truncate text-[11px] text-[#9A9A9A] hover:text-accent hover:underline cursor-pointer"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `/sellers/${listing.seller.id}`; }}
-          >{sellerName}</span>
+          >
+            {sellerName}
+          </span>
           <span className="ml-auto flex shrink-0 items-center gap-0.5 text-[10px] text-[#9A9A9A]">
             <StarIcon className="size-3" />
             {listing.seller.reputationScore}
