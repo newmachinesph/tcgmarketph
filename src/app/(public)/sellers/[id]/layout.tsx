@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 
 type Props = { params: Promise<{ id: string }>; children: React.ReactNode };
 
-async function getSeller(id: string) {
+const getSeller = cache(async (id: string) => {
   const res = await fetch(`${process.env.BETTER_AUTH_URL}/api/sellers/${id}`, {
     cache: "no-store",
   });
   if (!res.ok) return null;
   const data = await res.json();
   return data.seller ?? null;
-}
+});
 
 export async function generateMetadata({ params }: Omit<Props, "children">): Promise<Metadata> {
   const { id } = await params;
@@ -37,6 +38,30 @@ export async function generateMetadata({ params }: Omit<Props, "children">): Pro
   };
 }
 
-export default function SellerLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function SellerLayout({ params, children }: Props) {
+  const { id } = await params;
+  const seller = await getSeller(id);
+
+  const jsonLd = seller
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        name: seller.displayName ?? seller.name,
+        description: seller.bio ?? undefined,
+        url: `https://tcgmarket.ph/sellers/${id}`,
+        image: seller.image ?? undefined,
+      }
+    : null;
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      {children}
+    </>
+  );
 }

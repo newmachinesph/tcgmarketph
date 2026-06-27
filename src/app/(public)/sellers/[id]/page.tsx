@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   StarIcon,
   ShieldCheckIcon,
@@ -220,8 +221,7 @@ export default function SellerProfilePage() {
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
           {/* Avatar */}
           {seller.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={seller.image} alt={displayName} className="size-20 rounded-full object-cover shrink-0" />
+            <Image src={seller.image} alt={displayName} width={80} height={80} className="size-20 rounded-full object-cover shrink-0" />
           ) : (
             <div className="flex size-20 shrink-0 items-center justify-center rounded-full bg-surface2 text-2xl font-bold text-[#9A9A9A]">
               {displayName.charAt(0).toUpperCase()}
@@ -318,15 +318,16 @@ export default function SellerProfilePage() {
                   href={`/listings/${l.slug ?? l.id}`}
                   className="group rounded-2xl border border-white/10 bg-surface overflow-hidden transition hover:border-white/20"
                 >
-                  <div className="aspect-[3/4] bg-surface2 overflow-hidden">
+                  <div className="relative aspect-[3/4] bg-surface2 overflow-hidden">
                     {(() => {
                       const imgSrc = l.coverPhoto ?? l.card.imageUrl;
                       return imgSrc ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={imgSrc}
                           alt={l.card.name}
-                          className="h-full w-full object-cover transition group-hover:scale-105"
+                          fill
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                          className="object-cover transition group-hover:scale-105"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center">
@@ -380,8 +381,7 @@ export default function SellerProfilePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       {r.rater.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={r.rater.image} alt={raterName} className="size-8 rounded-full object-cover" />
+                        <Image src={r.rater.image} alt={raterName} width={32} height={32} className="size-8 rounded-full object-cover" />
                       ) : (
                         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface2 text-xs font-bold text-[#9A9A9A]">
                           {raterName.charAt(0).toUpperCase()}

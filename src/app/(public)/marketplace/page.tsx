@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   MagnifyingGlassIcon,
   StarIcon,
@@ -211,16 +212,20 @@ function ListingCard({ listing }: { listing: MarketListing }) {
       {/* Photo */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface2">
         {listing.coverPhoto ? (
-          <img
+          <Image
             src={listing.coverPhoto}
             alt={listing.card.name}
-            className="h-full w-full object-cover transition group-hover:scale-105"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+            className="object-cover transition group-hover:scale-105"
           />
         ) : listing.card.imageUrl ? (
-          <img
+          <Image
             src={listing.card.imageUrl}
             alt={listing.card.name}
-            className="h-full w-full object-contain p-3 transition group-hover:scale-105"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+            className="object-contain p-3 transition group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
@@ -295,7 +300,7 @@ function ListingCard({ listing }: { listing: MarketListing }) {
         {/* Seller */}
         <div className="mt-auto flex items-center gap-1.5 pt-2">
           {listing.seller.image ? (
-            <img src={listing.seller.image} alt={sellerName} className="size-5 rounded-full object-cover" />
+            <Image src={listing.seller.image} alt={sellerName} width={20} height={20} className="size-5 rounded-full object-cover" />
           ) : (
             <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface2 text-[9px] font-bold text-[#9A9A9A]">
               {sellerName.charAt(0).toUpperCase()}
