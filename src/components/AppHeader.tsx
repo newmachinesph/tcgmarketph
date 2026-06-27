@@ -243,7 +243,7 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
         </div>
 
         {/* Nav links */}
-        <nav className="flex flex-col gap-0.5 overflow-y-auto p-3">
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3 min-h-0">
           {NAV.map((item) => (
             <Link
               key={item.href}
@@ -294,7 +294,7 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
         </nav>
 
         {/* Bottom: currency + sign out */}
-        <div className="mt-auto border-t border-white/10 p-3 space-y-1">
+        <div className="shrink-0 border-t border-white/10 p-3 space-y-1">
           <button
             onClick={() => { handleCurrencyToggle(); setOpen(false); }}
             className="flex w-full items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-[#9A9A9A] transition hover:bg-surface hover:text-[#F2F2F2]"

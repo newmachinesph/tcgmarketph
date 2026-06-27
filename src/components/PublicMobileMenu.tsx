@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Bars3Icon, XMarkIcon, ArrowRightStartOnRectangleIcon } from "@heroicons/react/24/outline";
@@ -15,8 +16,12 @@ const NAV = [
 ];
 
 export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
-  const [open, setOpen] = useState(false);
-  const pathname        = usePathname();
+  const [open, setOpen]       = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const pathname              = usePathname();
+
+  // Only portal after hydration — avoids SSR mismatch
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => { setOpen(false); }, [pathname]);
 
@@ -40,17 +45,10 @@ export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
     window.location.href = "/login";
   }
 
-  return (
+  // Portaled so that `fixed` positioning is always relative to the viewport,
+  // not clipped by the header's -webkit-backdrop-filter containing block (Safari bug).
+  const overlay = (
     <>
-      {/* Hamburger */}
-      <button
-        onClick={() => setOpen(true)}
-        className="flex size-9 items-center justify-center rounded-lg border border-white/10 text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2] lg:hidden"
-        aria-label="Open menu"
-      >
-        <Bars3Icon className="size-5" />
-      </button>
-
       {/* Backdrop */}
       <div
         onClick={() => setOpen(false)}
@@ -84,7 +82,7 @@ export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
         </div>
 
         {/* Nav links */}
-        <nav className="flex flex-col gap-0.5 overflow-y-auto p-3">
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
           {NAV.map((item) => (
             <Link
               key={item.href}
@@ -108,7 +106,7 @@ export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
         </nav>
 
         {/* Bottom actions */}
-        <div className="mt-auto border-t border-white/10 p-3">
+        <div className="shrink-0 border-t border-white/10 p-3">
           {isLoggedIn ? (
             <div className="flex flex-col gap-0.5">
               <Link href="/dashboard" onClick={() => setOpen(false)} className={navClass("/dashboard")}>
@@ -142,6 +140,23 @@ export function PublicMobileMenu({ isLoggedIn }: { isLoggedIn: boolean }) {
           )}
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Hamburger — stays inside the header in the DOM */}
+      <button
+        onClick={() => setOpen(true)}
+        className="flex size-9 items-center justify-center rounded-lg border border-white/10 text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2] lg:hidden"
+        aria-label="Open menu"
+      >
+        <Bars3Icon className="size-5" />
+      </button>
+
+      {/* Backdrop + drawer portaled to body so fixed positioning escapes
+          the header's -webkit-backdrop-filter containing block */}
+      {mounted && createPortal(overlay, document.body)}
     </>
   );
 }
