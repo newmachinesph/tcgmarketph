@@ -60,7 +60,7 @@ export function MobileBottomNav({ isAuthenticated = false }: Props) {
           bottom:        0,
           left:          0,
           right:         0,
-          zIndex:        99999,
+          zIndex:        40,
           background:    "#161616",
           borderTop:     "1px solid rgba(255,255,255,0.08)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
