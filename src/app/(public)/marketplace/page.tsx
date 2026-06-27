@@ -12,20 +12,26 @@ import {
   XMarkIcon,
   BookmarkIcon,
   CheckIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
 import { CONDITION_LABEL } from "@/lib/validations/listing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type Game = "pokemon" | "one_piece" | "";
-type Sort = "newest" | "price_asc" | "price_desc";
+type Game         = "pokemon" | "one_piece" | "";
+type Sort         = "newest" | "price_asc" | "price_desc";
 type GradedFilter = "" | "true" | "false";
+type ListingType  = "" | "fixed_price" | "auction";
 type City = string;
 
 interface MarketListing {
   id:            string;
   price:         string;
+  type:          string;
+  currentBid:    string | null;
+  startingPrice: string | null;
+  auctionEnd:    string | null;
   condition:     string;
   isGraded:      boolean;
   gradingCompany: string;
@@ -76,6 +82,12 @@ const CONDITION_OPTIONS = [
   { value: "damaged",            label: "Damaged" },
 ];
 
+const TYPE_OPTIONS: { value: ListingType; label: string }[] = [
+  { value: "",             label: "All" },
+  { value: "fixed_price",  label: "Fixed Price" },
+  { value: "auction",      label: "Auction" },
+];
+
 const GRADED_OPTIONS: { value: GradedFilter; label: string }[] = [
   { value: "",      label: "All" },
   { value: "true",  label: "Graded" },
@@ -91,6 +103,19 @@ const GAME_LABEL: Record<string, string> = {
   pokemon:   "Pokémon",
   one_piece: "One Piece",
 };
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function auctionTimeLeft(endIso: string | null) {
+  if (!endIso) return null;
+  const ms = new Date(endIso).getTime() - Date.now();
+  if (ms <= 0) return "Ended";
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  if (h > 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
+  if (h > 0)  return `${h}h ${m}m`;
+  return `${m}m left`;
+}
 
 // ── Listing card ─────────────────────────────────────────────────────────────
 
@@ -138,12 +163,16 @@ function ListingCard({ listing }: { listing: MarketListing }) {
           {GAME_LABEL[listing.card.game] ?? listing.card.game}
         </span>
 
-        {/* Quantity badge when > 1 */}
-        {listing.quantity > 1 && (
+        {/* Auction badge or quantity badge */}
+        {listing.type === "auction" ? (
+          <span className="absolute right-2 top-2 rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
+            AUCTION
+          </span>
+        ) : listing.quantity > 1 ? (
           <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">
             ×{listing.quantity}
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Details */}
@@ -171,9 +200,26 @@ function ListingCard({ listing }: { listing: MarketListing }) {
         </div>
 
         {/* Price */}
-        <p className="mt-1 text-base font-bold text-[#F2F2F2]">
-          ₱{parseFloat(listing.price).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-        </p>
+        {listing.type === "auction" ? (
+          <div className="mt-1">
+            <p className="text-[10px] text-[#9A9A9A]">
+              {listing.currentBid ? "Current bid" : "Starting at"}
+            </p>
+            <p className="text-base font-bold text-[#F2F2F2]">
+              ₱{parseFloat(listing.currentBid ?? listing.startingPrice ?? listing.price).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+            </p>
+            {listing.auctionEnd && (
+              <p className="flex items-center gap-0.5 text-[10px] text-orange-400">
+                <ClockIcon className="size-3 shrink-0" />
+                {auctionTimeLeft(listing.auctionEnd)}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="mt-1 text-base font-bold text-[#F2F2F2]">
+            ₱{parseFloat(listing.price).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+          </p>
+        )}
 
         {/* Seller */}
         <div className="mt-auto flex items-center gap-1.5 pt-2">
@@ -322,15 +368,16 @@ export default function MarketplacePage() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Filters
-  const [q, setQ]               = useState("");
-  const [game, setGame]         = useState<Game>("");
-  const [condition, setCondition] = useState("");
-  const [isGraded, setIsGraded] = useState<GradedFilter>("");
-  const [city, setCity]         = useState<City>("");
-  const [cities, setCities]     = useState<string[]>([]);
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [sort, setSort]         = useState<Sort>("newest");
+  const [q, setQ]                       = useState("");
+  const [game, setGame]                 = useState<Game>("");
+  const [listingType, setListingType]   = useState<ListingType>("");
+  const [condition, setCondition]       = useState("");
+  const [isGraded, setIsGraded]         = useState<GradedFilter>("");
+  const [city, setCity]                 = useState<City>("");
+  const [cities, setCities]             = useState<string[]>([]);
+  const [minPrice, setMinPrice]         = useState("");
+  const [maxPrice, setMaxPrice]         = useState("");
+  const [sort, setSort]                 = useState<Sort>("newest");
 
   const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -347,18 +394,19 @@ export default function MarketplacePage() {
   const buildParams = useCallback(
     (pg: number) => {
       const p = new URLSearchParams();
-      if (q)        p.set("q", q);
-      if (game)     p.set("game", game);
-      if (condition) p.set("condition", condition);
-      if (isGraded) p.set("isGraded", isGraded);
-      if (city)     p.set("city", city);
-      if (minPrice) p.set("minPrice", minPrice);
-      if (maxPrice) p.set("maxPrice", maxPrice);
+      if (q)           p.set("q", q);
+      if (game)        p.set("game", game);
+      if (listingType) p.set("type", listingType);
+      if (condition)   p.set("condition", condition);
+      if (isGraded)    p.set("isGraded", isGraded);
+      if (city)        p.set("city", city);
+      if (minPrice)    p.set("minPrice", minPrice);
+      if (maxPrice)    p.set("maxPrice", maxPrice);
       p.set("sort", sort);
       p.set("page", String(pg));
       return p.toString();
     },
-    [q, game, condition, isGraded, city, minPrice, maxPrice, sort]
+    [q, game, listingType, condition, isGraded, city, minPrice, maxPrice, sort]
   );
 
   const fetchListings = useCallback(
@@ -392,7 +440,7 @@ export default function MarketplacePage() {
     return () => {
       if (searchRef.current) clearTimeout(searchRef.current);
     };
-  }, [q, game, condition, isGraded, city, minPrice, maxPrice, sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, game, listingType, condition, isGraded, city, minPrice, maxPrice, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadMore() {
     fetchListings(page + 1, true);
@@ -401,6 +449,7 @@ export default function MarketplacePage() {
   function clearFilters() {
     setQ("");
     setGame("");
+    setListingType("");
     setCondition("");
     setIsGraded("");
     setCity("");
@@ -409,7 +458,7 @@ export default function MarketplacePage() {
     setSort("newest");
   }
 
-  const hasActiveFilters = q || game || condition || isGraded || city || minPrice || maxPrice || sort !== "newest";
+  const hasActiveFilters = q || game || listingType || condition || isGraded || city || minPrice || maxPrice || sort !== "newest";
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -587,21 +636,45 @@ export default function MarketplacePage() {
         </div>
       )}
 
-      {/* Game quick-filter chips (always visible) */}
-      <div className="mb-4 flex items-center gap-2">
-        {GAME_OPTIONS.map((o) => (
-          <button
-            key={o.value}
-            onClick={() => setGame(o.value)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-              game === o.value
-                ? "bg-accent text-white"
-                : "bg-surface border border-white/10 text-[#9A9A9A] hover:border-white/20 hover:text-[#F2F2F2]"
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
+      {/* Quick-filter chips */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        {/* Game */}
+        <div className="flex items-center gap-1.5">
+          {GAME_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => setGame(o.value)}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                game === o.value
+                  ? "bg-accent text-white"
+                  : "bg-surface border border-white/10 text-[#9A9A9A] hover:border-white/20 hover:text-[#F2F2F2]"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        <span className="hidden h-4 w-px bg-white/10 sm:block" />
+
+        {/* Listing type */}
+        <div className="flex items-center gap-1.5">
+          {TYPE_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => setListingType(o.value)}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                listingType === o.value
+                  ? o.value === "auction"
+                    ? "bg-orange-500 text-white"
+                    : "bg-accent text-white"
+                  : "bg-surface border border-white/10 text-[#9A9A9A] hover:border-white/20 hover:text-[#F2F2F2]"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Results */}

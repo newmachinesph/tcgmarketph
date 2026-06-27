@@ -10,17 +10,18 @@ const PAGE_SIZE = 24;
 // GET /api/marketplace — browse active listings with search, filter, sort, pagination
 export async function GET(request: NextRequest) {
 
-  const sp       = request.nextUrl.searchParams;
-  const q        = sp.get("q")?.trim() ?? "";
-  const game     = sp.get("game") ?? "";
-  const condition = sp.get("condition") ?? "";
-  const isGraded = sp.get("isGraded");
-  const city     = sp.get("city")?.trim() ?? "";
-  const minPrice = sp.get("minPrice") ?? "";
-  const maxPrice = sp.get("maxPrice") ?? "";
-  const sort     = sp.get("sort") ?? "newest";
-  const page     = Math.max(1, parseInt(sp.get("page") ?? "1", 10));
-  const offset   = (page - 1) * PAGE_SIZE;
+  const sp          = request.nextUrl.searchParams;
+  const q           = sp.get("q")?.trim() ?? "";
+  const game        = sp.get("game") ?? "";
+  const condition   = sp.get("condition") ?? "";
+  const isGraded    = sp.get("isGraded");
+  const city        = sp.get("city")?.trim() ?? "";
+  const minPrice    = sp.get("minPrice") ?? "";
+  const maxPrice    = sp.get("maxPrice") ?? "";
+  const listingType = sp.get("type") ?? "";
+  const sort        = sp.get("sort") ?? "newest";
+  const page        = Math.max(1, parseInt(sp.get("page") ?? "1", 10));
+  const offset      = (page - 1) * PAGE_SIZE;
 
   // ── Build WHERE conditions ──────────────────────────────────────────────
   const conditions = [
@@ -42,6 +43,8 @@ export async function GET(request: NextRequest) {
   }
   if (isGraded === "true")  conditions.push(eq(listings.isGraded, true));
   if (isGraded === "false") conditions.push(eq(listings.isGraded, false));
+  if (listingType === "fixed_price") conditions.push(eq(listings.type, "fixed_price"));
+  if (listingType === "auction")     conditions.push(eq(listings.type, "auction"));
   if (city) conditions.push(sql`lower(${userTable.city}) = lower(${city})`);
 
   const minNum = parseFloat(minPrice);
@@ -110,6 +113,9 @@ export async function GET(request: NextRequest) {
       id:             r.listing.id,
       price:          r.listing.price,
       type:           r.listing.type,
+      currentBid:     r.listing.currentBid ?? null,
+      startingPrice:  r.listing.startingPrice ?? null,
+      auctionEnd:     r.listing.auctionEnd ? r.listing.auctionEnd.toISOString() : null,
       condition:      r.listing.condition,
       isGraded:       r.listing.isGraded,
       gradingCompany: r.listing.gradingCompany,
