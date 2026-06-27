@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AuctionTicker } from "@/components/AuctionTicker";
+import { LiveAuctionBubble } from "@/components/LiveAuctionBubble";
 import {
   ShieldCheckIcon,
   BoltIcon,
@@ -109,7 +110,27 @@ function GameCardTile({ card, accentColor }: {
   );
 }
 
-export default function LandingPage() {
+async function getPlatformStats() {
+  try {
+    const res = await fetch(
+      `${process.env.BETTER_AUTH_URL}/api/stats`,
+      { next: { revalidate: 60 } }
+    );
+    if (!res.ok) return null;
+    return res.json() as Promise<{
+      activeListings: number;
+      activeAuctions: number;
+      completedDeals: number;
+      sellerCount:    number;
+    }>;
+  } catch {
+    return null;
+  }
+}
+
+export default async function LandingPage() {
+  const stats = await getPlatformStats();
+
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────── */}
@@ -177,11 +198,7 @@ export default function LandingPage() {
               </div>
             ))}
 
-            <Link href="/auction" className="absolute right-0 top-6 z-30 rounded-2xl border border-orange-500/30 bg-surface px-3 py-2 shadow-xl shadow-black/40 transition hover:border-orange-500/50">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-orange-400">🔴 Live Auction</p>
-              <p className="mt-0.5 text-sm font-bold text-[#F2F2F2]">₱4,200</p>
-              <p className="text-[10px] text-[#9A9A9A]">current bid · tap to bid</p>
-            </Link>
+            <LiveAuctionBubble />
 
             <div className="absolute bottom-10 left-0 z-30 flex items-center gap-2 rounded-2xl border border-bid/20 bg-bid/10 px-3 py-2 shadow-xl shadow-black/40">
               <CheckCircleIcon className="size-4 shrink-0 text-bid" />
@@ -201,10 +218,22 @@ export default function LandingPage() {
       <section className="border-y border-white/8 bg-surface/40">
         <div className="mx-auto grid max-w-screen-xl grid-cols-2 divide-x divide-white/8 md:grid-cols-4">
           {[
-            { value: "₱0",   label: "Listing fee"      },
-            { value: "2+",   label: "Games supported"  },
-            { value: "100%", label: "Cash on meetup"   },
-            { value: "PH",   label: "Philippines only" },
+            {
+              value: stats?.activeListings ? `${stats.activeListings}+` : "₱0",
+              label: stats?.activeListings ? "Active listings" : "Listing fee",
+            },
+            {
+              value: stats?.activeAuctions ? `${stats.activeAuctions}` : "2+",
+              label: stats?.activeAuctions ? "Live auctions now" : "Games supported",
+            },
+            {
+              value: stats?.completedDeals ? `${stats.completedDeals}+` : "100%",
+              label: stats?.completedDeals ? "Deals completed" : "Cash on meetup",
+            },
+            {
+              value: stats?.sellerCount ? `${stats.sellerCount}+` : "PH",
+              label: stats?.sellerCount ? "Verified sellers" : "Philippines only",
+            },
           ].map(({ value, label }) => (
             <div key={label} className="px-8 py-7 text-center">
               <p className="font-display text-3xl font-extrabold text-[#F2F2F2]">{value}</p>
