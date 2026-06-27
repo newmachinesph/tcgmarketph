@@ -8,11 +8,13 @@ import { db } from "@/lib/db";
 import { listings, listingPhotos } from "@/db/schema/listings";
 import { cardCatalog } from "@/db/schema/cards";
 import { user as userTable } from "@/db/schema/auth";
-import { eq, and, ne, inArray } from "drizzle-orm";
+import { eq, and, ne, inArray, desc } from "drizzle-orm";
+import { priceHistory } from "@/db/schema/cards";
 import { CONDITION_LABEL } from "@/lib/validations/listing";
 import { GAME_LABEL } from "@/lib/constants/games";
 import { Price } from "@/components/Price";
 import { ShareButton } from "@/components/ShareButton";
+import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { ListingGallery } from "./ListingGallery";
 import { BuyNowButton } from "./BuyNowButton";
 import { MakeOfferButton } from "./MakeOfferButton";
@@ -80,6 +82,16 @@ async function getSimilarListings(cardId: string, excludeId: string) {
   }));
 }
 
+async function getCardPriceHistory(cardId: string) {
+  const rows = await db
+    .select({ price: priceHistory.price, recordedAt: priceHistory.recordedAt })
+    .from(priceHistory)
+    .where(eq(priceHistory.cardId, cardId))
+    .orderBy(desc(priceHistory.recordedAt))
+    .limit(30);
+  return rows.map((r) => ({ price: parseFloat(r.price), recordedAt: r.recordedAt.toISOString() }));
+}
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params;
   const listing = await getListing(id);
@@ -125,7 +137,10 @@ export default async function ListingDetailPage({ params }: Params) {
     permanentRedirect(`/listings/${listing.slug}`);
   }
 
-  const similar = await getSimilarListings(listing.cardId, listing.id);
+  const [similar, priceData] = await Promise.all([
+    getSimilarListings(listing.cardId, listing.id),
+    getCardPriceHistory(listing.cardId),
+  ]);
 
   const isOwner = session?.user.id === listing.sellerId;
   const isActive = listing.status === "active";
@@ -267,6 +282,12 @@ export default async function ListingDetailPage({ params }: Params) {
                 </p>
               )}
             </div>
+
+            {/* Price history sparkline */}
+            <PriceHistoryChart
+              data={priceData}
+              marketPrice={listing.card.marketPrice ? parseFloat(listing.card.marketPrice) : null}
+            />
 
             {/* Expiry notice */}
             {isActive && (
