@@ -57,6 +57,11 @@ export function PublicFooter() {
                   support@tcgmarket.ph
                 </a>
               </li>
+              <li>
+                <a href="https://www.facebook.com/tcgmarketph/" target="_blank" rel="noopener noreferrer" className="text-xs text-[#9A9A9A] transition hover:text-[#F2F2F2]">
+                  Facebook
+                </a>
+              </li>
             </ul>
           </div>
 
