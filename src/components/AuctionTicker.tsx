@@ -10,6 +10,7 @@ interface AuctionItem {
   currentBid:    string | null;
   startingPrice: string | null;
   auctionEnd:    string | null;
+  bidCount:      number;
   coverPhoto:    string | null;
   card: {
     name:     string;
@@ -92,7 +93,11 @@ export function AuctionTicker() {
               <Link
                 key={a.id}
                 href={`/listings/${a.id}`}
-                className="group flex w-44 shrink-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface transition hover:border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/5"
+                className={`group flex w-44 shrink-0 flex-col overflow-hidden rounded-2xl border bg-surface transition hover:shadow-lg hover:shadow-orange-500/5 ${
+                  urgent
+                    ? "border-red-500/40 hover:border-red-500/60"
+                    : "border-white/10 hover:border-orange-500/30"
+                }`}
               >
                 {/* Image */}
                 <div className="relative aspect-[3/4] w-full overflow-hidden bg-surface2">
@@ -107,9 +112,7 @@ export function AuctionTicker() {
                   )}
                   {/* Time badge */}
                   <div className={`absolute bottom-2 left-2 right-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold ${
-                    urgent
-                      ? "bg-orange-500/90 text-white"
-                      : "bg-black/70 text-[#F2F2F2]"
+                    urgent ? "bg-red-500/90 text-white" : "bg-black/70 text-[#F2F2F2]"
                   }`}>
                     <ClockIcon className="size-3 shrink-0" />
                     {text}
@@ -125,6 +128,11 @@ export function AuctionTicker() {
                       {hasBids ? "Current bid" : "Starting at"}
                     </p>
                     <p className="text-sm font-bold text-[#F2F2F2]">{phpFmt(bid)}</p>
+                    {hasBids && (
+                      <p className="text-[9px] text-[#9A9A9A]">
+                        {a.bidCount} bid{a.bidCount !== 1 ? "s" : ""}
+                      </p>
+                    )}
                   </div>
                 </div>
               </Link>

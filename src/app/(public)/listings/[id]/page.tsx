@@ -52,15 +52,21 @@ export default async function ListingDetailPage({ params }: Params) {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10">
       {/* Back navigation */}
-      <Link
-        href="/marketplace"
-        className="mb-6 inline-flex items-center gap-1.5 text-xs font-medium text-[#9A9A9A] transition hover:text-[#F2F2F2]"
-      >
-        <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      <nav className="mb-6 flex items-center gap-1.5 text-xs text-[#9A9A9A]">
+        <Link href="/marketplace" className="transition hover:text-[#F2F2F2]">Marketplace</Link>
+        {listing.type === "auction" && (
+          <>
+            <svg className="size-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+            </svg>
+            <Link href="/auction" className="transition hover:text-[#F2F2F2]">Auctions</Link>
+          </>
+        )}
+        <svg className="size-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
         </svg>
-        Marketplace
-      </Link>
+        <span className="max-w-[200px] truncate text-[#F2F2F2]">{listing.card.name}</span>
+      </nav>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
 

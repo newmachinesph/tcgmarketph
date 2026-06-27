@@ -769,19 +769,35 @@ export default function MarketplacePage({ initialType }: PageProps) {
           ))}
         </div>
       ) : results.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-24 text-center">
-          <p className="text-2xl">🃏</p>
-          <p className="font-semibold text-[#F2F2F2]">No listings found</p>
-          <p className="text-sm text-[#9A9A9A]">
+        <div className="flex flex-col items-center gap-4 py-24 text-center">
+          <p className="text-3xl">{initialType === "auction" ? "🔨" : "🃏"}</p>
+          <p className="font-semibold text-[#F2F2F2]">
+            {initialType === "auction" && !hasActiveFilters
+              ? "No live auctions right now"
+              : "No listings found"}
+          </p>
+          <p className="max-w-xs text-sm text-[#9A9A9A]">
             {hasActiveFilters
               ? "Try adjusting or clearing your filters."
+              : initialType === "auction"
+              ? "Check back soon — sellers list new auctions daily. Want to run one yourself?"
               : "Be the first to list a card!"}
           </p>
-          {hasActiveFilters && (
-            <button onClick={clearFilters} className="mt-1 text-sm text-accent hover:underline">
-              Clear all filters
-            </button>
-          )}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="text-sm text-accent hover:underline">
+                Clear all filters
+              </button>
+            )}
+            {!hasActiveFilters && (
+              <Link
+                href="/listings/new"
+                className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/80"
+              >
+                {initialType === "auction" ? "Start an auction →" : "List a card →"}
+              </Link>
+            )}
+          </div>
         </div>
       ) : (
         <>
