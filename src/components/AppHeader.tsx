@@ -27,17 +27,17 @@ const NAV = [
   { label: "Browse",      href: "/browse",      hot: false },
   { label: "Marketplace", href: "/marketplace", hot: false },
   { label: "Auctions",    href: "/auction",     hot: true  },
-  { label: "Sellers",     href: "/sellers",     hot: false },
   { label: "Collection",  href: "/collection",  hot: false },
-  { label: "Wishlist",    href: "/wishlist",    hot: false },
-  { label: "Wanted",      href: "/wanted",      hot: false },
 ];
 
 const ACTIVITY = [
-  { label: "My Listings",   href: "/listings"     },
-  { label: "Offers",        href: "/offers"       },
-  { label: "Transactions",  href: "/transactions" },
-  { label: "My Bids",       href: "/bids"         },
+  { label: "My Listings",  href: "/listings",     group: "activity" },
+  { label: "Offers",       href: "/offers",       group: "activity" },
+  { label: "Transactions", href: "/transactions", group: "activity" },
+  { label: "My Bids",      href: "/bids",         group: "activity" },
+  { label: "Sellers",      href: "/sellers",      group: "discover" },
+  { label: "Wishlist",     href: "/wishlist",     group: "discover" },
+  { label: "Wanted",       href: "/wanted",       group: "discover" },
 ];
 
 export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
@@ -136,7 +136,7 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
               </Link>
             ))}
 
-            {/* Activity dropdown */}
+            {/* More dropdown */}
             <div ref={actRef} className="relative">
               <button
                 onClick={() => setActOpen((v) => !v)}
@@ -146,13 +146,30 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
                     : "text-[#9A9A9A] hover:bg-surface hover:text-[#F2F2F2]"
                 }`}
               >
-                Activity
+                More
                 <ChevronDownIcon className={`size-3.5 transition-transform ${actOpen ? "rotate-180" : ""}`} />
               </button>
 
               {actOpen && (
                 <div className="absolute left-0 top-full z-50 mt-1.5 w-44 overflow-hidden rounded-xl border border-white/10 bg-surface shadow-xl shadow-black/40">
-                  {ACTIVITY.map((item) => (
+                  <p className="px-4 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-wider text-white/30">Activity</p>
+                  {ACTIVITY.filter(i => i.group === "activity").map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setActOpen(false)}
+                      className={`flex items-center px-4 py-2.5 text-sm transition ${
+                        isActive(item.href)
+                          ? "bg-surface2 font-semibold text-[#F2F2F2]"
+                          : "text-[#9A9A9A] hover:bg-surface2 hover:text-[#F2F2F2]"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                  <div className="my-1 border-t border-white/5" />
+                  <p className="px-4 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/30">Discover</p>
+                  {ACTIVITY.filter(i => i.group === "discover").map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -171,18 +188,17 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
             </div>
 
             <MessagesNavItem />
-
-            <Link
-              href="/listings/new"
-              className="ml-1 flex items-center gap-1.5 rounded-lg bg-bid/15 px-3.5 py-1.5 text-sm font-semibold text-bid ring-1 ring-bid/30 transition hover:bg-bid/25"
-            >
-              <PlusIcon className="size-3.5" />
-              List a Card
-            </Link>
           </nav>
 
           {/* Right */}
           <div className="ml-auto flex items-center gap-2">
+            <Link
+              href="/listings/new"
+              className="hidden lg:flex items-center gap-1.5 rounded-lg bg-bid/15 px-3.5 py-1.5 text-sm font-semibold text-bid ring-1 ring-bid/30 transition hover:bg-bid/25"
+            >
+              <PlusIcon className="size-3.5" />
+              List a Card
+            </Link>
             <button
               onClick={handleCurrencyToggle}
               title={currency === "PHP" ? "Switch to USD" : "Switch to PHP"}
@@ -266,10 +282,21 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
             </Link>
           ))}
 
-          {/* Activity section */}
+          {/* Activity + Discover section */}
           <div className="mt-1 border-t border-white/5 pt-1">
             <p className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-white/30">Activity</p>
-            {ACTIVITY.map((item) => (
+            {ACTIVITY.filter(i => i.group === "activity").map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={navItemClass(item.href)}
+              >
+                {item.label}
+              </Link>
+            ))}
+            <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-white/30">Discover</p>
+            {ACTIVITY.filter(i => i.group === "discover").map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
