@@ -54,21 +54,17 @@ export function UserMenu({ name, displayName, email, image, isAdmin }: UserMenuP
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-xl border border-white/10 bg-surface px-2.5 py-1.5 text-sm font-medium text-[#F2F2F2] transition hover:border-white/20"
+        className="flex size-9 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-surface transition hover:border-white/25"
         aria-label="User menu"
         aria-expanded={open}
       >
-        <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-accent/20">
-          {image ? (
-            <img src={image} alt={label} className="h-full w-full object-cover" />
-          ) : (
+        {image ? (
+          <img src={image} alt={label} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-accent/20">
             <Initials name={label} />
-          )}
-        </div>
-        <span className="hidden max-w-[120px] truncate sm:block">{label}</span>
-        <svg width="12" height="12" viewBox="0 0 12 12" className="shrink-0 text-[#9A9A9A]" fill="currentColor" aria-hidden="true">
-          <path d="M6 8L1 3h10L6 8z" />
-        </svg>
+          </div>
+        )}
       </button>
 
       {open && (

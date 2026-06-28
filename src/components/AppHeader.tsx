@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Bars3Icon, XMarkIcon, ChevronDownIcon, PlusIcon, ArrowRightStartOnRectangleIcon } from "@heroicons/react/24/outline";
 import { useState, useRef, useEffect } from "react";
 import { UserMenu } from "./UserMenu";
-import { useCurrencyStore, type Currency } from "@/store/currency";
 import { CurrencySync } from "./CurrencySync";
+import type { Currency } from "@/store/currency";
 import { MessagesNavItem } from "./MessagesUnread";
 import { NotificationsBell } from "./NotificationsBell";
 import { authClient } from "@/lib/auth-client";
@@ -45,7 +45,6 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
   const [open, setOpen]       = useState(false);
   const [actOpen, setActOpen] = useState(false);
   const actRef                = useRef<HTMLDivElement>(null);
-  const { currency, setCurrency } = useCurrencyStore();
 
   function isActive(href: string) {
     return pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -75,16 +74,6 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
     setOpen(false);
     await authClient.signOut();
     window.location.href = "/login";
-  }
-
-  function handleCurrencyToggle() {
-    const next: Currency = currency === "PHP" ? "USD" : "PHP";
-    setCurrency(next);
-    fetch("/api/account/currency", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currency: next }),
-    });
   }
 
   function navItemClass(href: string) {
@@ -187,28 +176,19 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
               )}
             </div>
 
-            <MessagesNavItem />
           </nav>
 
           {/* Right */}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5">
             <Link
               href="/listings/new"
-              className="hidden lg:flex items-center gap-1.5 rounded-lg bg-bid/15 px-3.5 py-1.5 text-sm font-semibold text-bid ring-1 ring-bid/30 transition hover:bg-bid/25"
+              className="hidden lg:flex items-center gap-1.5 rounded-lg bg-bid/15 px-3.5 py-1.5 text-sm font-semibold text-bid ring-1 ring-bid/30 transition hover:bg-bid/25 mr-1"
             >
               <PlusIcon className="size-3.5" />
               List a Card
             </Link>
-            <button
-              onClick={handleCurrencyToggle}
-              title={currency === "PHP" ? "Switch to USD" : "Switch to PHP"}
-              className="flex h-8 items-center gap-1 rounded-lg border border-white/10 bg-surface px-2.5 text-xs font-bold text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]"
-            >
-              <span className={currency === "PHP" ? "text-[#F2F2F2]" : ""}>₱</span>
-              <span className="text-white/20">/</span>
-              <span className={currency === "USD" ? "text-[#F2F2F2]" : ""}>$</span>
-            </button>
 
+            <MessagesNavItem />
             <NotificationsBell />
 
             <UserMenu
@@ -321,15 +301,8 @@ export function AppHeader({ user, preferredCurrency }: AppHeaderProps) {
           </div>
         </nav>
 
-        {/* Bottom: currency + sign out */}
-        <div className="shrink-0 border-t border-white/10 p-3 space-y-1">
-          <button
-            onClick={() => { handleCurrencyToggle(); setOpen(false); }}
-            className="flex w-full items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-[#9A9A9A] transition hover:bg-surface hover:text-[#F2F2F2]"
-          >
-            <span className="font-bold">{currency === "PHP" ? "₱ PHP" : "$ USD"}</span>
-            <span className="text-xs text-white/30">— tap to switch</span>
-          </button>
+        {/* Bottom: sign out */}
+        <div className="shrink-0 border-t border-white/10 p-3">
           <button
             onClick={handleSignOut}
             className="flex w-full items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-[#9A9A9A] transition hover:bg-surface hover:text-[#F2F2F2]"
