@@ -43,10 +43,13 @@ export default function LoginPage() {
   };
 
   async function handleGoogle() {
-    await authClient.signIn.social({
+    const { error } = await authClient.signIn.social({
       provider: "google",
       callbackURL: "/dashboard",
     });
+    if (error) {
+      toast.error(error.message ?? "Google sign-in failed. Please try again.");
+    }
   }
 
   return (

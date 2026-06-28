@@ -17,16 +17,18 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // unsafe-eval is only needed in development for Next.js HMR
-      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+      `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       // Ably realtime (WebSocket + HTTP fallback + connectivity check)
+      // Google Analytics + OAuth endpoints
       "connect-src 'self' https://accounts.google.com https://*.neon.tech" +
         " wss://*.ably.io wss://*.ably-realtime.com https://*.ably.io https://*.ably-realtime.com" +
         " https://internet-up.ably-realtime.com" +
-        // Better Auth uses this for OAuth
-        " https://oauth2.googleapis.com",
+        " https://oauth2.googleapis.com" +
+        " https://www.google-analytics.com https://analytics.google.com" +
+        " https://region1.google-analytics.com https://www.googletagmanager.com",
       "frame-ancestors 'none'",
     ].join("; "),
   },
