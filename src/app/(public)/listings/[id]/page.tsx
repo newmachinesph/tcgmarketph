@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
 import { auth } from "@/lib/auth";
+import { getFlag } from "@/lib/feature-flags";
 import { db } from "@/lib/db";
 import { listings, listingPhotos } from "@/db/schema/listings";
 import { cardCatalog } from "@/db/schema/cards";
@@ -125,9 +126,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function ListingDetailPage({ params }: Params) {
   const { id } = await params;
-  const [session, listing] = await Promise.all([
+  const [session, listing, onlinePaymentsEnabled] = await Promise.all([
     auth.api.getSession({ headers: await headers() }),
     getListing(id),
+    getFlag("online_payments"),
   ]);
 
   if (!listing) notFound();
@@ -337,6 +339,7 @@ export default async function ListingDetailPage({ params }: Params) {
                   maxQty={listing.quantity}
                   price={listing.price}
                   cardName={listing.card.name}
+                  onlinePaymentsEnabled={onlinePaymentsEnabled}
                 />
                 <MakeOfferButton
                   listingId={listing.id}

@@ -1,15 +1,25 @@
 export const TIER_LIMITS = {
   free: {
-    maxActiveListings:  10,
-    maxPhotosPerListing: 3,
-    commissionRate:      0,   // % — placeholder for future monetization
+    maxActiveListings:    10,
+    maxPhotosPerListing:   1,
+    canCreateAuction:  false,
+    maxSearchResults:      5,
+    commissionRate:        0,
   },
   power_seller: {
-    maxActiveListings:  500,
-    maxPhotosPerListing: 10,
-    commissionRate:      0,
+    maxActiveListings:    50,
+    maxPhotosPerListing:   3,
+    canCreateAuction:   true,
+    maxSearchResults:     25,
+    commissionRate:        0,
   },
-} as const satisfies Record<string, { maxActiveListings: number; maxPhotosPerListing: number; commissionRate: number }>;
+} as const satisfies Record<string, {
+  maxActiveListings: number;
+  maxPhotosPerListing: number;
+  canCreateAuction: boolean;
+  maxSearchResults: number;
+  commissionRate: number;
+}>;
 
 export type SubscriptionTier = keyof typeof TIER_LIMITS;
 

@@ -78,6 +78,14 @@ export async function POST(request: NextRequest) {
   const tier = session.user.subscriptionTier ?? "free";
   const limits = getTierLimits(tier);
 
+  // Gate: auctions require Pro
+  if (d.type === "auction" && !limits.canCreateAuction) {
+    return NextResponse.json(
+      { error: "Auctions require a Pro subscription" },
+      { status: 403 }
+    );
+  }
+
   // Enforce tier active listing cap
   const [{ total }] = await db
     .select({ total: count() })

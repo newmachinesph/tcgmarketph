@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { createPaymentLink } from "@/lib/paymongo";
 
-export const POWER_SELLER_PRICE_PHP = 299;
+export const POWER_SELLER_PRICE_PHP = 199;
 
 export async function POST() {
   const session = await auth.api.getSession({ headers: await headers() });

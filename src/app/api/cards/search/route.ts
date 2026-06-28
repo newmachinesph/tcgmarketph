@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers as nextHeaders } from "next/headers";
+import { auth } from "@/lib/auth";
 import { findCards } from "@/lib/cards/search";
 import { searchRatelimit } from "@/lib/rate-limit";
+import { getTierLimits } from "@/lib/constants/tiers";
 import type { GameKey } from "@/lib/cards/tcgapi";
 
-/**
- * GET /api/cards/search?q=charizard&game=pokemon
- *
- * Public endpoint — no auth required to search cards.
- * Auth is required at the collection/wishlist layer, not here.
- *
- * Response headers:
- *   X-Cards-Source: "local" | "api"   — for debugging (was the API called?)
- *   X-Api-Unavailable: "true"          — present when API failed
- */
 export async function GET(request: NextRequest) {
   // Per-IP rate limit: 30 searches/minute
   if (searchRatelimit) {
@@ -38,11 +31,16 @@ export async function GET(request: NextRequest) {
       ? gameParam
       : undefined;
 
-  const result = await findCards(query, game);
+  // Optional auth — determine search result limit by tier
+  const session = await auth.api.getSession({ headers: await nextHeaders() }).catch(() => null);
+  const tier = (session?.user as { subscriptionTier?: string } | undefined)?.subscriptionTier ?? "free";
+  const { maxSearchResults } = getTierLimits(tier);
 
-  const headers = new Headers();
-  headers.set("X-Cards-Source", result.fromCache ? "local" : "api");
-  if (result.apiUnavailable) headers.set("X-Api-Unavailable", "true");
+  const result = await findCards(query, game, maxSearchResults);
+
+  const resHeaders = new Headers();
+  resHeaders.set("X-Cards-Source", result.fromCache ? "local" : "api");
+  if (result.apiUnavailable) resHeaders.set("X-Api-Unavailable", "true");
 
   return NextResponse.json(
     {
@@ -50,6 +48,6 @@ export async function GET(request: NextRequest) {
       fromCache: result.fromCache,
       apiUnavailable: result.apiUnavailable ?? false,
     },
-    { headers }
+    { headers: resHeaders }
   );
 }

@@ -32,7 +32,7 @@ export interface FindCardsResult {
 
 // ─── Local DB search ──────────────────────────────────────────────────────────
 
-async function searchLocal(query: string, game?: GameKey): Promise<CardCatalog[]> {
+async function searchLocal(query: string, game?: GameKey, limit = 25): Promise<CardCatalog[]> {
   const conditions = [sql`similarity(${cardCatalog.name}, ${query}) > 0.2`];
   if (game) conditions.push(eq(cardCatalog.game, game));
 
@@ -41,7 +41,7 @@ async function searchLocal(query: string, game?: GameKey): Promise<CardCatalog[]
     .from(cardCatalog)
     .where(and(...conditions))
     .orderBy(sql`similarity(${cardCatalog.name}, ${query}) DESC`)
-    .limit(25);
+    .limit(limit);
 }
 
 // ─── API → DB mapping ─────────────────────────────────────────────────────────
@@ -104,13 +104,14 @@ function missKey(query: string, game?: GameKey) {
 
 export async function findCards(
   query: string,
-  game?: GameKey
+  game?: GameKey,
+  limit = 25
 ): Promise<FindCardsResult> {
   const q = query.trim();
   if (q.length < 2) return { cards: [], fromCache: true };
 
   // ── Step 1: Our DB first ─────────────────────────────────────────────────
-  const local = await searchLocal(q, game);
+  const local = await searchLocal(q, game, limit);
   if (local.length > 0) {
     return { cards: local, fromCache: true };
   }
@@ -156,5 +157,5 @@ export async function findCards(
     await redis.set(mk, "1", { ex: 3600 }); // 1-hour negative cache
   }
 
-  return { cards: saved, fromCache: false };
+  return { cards: saved.slice(0, limit), fromCache: false };
 }

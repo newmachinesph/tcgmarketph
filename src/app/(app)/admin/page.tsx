@@ -141,6 +141,76 @@ function MetricsSection() {
   );
 }
 
+// ── Platform Settings ─────────────────────────────────────────────────────────
+
+function PlatformSettings() {
+  const [flags, setFlags]     = useState<Record<string, boolean> | null>(null);
+  const [saving, setSaving]   = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/features")
+      .then((r) => r.json())
+      .then(setFlags)
+      .catch(() => setFlags({}));
+  }, []);
+
+  async function toggle(key: string, enabled: boolean) {
+    setSaving(key);
+    await fetch("/api/admin/features", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ key, enabled }),
+    });
+    setFlags((prev) => ({ ...prev, [key]: enabled }));
+    setSaving(null);
+  }
+
+  const FEATURE_FLAGS = [
+    {
+      key:         "online_payments",
+      label:       "Online Payments (PayMongo)",
+      description: "Enables QR Ph payment option for buyers. Disable to cash-only mode.",
+    },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-surface overflow-hidden">
+      <div className="border-b border-white/10 px-5 py-3">
+        <p className="text-sm font-semibold text-[#F2F2F2]">Platform Settings</p>
+      </div>
+      <div className="divide-y divide-white/5">
+        {FEATURE_FLAGS.map(({ key, label, description }) => {
+          const enabled = flags?.[key] ?? false;
+          const isSaving = saving === key;
+          return (
+            <div key={key} className="flex items-center justify-between px-5 py-4">
+              <div>
+                <p className="text-sm font-medium text-[#F2F2F2]">{label}</p>
+                <p className="text-xs text-[#9A9A9A]">{description}</p>
+              </div>
+              <button
+                onClick={() => toggle(key, !enabled)}
+                disabled={flags === null || isSaving}
+                aria-checked={enabled}
+                role="switch"
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-50 ${
+                  enabled ? "bg-accent" : "bg-surface2"
+                }`}
+              >
+                <span
+                  className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
+                    enabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const QUICK_LINKS = [
   { label: "Open reports queue", href: "/admin/reports",           badge: null },
   { label: "User search",        href: "/admin/users",             badge: null },
@@ -207,6 +277,9 @@ export default function AdminDashboardPage() {
 
       {/* Platform metrics */}
       <MetricsSection />
+
+      {/* Platform settings */}
+      <PlatformSettings />
     </div>
   );
 }
