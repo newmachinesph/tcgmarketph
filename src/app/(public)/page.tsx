@@ -1,18 +1,13 @@
 import Link from "next/link";
 import { AuctionTicker } from "@/components/AuctionTicker";
 import { LiveAuctionBubble } from "@/components/LiveAuctionBubble";
+import { FeaturesSection } from "@/components/FeaturesSection";
 import {
   ShieldCheckIcon,
-  BoltIcon,
-  ChatBubbleLeftRightIcon,
-  BellAlertIcon,
-  StarIcon,
-  TagIcon,
   CheckCircleIcon,
   MapPinIcon,
   UserGroupIcon,
   ArrowRightIcon,
-  RectangleStackIcon,
 } from "@heroicons/react/24/outline";
 import { TCGCardImage } from "@/components/TCGCardImage";
 
@@ -74,15 +69,6 @@ const OP_CARDS = [
   { img: "/cards/op/OP02-001.png", name: "Trafalgar Law",   price: "₱3,200",  featured: false },
 ];
 
-const FEATURES = [
-  { icon: ShieldCheckIcon,         title: "Verified Sellers",  body: "Every seller verifies their Philippine mobile number before listing. No anonymous accounts.", color: "text-bid",       bg: "bg-bid/10",       href: undefined },
-  { icon: BoltIcon,                title: "Live Auctions",     body: "Bid in real-time with anti-snipe protection. Auctions auto-extend when bids arrive in the final 30 seconds.", color: "text-accent",    bg: "bg-accent/10",    href: "/auction" },
-  { icon: TagIcon,                 title: "Make Offers",       body: "Don't like the price? Send a counter-offer. Sellers can accept, decline, or counter back.", color: "text-yellow-400", bg: "bg-yellow-400/10", href: undefined },
-  { icon: BellAlertIcon,           title: "Wishlist Alerts",   body: "Add cards to your wishlist and get notified the moment a seller lists one — before anyone else.", color: "text-purple-400", bg: "bg-purple-400/10", href: undefined },
-  { icon: StarIcon,                title: "Reputation System", body: "Buyers and sellers rate each other after every deal. No-shows are tracked and flagged automatically.", color: "text-yellow-400", bg: "bg-yellow-400/10", href: undefined },
-  { icon: ChatBubbleLeftRightIcon, title: "In-App Messaging",  body: "Negotiate, confirm meetup details, and coordinate entirely inside the platform — no sharing personal numbers.", color: "text-sky-400",    bg: "bg-sky-400/10",    href: undefined },
-  { icon: RectangleStackIcon,      title: "Collection Manager", body: "Track every card you own, organise by folders, and share your collection publicly with a personal profile URL.", color: "text-emerald-400", bg: "bg-emerald-400/10", href: undefined },
-];
 
 const STEPS = [
   { step: "01", icon: "🔍", title: "Browse & Find",           body: "Search thousands of Pokémon and One Piece cards. Filter by condition, price, game, and more." },
@@ -116,7 +102,7 @@ async function getPlatformStats() {
   try {
     const res = await fetch(
       `${process.env.BETTER_AUTH_URL}/api/stats`,
-      { next: { revalidate: 60 } }
+      { next: { revalidate: 60 }, signal: AbortSignal.timeout(4000) }
     );
     if (!res.ok) return null;
     return res.json() as Promise<{
@@ -320,38 +306,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Features ─────────────────────────────────────────────────── */}
-      <section className="px-6 py-24 lg:px-10">
-        <div className="mx-auto max-w-screen-xl">
-          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-[#9A9A9A]">Everything you need</p>
-          <h2 className="font-display text-center text-3xl font-bold text-[#F2F2F2]">Built for serious collectors</h2>
-
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(({ icon: Icon, title, body, color, bg, href }) => {
-              const inner = (
-                <>
-                  <div className={`mb-4 inline-flex rounded-xl p-3 ${bg} transition group-hover:scale-110`}>
-                    <Icon className={`size-5 ${color}`} />
-                  </div>
-                  <h3 className="font-display font-semibold text-[#F2F2F2]">{title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#9A9A9A]">{body}</p>
-                  {href && (
-                    <p className={`mt-3 text-xs font-semibold ${color}`}>Browse now →</p>
-                  )}
-                </>
-              );
-              return href ? (
-                <Link key={title} href={href} className="group rounded-2xl border border-white/8 bg-surface p-6 transition hover:border-white/16 hover:bg-surface2 block">
-                  {inner}
-                </Link>
-              ) : (
-                <div key={title} className="group rounded-2xl border border-white/8 bg-surface p-6 transition hover:border-white/16 hover:bg-surface2">
-                  {inner}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      <FeaturesSection />
 
       {/* ── Trust ────────────────────────────────────────────────────── */}
       <section className="px-6 py-24 lg:px-10">
