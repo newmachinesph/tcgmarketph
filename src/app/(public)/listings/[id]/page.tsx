@@ -1,0 +1,463 @@
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
+import { headers } from "next/headers";
+import Link from "next/link";
+import Image from "next/image";
+import { auth } from "@/lib/auth";
+import { getFlag } from "@/lib/feature-flags";
+import { db } from "@/lib/db";
+import { listings, listingPhotos } from "@/db/schema/listings";
+import { cardCatalog } from "@/db/schema/cards";
+import { user as userTable } from "@/db/schema/auth";
+import { eq, and, ne, inArray, desc } from "drizzle-orm";
+import { priceHistory } from "@/db/schema/cards";
+import { CONDITION_LABEL } from "@/lib/validations/listing";
+import { GAME_LABEL } from "@/lib/constants/games";
+import { Price } from "@/components/Price";
+import { ShareButton } from "@/components/ShareButton";
+import { PriceHistoryChart } from "@/components/PriceHistoryChart";
+import { ListingGallery } from "./ListingGallery";
+import { BuyNowButton } from "./BuyNowButton";
+import { MakeOfferButton } from "./MakeOfferButton";
+import { MessageSellerButton } from "./MessageSellerButton";
+import { AuctionPanel } from "./AuctionPanel";
+import { ReportButton } from "@/components/ReportButton";
+import { PriceAlertButton } from "@/components/PriceAlertButton";
+import {
+  MapPinIcon,
+  StarIcon,
+  ShieldCheckIcon,
+  PencilSquareIcon,
+  ClockIcon,
+} from "@heroicons/react/24/outline";
+
+type Params = { params: Promise<{ id: string }> };
+
+async function getListing(id: string) {
+  const res = await fetch(
+    `${process.env.BETTER_AUTH_URL}/api/listings/${id}`,
+    { cache: "no-store" }
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Failed to load listing");
+  return res.json().then((d) => d.listing);
+}
+
+async function getSimilarListings(cardId: string, excludeId: string) {
+  const rows = await db
+    .select({
+      id:             listings.id,
+      slug:           listings.slug,
+      price:          listings.price,
+      condition:      listings.condition,
+      isGraded:       listings.isGraded,
+      cardName:       cardCatalog.name,
+      cardSetName:    cardCatalog.setName,
+      cardImageUrl:   cardCatalog.imageUrl,
+      sellerName:     userTable.displayName,
+      sellerFallback: userTable.name,
+    })
+    .from(listings)
+    .innerJoin(cardCatalog, eq(listings.cardId, cardCatalog.id))
+    .innerJoin(userTable, eq(listings.sellerId, userTable.id))
+    .where(and(
+      eq(listings.cardId, cardId),
+      ne(listings.id, excludeId),
+      eq(listings.status, "active"),
+    ))
+    .limit(4);
+
+  if (!rows.length) return [];
+
+  const ids = rows.map((r) => r.id);
+  const photos = await db
+    .select()
+    .from(listingPhotos)
+    .where(and(inArray(listingPhotos.listingId, ids), eq(listingPhotos.order, 0)));
+  const coverByListing = Object.fromEntries(photos.map((p) => [p.listingId, p.url]));
+
+  return rows.map((r) => ({
+    ...r,
+    coverPhoto: coverByListing[r.id] ?? null,
+    seller: r.sellerName ?? r.sellerFallback ?? "Seller",
+  }));
+}
+
+async function getCardPriceHistory(cardId: string) {
+  const rows = await db
+    .select({ price: priceHistory.price, recordedAt: priceHistory.recordedAt })
+    .from(priceHistory)
+    .where(eq(priceHistory.cardId, cardId))
+    .orderBy(desc(priceHistory.recordedAt))
+    .limit(30);
+  return rows.map((r) => ({ price: parseFloat(r.price), recordedAt: r.recordedAt.toISOString() }));
+}
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { id } = await params;
+  const listing = await getListing(id);
+  if (!listing) return { title: "Listing not found — TCGMarket PH" };
+
+  const game = GAME_LABEL[listing.card.game] ?? listing.card.game;
+  const condition = listing.isGraded
+    ? `${listing.gradingCompany?.toUpperCase()} ${listing.gradeValue}`
+    : CONDITION_LABEL[listing.condition] ?? listing.condition;
+  const price = parseFloat(listing.price).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+  const sellerName = listing.seller.displayName ?? listing.seller.name;
+  const location = listing.seller.city ? ` in ${listing.seller.city}` : "";
+
+  const title = `${listing.card.name} — ₱${price} · TCGMarket PH`;
+  const description = `${game}${listing.card.setName ? ` · ${listing.card.setName}` : ""}. ${condition}. Sold by ${sellerName}${location}. Cash on meetup.`;
+  const canonical = `https://tcgmarket.ph/listings/${listing.slug ?? id}`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: canonical,
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
+
+export default async function ListingDetailPage({ params }: Params) {
+  const { id } = await params;
+  const [session, listing, onlinePaymentsEnabled] = await Promise.all([
+    auth.api.getSession({ headers: await headers() }),
+    getListing(id),
+    getFlag("online_payments"),
+  ]);
+
+  if (!listing) notFound();
+
+  // Permanent redirect: old CUID-based URL → canonical slug URL
+  if (!id.includes("-") && listing.slug) {
+    permanentRedirect(`/listings/${listing.slug}`);
+  }
+
+  const [similar, priceData] = await Promise.all([
+    getSimilarListings(listing.cardId, listing.id),
+    getCardPriceHistory(listing.cardId),
+  ]);
+
+  const isOwner = session?.user.id === listing.sellerId;
+  const isActive = listing.status === "active";
+
+  const now = Date.now();
+  const daysLeft = Math.max(0, Math.ceil((new Date(listing.expiresAt).getTime() - now) / 86_400_000));
+  const daysAgo  = Math.floor((now - new Date(listing.createdAt).getTime()) / 86_400_000);
+  const postedLabel = daysAgo === 0 ? "Posted today" : daysAgo === 1 ? "Posted yesterday" : `Posted ${daysAgo} days ago`;
+  const canonicalUrl = `https://tcgmarket.ph/listings/${listing.slug ?? listing.id}`;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: listing.card.name,
+    description: listing.description ?? undefined,
+    image: listing.photos?.[0]?.url ?? listing.card.imageUrl ?? undefined,
+    brand: {
+      "@type": "Brand",
+      name: listing.card.game === "pokemon" ? "Pokémon TCG" : "One Piece Card Game",
+    },
+    offers: {
+      "@type": "Offer",
+      price: parseFloat(listing.price).toFixed(2),
+      priceCurrency: "PHP",
+      availability: isActive
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      url: canonicalUrl,
+      areaServed: "PH",
+      seller: {
+        "@type": "Person",
+        name: listing.seller.displayName ?? listing.seller.name,
+        url: `https://tcgmarket.ph/sellers/${listing.sellerId}`,
+      },
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <div className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10">
+        {/* Back navigation */}
+        <nav className="mb-6 flex items-center gap-1.5 text-xs text-[#9A9A9A]">
+          <Link href="/marketplace" className="transition hover:text-[#F2F2F2]">Marketplace</Link>
+          {listing.type === "auction" && (
+            <>
+              <svg className="size-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+              <Link href="/auction" className="transition hover:text-[#F2F2F2]">Auctions</Link>
+            </>
+          )}
+          <svg className="size-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+          </svg>
+          <span className="max-w-[200px] truncate text-[#F2F2F2]">{listing.card.name}</span>
+        </nav>
+
+        <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
+
+          {/* Left — photos + description */}
+          <div className="space-y-6">
+            <ListingGallery
+              photos={listing.photos}
+              cardName={listing.card.name}
+              fallbackImageUrl={listing.card.imageUrl}
+            />
+
+            {listing.description && (
+              <div className="rounded-2xl border border-white/10 bg-surface p-5">
+                <h2 className="mb-2 text-sm font-semibold text-[#F2F2F2]">Description</h2>
+                <p className="whitespace-pre-wrap text-sm text-[#9A9A9A]">{listing.description}</p>
+              </div>
+            )}
+
+            {/* Card details */}
+            <div className="rounded-2xl border border-white/10 bg-surface p-5">
+              <h2 className="mb-3 text-sm font-semibold text-[#F2F2F2]">Card Details</h2>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                {[
+                  ["Game",      GAME_LABEL[listing.card.game] ?? listing.card.game],
+                  ["Set",       listing.card.setName ?? "—"],
+                  ["Number",    listing.card.cardNumber ?? "—"],
+                  ["Rarity",    listing.card.rarity ?? "—"],
+                  ["Condition", listing.isGraded
+                    ? `${listing.gradingCompany?.toUpperCase()} ${listing.gradeValue}`
+                    : CONDITION_LABEL[listing.condition] ?? listing.condition],
+                  ["Foil",      listing.isFoil ? "Yes" : "No"],
+                  ["1st Ed.",   listing.isFirstEdition ? "Yes" : "No"],
+                  ["Quantity",  listing.quantity],
+                ].map(([label, value]) => (
+                  <div key={String(label)}>
+                    <dt className="text-[#9A9A9A]">{label}</dt>
+                    <dd className="font-medium text-[#F2F2F2]">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+
+          {/* Right — price + seller + actions */}
+          <div className="space-y-4">
+
+            {/* Title + share */}
+            <div>
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="text-xl font-bold text-[#F2F2F2]">{listing.card.name}</h1>
+                {!isActive && (
+                  <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase text-[#9A9A9A]">
+                    {listing.status}
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-sm text-[#9A9A9A]">{listing.card.setName}</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1 text-xs text-[#9A9A9A]">
+                  <ClockIcon className="size-3.5" />
+                  {postedLabel}
+                </p>
+                <ShareButton
+                  title={`${listing.card.name} — ₱${parseFloat(listing.price).toLocaleString("en-PH")} · TCGMarket PH`}
+                  url={canonicalUrl}
+                />
+              </div>
+            </div>
+
+            {/* Price */}
+            <div className="rounded-2xl border border-white/10 bg-surface p-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#9A9A9A]">Price</p>
+              <p className="mt-1 text-3xl font-bold text-[#F2F2F2]">
+                ₱{parseFloat(listing.price).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+              </p>
+              {listing.card.marketPrice && (
+                <p className="mt-0.5 text-xs text-[#9A9A9A]">
+                  Market ref: <Price usd={parseFloat(listing.card.marketPrice)} />
+                </p>
+              )}
+            </div>
+
+            {/* Price history sparkline */}
+            <PriceHistoryChart
+              data={priceData}
+              marketPrice={listing.card.marketPrice ? parseFloat(listing.card.marketPrice) : null}
+            />
+
+            {/* Expiry notice */}
+            {isActive && (
+              <div className="flex items-center gap-1.5 text-xs text-[#9A9A9A]">
+                <ClockIcon className="size-3.5" />
+                Expires in {daysLeft} day{daysLeft !== 1 ? "s" : ""}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            {!session ? (
+              <div className="space-y-2">
+                <Link
+                  href={`/login?redirect=/listings/${listing.id}`}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                >
+                  Sign in to buy or make an offer
+                </Link>
+                <p className="text-center text-xs text-[#9A9A9A]">
+                  Free account — no listing fees, no commission.{" "}
+                  <Link href="/signup" className="text-accent hover:underline">Create one →</Link>
+                </p>
+              </div>
+            ) : isOwner ? (
+              <div className="flex gap-2">
+                <Link href={`/listings/${listing.id}/edit`}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-sm font-medium text-[#9A9A9A] transition hover:border-white/20 hover:text-[#F2F2F2]">
+                  <PencilSquareIcon className="size-4" /> Edit Listing
+                </Link>
+              </div>
+            ) : listing.type === "auction" ? (
+              <AuctionPanel
+                listingId={listing.id}
+                startingPrice={listing.startingPrice ?? listing.price}
+                currentBid={listing.currentBid}
+                bidIncrement={listing.bidIncrement}
+                reservePrice={listing.reservePrice}
+                auctionEnd={listing.auctionEnd ?? listing.expiresAt}
+                isOwner={isOwner}
+                isActive={isActive}
+                currentUserName={session?.user.displayName ?? session?.user.name}
+              />
+            ) : isActive ? (
+              <div className="space-y-2">
+                <BuyNowButton
+                  listingId={listing.id}
+                  maxQty={listing.quantity}
+                  price={listing.price}
+                  cardName={listing.card.name}
+                  onlinePaymentsEnabled={onlinePaymentsEnabled}
+                />
+                <MakeOfferButton
+                  listingId={listing.id}
+                  listingPrice={listing.price}
+                  cardName={listing.card.name}
+                />
+                <MessageSellerButton
+                  sellerId={listing.sellerId}
+                  listingId={listing.id}
+                />
+                <PriceAlertButton
+                  listingId={listing.id}
+                  currentPrice={listing.price}
+                />
+              </div>
+            ) : (
+              <p className="text-center text-sm text-[#9A9A9A]">This listing is no longer available.</p>
+            )}
+
+            {/* Seller card */}
+            <div className="rounded-2xl border border-white/10 bg-surface p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#9A9A9A]">Seller</p>
+              <div className="flex items-center gap-3">
+                {listing.seller.image ? (
+                  <Image
+                    src={listing.seller.image}
+                    alt={listing.seller.name}
+                    width={40}
+                    height={40}
+                    className="size-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex size-10 items-center justify-center rounded-full bg-surface2 text-sm font-bold text-[#9A9A9A]">
+                    {(listing.seller.displayName ?? listing.seller.name).charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <Link href={`/sellers/${listing.sellerId}`} className="text-sm font-semibold text-[#F2F2F2] hover:underline">
+                    {listing.seller.displayName ?? listing.seller.name}
+                  </Link>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {listing.seller.avgRating ? (
+                      <span className="flex items-center gap-1 text-xs text-yellow-400">
+                        <StarIcon className="size-3" />
+                        {listing.seller.avgRating}
+                        <span className="text-[#9A9A9A]">({listing.seller.ratingCount})</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[#9A9A9A]">{listing.seller.reputationScore ?? 0} deals</span>
+                    )}
+                    {listing.seller.phoneVerified && (
+                      <span className="flex items-center gap-0.5 text-[10px] font-semibold text-emerald-400">
+                        <ShieldCheckIcon className="size-3" /> Verified
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {listing.seller.city && (
+                <p className="mt-3 flex items-center gap-1 text-xs text-[#9A9A9A]">
+                  <MapPinIcon className="size-3.5" /> {listing.seller.city}
+                </p>
+              )}
+              <p className="mt-3 rounded-lg bg-surface2 px-3 py-2 text-[10px] text-[#9A9A9A]">
+                💡 Cash on meetup — meet in a public place, daytime, bring exact change.
+              </p>
+              {!isOwner && (
+                <div className="mt-3 flex justify-end">
+                  <ReportButton targetType="listing" targetId={listing.id} />
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+
+        {/* Similar listings */}
+        {similar.length > 0 && (
+          <div className="mt-10">
+            <h2 className="mb-4 text-base font-semibold text-[#F2F2F2]">
+              More listings of this card
+            </h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {similar.map((s) => (
+                <Link
+                  key={s.id}
+                  href={`/listings/${s.slug ?? s.id}`}
+                  className="group overflow-hidden rounded-2xl border border-white/10 bg-surface transition hover:border-white/20"
+                >
+                  <div className="relative aspect-[3/4] overflow-hidden bg-surface2">
+                    {(s.coverPhoto ?? s.cardImageUrl) ? (
+                      <Image
+                        src={(s.coverPhoto ?? s.cardImageUrl) as string}
+                        alt={s.cardName}
+                        fill
+                        sizes="(max-width: 640px) 50vw, 25vw"
+                        className="object-cover transition group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <span className="text-2xl opacity-20">🃏</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="truncate text-xs font-semibold text-[#F2F2F2]">{s.cardName}</p>
+                    <p className="text-[10px] text-[#9A9A9A]">{s.cardSetName ?? "—"}</p>
+                    <p className="mt-1 text-sm font-bold text-[#F2F2F2]">
+                      ₱{parseFloat(s.price).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-[10px] text-[#9A9A9A]">by {s.seller}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "sms_notifications" boolean DEFAULT false NOT NULL;

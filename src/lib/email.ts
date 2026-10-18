@@ -1,0 +1,321 @@
+import nodemailer from "nodemailer";
+import { generateUnsubToken } from "./unsub-token";
+import { getUserEmailPrefs } from "./email-prefs";
+import type { PrefCategory } from "./email-prefs";
+
+const transporter = nodemailer.createTransport({
+  host:   process.env.SMTP_HOST,
+  port:   parseInt(process.env.SMTP_PORT ?? "587", 10),
+  secure: process.env.SMTP_PORT === "465",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+const FROM     = process.env.SMTP_FROM ?? process.env.EMAIL_FROM ?? "TCGMarket PH <noreply@tcgmarket.ph>";
+const BASE_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+
+async function send(to: string, subject: string, html: string) {
+  if (!process.env.SMTP_HOST) {
+    console.log(`[email] SMTP not configured — would send to ${to}: ${subject}`);
+    return;
+  }
+  try {
+    await transporter.sendMail({ from: FROM, to, subject, html });
+  } catch (err) {
+    console.error("[email] send error:", err);
+  }
+}
+
+/** Returns the HTML footer with a one-click unsubscribe link. */
+function unsubFooter(userId: string | undefined, category: PrefCategory): string {
+  if (!userId) return "";
+  const token = generateUnsubToken(userId, category);
+  const link  = `${BASE_URL}/api/unsubscribe?token=${token}`;
+  const label = category === "transactions" ? "transaction emails"
+              : category === "offers"       ? "offer emails"
+              : `${category} emails`;
+  return `<hr/><p style="color:#888;font-size:12px"><a href="${link}" style="color:#888">Unsubscribe from ${label}</a></p>`;
+}
+
+/**
+ * Check user's email pref for a category before sending.
+ * Returns true if the email should be sent.
+ */
+async function canSend(userId: string | undefined, category: PrefCategory): Promise<boolean> {
+  if (!userId) return true;
+  const prefs = await getUserEmailPrefs(userId);
+  return prefs[category] !== false;
+}
+
+function phpFmt(price: string) {
+  return "₱" + parseFloat(price).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+}
+
+// ── Transaction emails ────────────────────────────────────────────────────────
+
+export async function emailTransactionCreated(opts: {
+  sellerEmail: string;
+  sellerName:  string;
+  buyerName:   string;
+  cardName:    string;
+  price:       string;
+  txnId:       string;
+  sellerId?:   string;
+}) {
+  if (!await canSend(opts.sellerId, "transactions")) return;
+  const link = `${BASE_URL}/transactions/${opts.txnId}`;
+  await send(
+    opts.sellerEmail,
+    `New buy request for ${opts.cardName}`,
+    `<p>Hi ${opts.sellerName},</p>
+     <p><strong>${opts.buyerName}</strong> wants to buy your listing: <strong>${opts.cardName}</strong> for <strong>${phpFmt(opts.price)}</strong>.</p>
+     <p><a href="${link}">Review the request →</a></p>
+     <p>You have 48 hours to confirm or decline before the request expires.</p>
+     <hr/><p style="color:#888;font-size:12px">Cash on meetup only. Meet in a public place, daytime.</p>
+     ${unsubFooter(opts.sellerId, "transactions")}`
+  );
+}
+
+export async function emailTransactionAgreed(opts: {
+  buyerEmail:  string;
+  buyerName:   string;
+  sellerName:  string;
+  cardName:    string;
+  price:       string;
+  txnId:       string;
+  buyerId?:    string;
+}) {
+  if (!await canSend(opts.buyerId, "transactions")) return;
+  const link = `${BASE_URL}/transactions/${opts.txnId}`;
+  await send(
+    opts.buyerEmail,
+    `${opts.sellerName} confirmed your purchase of ${opts.cardName}`,
+    `<p>Hi ${opts.buyerName},</p>
+     <p><strong>${opts.sellerName}</strong> has confirmed your purchase of <strong>${opts.cardName}</strong> for <strong>${phpFmt(opts.price)}</strong>.</p>
+     <p>You can now propose a meetup time and location.</p>
+     <p><a href="${link}">View transaction →</a></p>
+     <hr/><p style="color:#888;font-size:12px">Cash on meetup only. Meet in a public place, daytime, bring exact change.</p>
+     ${unsubFooter(opts.buyerId, "transactions")}`
+  );
+}
+
+export async function emailTransactionCancelled(opts: {
+  recipientEmail: string;
+  recipientName:  string;
+  cardName:       string;
+  cancelledBy:    string;
+  reason?:        string | null;
+  txnId:          string;
+  recipientId?:   string;
+}) {
+  if (!await canSend(opts.recipientId, "transactions")) return;
+  const link = `${BASE_URL}/transactions/${opts.txnId}`;
+  await send(
+    opts.recipientEmail,
+    `Transaction cancelled — ${opts.cardName}`,
+    `<p>Hi ${opts.recipientName},</p>
+     <p>The transaction for <strong>${opts.cardName}</strong> was cancelled by <strong>${opts.cancelledBy}</strong>.</p>
+     ${opts.reason ? `<p>Reason: ${opts.reason}</p>` : ""}
+     <p><a href="${link}">View transaction →</a></p>
+     ${unsubFooter(opts.recipientId, "transactions")}`
+  );
+}
+
+export async function emailMeetupProposed(opts: {
+  recipientEmail: string;
+  recipientName:  string;
+  proposerName:   string;
+  cardName:       string;
+  location:       string;
+  proposedAt:     Date;
+  txnId:          string;
+  recipientId?:   string;
+}) {
+  if (!await canSend(opts.recipientId, "transactions")) return;
+  const link = `${BASE_URL}/transactions/${opts.txnId}`;
+  const when  = opts.proposedAt.toLocaleString("en-PH", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone:  "Asia/Manila",
+  });
+  await send(
+    opts.recipientEmail,
+    `Meetup proposed for ${opts.cardName}`,
+    `<p>Hi ${opts.recipientName},</p>
+     <p><strong>${opts.proposerName}</strong> has proposed a meetup for <strong>${opts.cardName}</strong>:</p>
+     <ul><li>📍 ${opts.location}</li><li>🕐 ${when}</li></ul>
+     <p><a href="${link}">Accept or decline →</a></p>
+     <hr/><p style="color:#888;font-size:12px">Meet in a public place, daytime, bring exact change. Stay safe!</p>
+     ${unsubFooter(opts.recipientId, "transactions")}`
+  );
+}
+
+// ── Offer emails ──────────────────────────────────────────────────────────────
+
+export async function emailOfferReceived(opts: {
+  sellerEmail:  string;
+  sellerName:   string;
+  buyerName:    string;
+  cardName:     string;
+  listingPrice: string;
+  offeredPrice: string;
+  message?:     string | null;
+  offerId:      string;
+  sellerId?:    string;
+}) {
+  if (!await canSend(opts.sellerId, "offers")) return;
+  const link = `${BASE_URL}/offers`;
+  await send(
+    opts.sellerEmail,
+    `New offer on ${opts.cardName}`,
+    `<p>Hi ${opts.sellerName},</p>
+     <p><strong>${opts.buyerName}</strong> made an offer on your listing: <strong>${opts.cardName}</strong>.</p>
+     <ul>
+       <li>Your price: <strong>${phpFmt(opts.listingPrice)}</strong></li>
+       <li>Their offer: <strong>${phpFmt(opts.offeredPrice)}</strong></li>
+       ${opts.message ? `<li>Message: ${opts.message}</li>` : ""}
+     </ul>
+     <p><a href="${link}">Accept, decline, or counter →</a></p>
+     <p style="color:#888;font-size:12px">Offer expires in 48 hours.</p>
+     ${unsubFooter(opts.sellerId, "offers")}`
+  );
+}
+
+export async function emailOfferAccepted(opts: {
+  recipientEmail: string;
+  recipientName:  string;
+  cardName:       string;
+  agreedPrice:    string;
+  txnId:          string;
+  recipientId?:   string;
+}) {
+  if (!await canSend(opts.recipientId, "offers")) return;
+  const link = `${BASE_URL}/transactions/${opts.txnId}`;
+  await send(
+    opts.recipientEmail,
+    `Offer accepted — ${opts.cardName}`,
+    `<p>Hi ${opts.recipientName},</p>
+     <p>The offer for <strong>${opts.cardName}</strong> at <strong>${phpFmt(opts.agreedPrice)}</strong> has been accepted.</p>
+     <p>A transaction has been created. Arrange a safe meetup.</p>
+     <p><a href="${link}">View transaction →</a></p>
+     <hr/><p style="color:#888;font-size:12px">Cash on meetup. Meet in a public place, daytime.</p>
+     ${unsubFooter(opts.recipientId, "offers")}`
+  );
+}
+
+export async function emailOfferDeclined(opts: {
+  buyerEmail: string;
+  buyerName:  string;
+  cardName:   string;
+  offerId:    string;
+  buyerId?:   string;
+}) {
+  if (!await canSend(opts.buyerId, "offers")) return;
+  await send(
+    opts.buyerEmail,
+    `Your offer on ${opts.cardName} was declined`,
+    `<p>Hi ${opts.buyerName},</p>
+     <p>The seller declined your offer on <strong>${opts.cardName}</strong>.</p>
+     <p>You can browse other listings or make a new offer.</p>
+     <p><a href="${BASE_URL}/marketplace">Browse marketplace →</a></p>
+     ${unsubFooter(opts.buyerId, "offers")}`
+  );
+}
+
+export async function emailOfferCountered(opts: {
+  buyerEmail:      string;
+  buyerName:       string;
+  sellerName:      string;
+  cardName:        string;
+  counterPrice:    string;
+  counterMessage?: string | null;
+  offerId:         string;
+  buyerId?:        string;
+}) {
+  if (!await canSend(opts.buyerId, "offers")) return;
+  const link = `${BASE_URL}/offers`;
+  await send(
+    opts.buyerEmail,
+    `${opts.sellerName} countered your offer on ${opts.cardName}`,
+    `<p>Hi ${opts.buyerName},</p>
+     <p><strong>${opts.sellerName}</strong> countered your offer on <strong>${opts.cardName}</strong>.</p>
+     <ul>
+       <li>Counter price: <strong>${phpFmt(opts.counterPrice)}</strong></li>
+       ${opts.counterMessage ? `<li>Message: ${opts.counterMessage}</li>` : ""}
+     </ul>
+     <p><a href="${link}">Accept or decline counter →</a></p>
+     ${unsubFooter(opts.buyerId, "offers")}`
+  );
+}
+
+export async function emailCounterDeclined(opts: {
+  sellerEmail: string;
+  sellerName:  string;
+  cardName:    string;
+  offerId:     string;
+  sellerId?:   string;
+}) {
+  if (!await canSend(opts.sellerId, "offers")) return;
+  await send(
+    opts.sellerEmail,
+    `Counter offer declined — ${opts.cardName}`,
+    `<p>Hi ${opts.sellerName},</p>
+     <p>The buyer declined your counter offer on <strong>${opts.cardName}</strong>.</p>
+     <p>Your listing remains active.</p>
+     <p><a href="${BASE_URL}/listings">Manage listings →</a></p>
+     ${unsubFooter(opts.sellerId, "offers")}`
+  );
+}
+
+// ── Wishlist match emails ─────────────────────────────────────────────────────
+
+export async function emailWishlistMatch(opts: {
+  wisherEmail: string;
+  wisherName:  string;
+  cardName:    string;
+  price:       string;
+  listingId:   string;
+  wisherId?:   string;
+}) {
+  if (!await canSend(opts.wisherId, "wishlist")) return;
+  const link       = `${BASE_URL}/listings/${opts.listingId}`;
+  const unsubLink  = opts.wisherId
+    ? `${BASE_URL}/api/unsubscribe?token=${generateUnsubToken(opts.wisherId, "wishlist")}`
+    : `${BASE_URL}/settings`;
+  await send(
+    opts.wisherEmail,
+    `A card on your wishlist is now listed — ${opts.cardName}`,
+    `<p>Hi ${opts.wisherName},</p>
+     <p>A card on your wishlist just got listed on TCGMarket PH.</p>
+     <p><strong>${opts.cardName}</strong> is now available for <strong>${phpFmt(opts.price)}</strong>.</p>
+     <p><a href="${link}">View listing →</a></p>
+     <hr/><p style="color:#888;font-size:12px">You received this because you added this card to your wishlist. <a href="${unsubLink}">Unsubscribe from wishlist alerts</a>.</p>`
+  );
+}
+
+export async function emailSavedSearchMatch(opts: {
+  userEmail:  string;
+  userName:   string;
+  searchName: string;
+  cardName:   string;
+  price:      string;
+  listingId:  string;
+  userId?:    string;
+}) {
+  if (!await canSend(opts.userId, "wishlist")) return;
+  const link      = `${BASE_URL}/listings/${opts.listingId}`;
+  const unsubLink = opts.userId
+    ? `${BASE_URL}/api/unsubscribe?token=${generateUnsubToken(opts.userId, "wishlist")}`
+    : `${BASE_URL}/settings`;
+  await send(
+    opts.userEmail,
+    `New listing matches your search "${opts.searchName}"`,
+    `<p>Hi ${opts.userName},</p>
+     <p>A new listing matches your saved search: <strong>${opts.searchName}</strong>.</p>
+     <p><strong>${opts.cardName}</strong> is now available for <strong>${phpFmt(opts.price)}</strong>.</p>
+     <p><a href="${link}">View listing →</a></p>
+     <hr/><p style="color:#888;font-size:12px">You received this because you saved a search on TCGMarket PH. <a href="${unsubLink}">Unsubscribe from search alerts</a>.</p>`
+  );
+}
